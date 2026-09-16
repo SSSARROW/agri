@@ -9,14 +9,27 @@ from db.supabase import supabase
 router = APIRouter(prefix="/auth", tags=["auth"])
 bearer = HTTPBearer()
 
+# ── Auth guard (reusable dependency) ─────────────────────────
+async def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)):
+    try:
+        payload = decode_token(creds.credentials)
+        return payload
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
 # ── Email/password login ──────────────────────────────────────
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest):
-    res = supabase.table("users").select("*").eq("email", body.email).single().execute()
-    user = res.data
-    if not user or not verify_password(body.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = create_access_token({"sub": user["id"], "role": user["role"], "email": user["email"]})
+    res = supabase.table("users").select("*").eq("email", body.email).execute()
+    if not res.data:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    user = res.data[0]
+    pw_hash = user.get("password_hash")
+    if not pw_hash or not verify_password(body.password, pw_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    token = create_access_token({"sub": str(user["id"]), "role": user["role"], "email": user["email"]})
     return {"access_token": token, "role": user["role"]}
 
 # ── Farmer signup ─────────────────────────────────────────────
@@ -44,8 +57,11 @@ async def signup_farmer(body: FarmerSignupRequest):
         "farm_size_ha": body.farm_size_ha,
     }
     res = supabase.table("users").insert(new_user).execute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to create user record")
+    
     user = res.data[0]
-    token = create_access_token({"sub": user["id"], "role": "farmer", "email": user["email"]})
+    token = create_access_token({"sub": str(user["id"]), "role": "farmer", "email": user["email"]})
     return {"access_token": token, "role": "farmer"}
 
 # ── Exporter signup ───────────────────────────────────────────
@@ -68,8 +84,11 @@ async def signup_exporter(body: ExporterSignupRequest):
         "export_license_no": body.export_license_no,
     }
     res = supabase.table("users").insert(new_user).execute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to create user record")
+        
     user = res.data[0]
-    token = create_access_token({"sub": user["id"], "role": "exporter", "email": user["email"]})
+    token = create_access_token({"sub": str(user["id"]), "role": "exporter", "email": user["email"]})
     return {"access_token": token, "role": "exporter"}
 
 # ── Google OAuth ──────────────────────────────────────────────
@@ -81,7 +100,7 @@ async def google_redirect():
         redirect_uri=f"{settings.FRONTEND_URL}/api/auth/callback/google",
     )
     uri, state = client.create_authorization_url(
-        "https://accounts.google.com/o/oauth2/auth",
+        "https://accounts.google.com/o/oauth2/v2/auth",
         scope="openid email profile"
     )
     return {"url": uri}
@@ -93,30 +112,56 @@ async def google_callback(code: str):
         client_secret=settings.GOOGLE_CLIENT_SECRET,
         redirect_uri=f"{settings.FRONTEND_URL}/api/auth/callback/google",
     )
-    token = await client.fetch_token("https://oauth2.googleapis.com/token", code=code)
-    userinfo = await client.get("https://www.googleapis.com/oauth2/v3/userinfo")
-    info = userinfo.json()
+    try:
+        token = await client.fetch_token("https://oauth2.googleapis.com/token", code=code)
+        userinfo = await client.get("https://www.googleapis.com/oauth2/v3/userinfo")
+        info = userinfo.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Google OAuth exchange failed: {str(e)}")
 
-    # Upsert user
-    existing = supabase.table("users").select("*").eq("google_id", info["sub"]).execute()
+    google_sub = info.get("sub")
+    email = info.get("email")
+    name = info.get("name", email.split("@")[0] if email else "User")
+
+    if not google_sub or not email:
+        raise HTTPException(status_code=400, detail="Failed to retrieve user details from Google")
+
+    # Upsert / Link user
+    existing = supabase.table("users").select("*").eq("google_id", google_sub).execute()
     if existing.data:
         user = existing.data[0]
     else:
-        res = supabase.table("users").insert({
-            "email": info["email"],
-            "name": info["name"],
-            "google_id": info["sub"],
-            "role": "farmer",   # default role — can be updated later
-        }).execute()
-        user = res.data[0]
+        existing_email = supabase.table("users").select("*").eq("email", email).execute()
+        if existing_email.data:
+            user = existing_email.data[0]
+            supabase.table("users").update({"google_id": google_sub}).eq("id", user["id"]).execute()
+        else:
+            res = supabase.table("users").insert({
+                "email": email,
+                "name": name,
+                "google_id": google_sub,
+                "role": "farmer",
+            }).execute()
+            if not res.data:
+                raise HTTPException(status_code=500, detail="Failed to register user")
+            user = res.data[0]
 
-    jwt_token = create_access_token({"sub": user["id"], "role": user["role"], "email": user["email"]})
+    jwt_token = create_access_token({"sub": str(user["id"]), "role": user["role"], "email": user["email"]})
     return {"access_token": jwt_token, "role": user["role"]}
 
-# ── Auth guard (reusable dependency) ─────────────────────────
-async def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)):
-    try:
-        payload = decode_token(creds.credentials)
-        return payload
-    except:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+# ── User Profile ──────────────────────────────────────────────
+@router.get("/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("sub")
+    res = supabase.table("users").select("*").eq("id", user_id).execute()
+    if res.data:
+        u = res.data[0]
+        u.pop("password_hash", None)
+        u.pop("nic_hash", None)
+        u.pop("nic_salt", None)
+        return u
+    return {
+        "id": user_id,
+        "email": current_user.get("email"),
+        "role": current_user.get("role")
+    }
