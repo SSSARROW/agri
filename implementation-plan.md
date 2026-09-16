@@ -22,7 +22,7 @@ Task-by-task build plan for the web app, the mobile field client, the farmer mes
 | Surface | Users | Built as |
 |---|---|---|
 | Web back office | Exporter/processor staff, admins, agronomists | React SPA |
-| Mobile field capture | Collectors, field officers | React PWA, Capacitor-wrapped to APK |
+| Mobile field capture | Collectors, field officers | Flutter, native APK (Android only) |
 | Farmer channel | Farmers | SMS and WhatsApp. **No app.** |
 | Public provenance | Foreign buyers, consumers | Server-rendered page, no login |
 
@@ -68,14 +68,14 @@ Task-by-task build plan for the web app, the mobile field client, the farmer mes
 
 | ID | Task | Size |
 |---|---|---|
-| M-01 | **PWA shell.** React, manifest, service worker with app-shell caching, install prompt. Large tap targets, high-contrast — this is used outdoors in sunlight. **Done when:** it installs to an Android home screen and opens with no network. | M |
-| M-02 | **QR scanner.** Native `BarcodeDetector` where available, `html5-qrcode` as fallback. Continuous scan mode, audible confirmation. **Done when:** ten consecutive labels scan without reloading the page. | M |
-| M-03 | **Offline write queue.** IndexedDB (use Dexie). Every event gets a client UUID at creation. Queue shows pending count. **Done when:** with the device in airplane mode, five events are captured and survive an app restart. | M |
+| M-01 | **App shell.** Flutter, bottom navigation, app theme. Large tap targets, high-contrast — this is used outdoors in sunlight. **Done when:** it installs on an Android device/emulator and opens with no network. | M |
+| M-02 | **QR scanner.** `mobile_scanner` (CameraX/MLKit on Android). Continuous scan mode, audible + haptic confirmation. **Done when:** ten consecutive labels scan without restarting the screen. | M |
+| M-03 | **Offline write queue.** Local storage (Hive). Every event gets a client UUID at creation. Queue shows pending count. **Done when:** with the device in airplane mode, five events are captured and survive an app restart. | M |
 | M-04 | **Sync engine.** Retry with backoff, sync on reconnect, per-item status (pending/synced/failed), manual retry for failures. **Done when:** airplane mode off results in all queued events landing exactly once, verified server-side. | M |
-| M-05 | **Capture flows.** Config-driven forms per event type — collect, weigh, process, grade, pack. One renderer, not five screens. **Done when:** adding a new event type needs a config change only, no new component. | L |
+| M-05 | **Capture flows.** Config-driven forms per event type — collect, weigh, process, grade, pack. One renderer, not five screens. **Done when:** adding a new event type needs a config change only, no new widget. | L |
 | M-06 | **GPS capture.** Coordinates plus accuracy at capture time. Warn above a threshold. Store device time as `occurred_at`; server sets `recorded_at` on sync. **Done when:** an event captured offline retains its true capture time after syncing hours later. | S |
 | M-07 | **PIN login, offline-capable.** OTP registration needs network; daily PIN unlock must not. Session survives weeks without connectivity. **Done when:** a user unlocks and captures with no network for three consecutive days. | M |
-| M-08 | **Capacitor wrap.** Android build, camera and location permissions, signed APK, sideload instructions. **Done when:** the APK installs on a real device and camera + GPS work. | M |
+| M-08 | **Signed release build.** Android build, camera and location permissions, signed APK, sideload instructions. **Done when:** the APK installs on a real device and camera + GPS work. | M |
 
 ---
 
@@ -186,7 +186,7 @@ If time runs short, cut in this order and lose the least:
 2. W-30 protocol builder — seed protocols directly in the database instead
 3. D-05 gradient-boosted model — classical models are enough to demonstrate
 4. B-23 and B-24 full verification — keep only mass balance, which is a `SUM()` and gives the best demo moment
-5. M-08 Capacitor wrap — the PWA demos fine from a URL
+5. M-08 signed release build — a debug APK sideloaded onto the demo device is enough
 6. Milestone 6 entirely — hand-broker the buyer relationship and show it as a roadmap
 
 Do not cut: B-13, M-03, M-04, P-01, B-22.

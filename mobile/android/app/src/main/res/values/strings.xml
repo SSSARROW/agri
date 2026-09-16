@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Agri Field</string>
-    <string name="title_activity_main">Agri Field</string>
-    <string name="package_name">com.agri.field</string>
-    <string name="custom_url_scheme">com.agri.field</string>
-</resources>
