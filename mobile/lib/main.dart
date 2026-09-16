@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/event_queue.dart';
+import 'core/sync_service.dart';
 import 'pages/home_page.dart';
 import 'pages/queue_page.dart';
 import 'pages/scan_page.dart';
@@ -8,6 +9,7 @@ import 'pages/scan_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EventQueue.init();
+  SyncService.instance.start();
   runApp(const AgriFieldApp());
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../core/event_queue.dart';
+import '../core/sync_service.dart';
 
 class QueuePage extends StatelessWidget {
   const QueuePage({super.key});
@@ -32,11 +33,38 @@ class QueuePage extends StatelessWidget {
             const SizedBox(height: 4),
             const Text(
               'Events captured here are written to local storage immediately and synced '
-              'when connectivity returns. This is the foundation for the offline write '
-              'queue (M-03).',
+              'when connectivity returns.',
               style: TextStyle(color: Colors.black54),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<Box<Map>>(
+              valueListenable: EventQueue.listenable(),
+              builder: (context, box, _) {
+                final pending = EventQueue.pendingCount();
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: pending == 0 ? const Color(0xFFE8F5E9) : const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        pending == 0 ? 'All events synced' : '$pending pending sync',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextButton(
+                        onPressed: () => SyncService.instance.retryFailedNow(),
+                        child: const Text('Sync now'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 ElevatedButton(
@@ -85,33 +113,48 @@ class QueuePage extends StatelessWidget {
                       final createdAt = DateTime.parse(e['createdAt'] as String);
                       final timeLabel =
                           '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}:${createdAt.second.toString().padLeft(2, '0')}';
+                      final lastError = e['lastError'] as String?;
                       return Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF5F5F5),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _badgeColor(status),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                status.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: _badgeText(status),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _badgeColor(status),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: _badgeText(status),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 10),
+                                Text(e['eventType'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 8),
+                                Text(timeLabel, style: const TextStyle(color: Colors.black54)),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Text(e['eventType'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(width: 8),
-                            Text(timeLabel, style: const TextStyle(color: Colors.black54)),
+                            if (status == 'failed' && lastError != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                lastError,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 12),
+                              ),
+                            ],
                           ],
                         ),
                       );

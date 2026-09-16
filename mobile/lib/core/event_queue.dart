@@ -29,6 +29,9 @@ class EventQueue {
       'occurredAt': now,
       'status': 'pending',
       'createdAt': now,
+      'attempts': 0,
+      'lastError': null,
+      'nextRetryAt': null,
     });
   }
 
@@ -38,6 +41,52 @@ class EventQueue {
       (a, b) => (b['createdAt'] as String).compareTo(a['createdAt'] as String),
     );
     return items;
+  }
+
+  static int pendingCount() =>
+      _box.values.where((e) => e['status'] != 'synced').length;
+
+  static List<Map> dueForSync() {
+    final now = DateTime.now();
+    return _box.values.where((e) {
+      if (e['status'] == 'synced') return false;
+      final nextRetryAt = e['nextRetryAt'] as String?;
+      if (nextRetryAt == null) return true;
+      return now.isAfter(DateTime.parse(nextRetryAt));
+    }).toList();
+  }
+
+  static Future<void> markSynced(String id) async {
+    final event = _box.get(id);
+    if (event == null) return;
+    await _box.put(id, {
+      ...Map<String, dynamic>.from(event),
+      'status': 'synced',
+      'lastError': null,
+      'nextRetryAt': null,
+    });
+  }
+
+  static Future<void> markFailed(String id, String error) async {
+    final event = _box.get(id);
+    if (event == null) return;
+    final attempts = ((event['attempts'] as int?) ?? 0) + 1;
+    final backoffSeconds = attempts.clamp(1, 6) * attempts.clamp(1, 6) * 2; // 2,8,18,32,50,72s
+    await _box.put(id, {
+      ...Map<String, dynamic>.from(event),
+      'status': 'failed',
+      'attempts': attempts,
+      'lastError': error,
+      'nextRetryAt': DateTime.now().add(Duration(seconds: backoffSeconds)).toIso8601String(),
+    });
+  }
+
+  /// Clears backoff timers on failed items so the next sync pass retries
+  /// them immediately, regardless of how long is left to wait.
+  static Future<void> resetRetryTimers() async {
+    for (final event in _box.values.where((e) => e['status'] == 'failed')) {
+      await _box.put(event['id'], {...Map<String, dynamic>.from(event), 'nextRetryAt': null});
+    }
   }
 
   static Future<void> clear() => _box.clear();

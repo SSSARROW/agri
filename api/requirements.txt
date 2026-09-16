@@ -3,3 +3,8 @@ uvicorn[standard]
 pydantic-settings
 python-multipart
 structlog
+sqlalchemy[asyncio]
+asyncpg
+alembic
+geoalchemy2
+shapely
