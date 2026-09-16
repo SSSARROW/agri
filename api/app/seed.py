@@ -1,19 +1,24 @@
-"""Seed script (B-04): one district, 20 plots, 15 actors, 30 batches with
-plausible event chains. Run with `python -m app.seed` against a fresh
-database — it refuses to run if actors already exist, to avoid duplicating
-demo data on a second run.
+"""Seed script (B-04): one district, 20 plots, 30 batches with plausible
+event chains. Run with `python -m app.seed` against a fresh database — it
+refuses to run if plots already exist, to avoid duplicating demo data on a
+second run.
+
+People are not seeded here — `public.users` (Supabase, owned by the auth
+team) is the source of truth for actors. Plot ownership and event
+attribution use whatever real users already exist there; if none do yet,
+those foreign keys are left null rather than fabricating accounts in
+someone else's auth table.
 """
 import asyncio
-import hashlib
+import math
 import random
-import string
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from geoalchemy2.elements import WKTElement
-from sqlalchemy import select
+from sqlalchemy import select, text
 
-from app.db.models import Actor, Batch, Event, Plot
+from app.db.models import Batch, Event, Plot
 from app.db.session import async_session_factory
 
 random.seed(42)
@@ -29,25 +34,12 @@ CROP = "Tea"
 # Unambiguous code alphabet — no 0/O, 1/I/L, so a code stays readable aloud.
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
-FARMER_NAMES = [
-    "K.M. Bandara", "R.A. Dissanayake", "S. Pathirana", "W.A. Kumari",
-    "M.G. Senaratne", "P.K. Wijesinghe", "A.M. Herath", "D.S. Rathnayake",
-]
-COLLECTOR_NAMES = ["N. Fernando", "T. Jayasuriya", "C. Perera"]
-PROCESSOR_NAMES = ["Nuwara Eliya Tea Factory", "Kandapola Processing Centre"]
-EXPORTER_NAMES = ["Ceylon Highland Exports Ltd"]
-AUDITOR_NAMES = ["Lanka Standards Audit"]
-
-
-def hash_nic(nic: str) -> str:
-    return hashlib.sha256(nic.encode()).hexdigest()
-
 
 def make_square_polygon(center_lat: float, center_lon: float, side_m: float) -> tuple[WKTElement, float]:
     """A small square plot around (center_lat, center_lon). Returns (geometry, area_ha)."""
     half = side_m / 2
     dlat = half / 111_320  # metres per degree latitude, ~constant
-    dlon = half / (111_320 * abs(__import__("math").cos(__import__("math").radians(center_lat))))
+    dlon = half / (111_320 * abs(math.cos(math.radians(center_lat))))
     corners = [
         (center_lon - dlon, center_lat - dlat),
         (center_lon + dlon, center_lat - dlat),
@@ -64,30 +56,20 @@ def make_batch_code() -> str:
     return "".join(random.choices(CODE_ALPHABET, k=6))
 
 
+def pick_user(user_ids: list[uuid.UUID]) -> uuid.UUID | None:
+    return random.choice(user_ids) if user_ids else None
+
+
 async def seed() -> None:
     async with async_session_factory() as session:
-        existing = (await session.execute(select(Actor.id).limit(1))).first()
+        existing = (await session.execute(select(Plot.id).limit(1))).first()
         if existing:
-            print("Actors already exist — refusing to reseed. Reset the database first if you want fresh demo data.")
+            print("Plots already exist — refusing to reseed. Reset the database first if you want fresh demo data.")
             return
 
-        actors: list[Actor] = []
-        for i, name in enumerate(FARMER_NAMES):
-            actors.append(Actor(role="farmer", name=name, phone=f"+9477{1000000 + i}", nic_hash=hash_nic(f"NIC{i:06d}")))
-        for i, name in enumerate(COLLECTOR_NAMES):
-            actors.append(Actor(role="collector", name=name, phone=f"+9471{2000000 + i}", nic_hash=hash_nic(f"NICC{i:06d}")))
-        for i, name in enumerate(PROCESSOR_NAMES):
-            actors.append(Actor(role="processor", name=name, phone=f"+9472{3000000 + i}"))
-        for i, name in enumerate(EXPORTER_NAMES):
-            actors.append(Actor(role="exporter", name=name, phone=f"+9473{4000000 + i}"))
-        for i, name in enumerate(AUDITOR_NAMES):
-            actors.append(Actor(role="auditor", name=name, phone=f"+9474{5000000 + i}"))
-        session.add_all(actors)
-        await session.flush()
-
-        farmers = [a for a in actors if a.role == "farmer"]
-        collectors = [a for a in actors if a.role == "collector"]
-        processors = [a for a in actors if a.role == "processor"]
+        user_ids = [row[0] for row in (await session.execute(text("SELECT id FROM users")))]
+        if not user_ids:
+            print("No rows in public.users yet — plots/events will be seeded with no owner/actor attributed.")
 
         plots: list[Plot] = []
         for i in range(20):
@@ -97,7 +79,7 @@ async def seed() -> None:
             geometry, area_ha = make_square_polygon(CENTER_LAT + offset_lat, CENTER_LON + offset_lon, side_m)
             plots.append(
                 Plot(
-                    owner_actor_id=random.choice(farmers).id,
+                    owner_user_id=pick_user(user_ids),
                     geometry=geometry,
                     area_ha=area_ha,
                     district=DISTRICT,
@@ -147,26 +129,26 @@ async def seed() -> None:
             # offset, so no event in the chain can land in the future.
             planted_at = now - timedelta(days=random.randint(100, 150))
             plot_id = batch.plot_id
-            farmer = next((p.owner_actor_id for p in plots if p.id == plot_id), random.choice(farmers).id)
+            owner = next((p.owner_user_id for p in plots if p.id == plot_id), None)
 
             chain = [
-                ("planted", farmer, planted_at),
-                ("collect", random.choice(collectors).id, planted_at + timedelta(days=random.randint(45, 80))),
+                ("planted", owner, planted_at),
+                ("collect", pick_user(user_ids), planted_at + timedelta(days=random.randint(45, 80))),
             ]
             collect_at = chain[-1][2]
             chain += [
-                ("weigh", random.choice(processors).id, collect_at + timedelta(hours=random.randint(1, 6))),
-                ("process", random.choice(processors).id, collect_at + timedelta(hours=random.randint(6, 24))),
-                ("grade", random.choice(processors).id, collect_at + timedelta(days=random.randint(1, 3))),
-                ("pack", random.choice(processors).id, collect_at + timedelta(days=random.randint(3, 5))),
+                ("weigh", pick_user(user_ids), collect_at + timedelta(hours=random.randint(1, 6))),
+                ("process", pick_user(user_ids), collect_at + timedelta(hours=random.randint(6, 24))),
+                ("grade", pick_user(user_ids), collect_at + timedelta(days=random.randint(1, 3))),
+                ("pack", pick_user(user_ids), collect_at + timedelta(days=random.randint(3, 5))),
             ]
 
-            for event_type, actor_id, occurred_at in chain:
+            for event_type, user_id, occurred_at in chain:
                 events.append(
                     Event(
                         id=uuid.uuid4(),
                         event_type=event_type,
-                        actor_id=actor_id,
+                        user_id=user_id,
                         batch_id=batch.id if event_type != "planted" else None,
                         plot_id=plot_id if event_type == "planted" else None,
                         payload={"crop": CROP, "batch_code": batch.code},
@@ -177,8 +159,8 @@ async def seed() -> None:
 
         await session.commit()
         print(
-            f"Seeded {len(actors)} actors, {len(plots)} plots, {len(all_batches)} batches, "
-            f"{len(events)} events."
+            f"Seeded {len(plots)} plots, {len(all_batches)} batches, {len(events)} events "
+            f"(attributed to {len(user_ids)} existing users)."
         )
 
 

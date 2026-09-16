@@ -6,7 +6,6 @@ from sqlalchemy import (
     ARRAY,
     Boolean,
     DateTime,
-    Enum,
     Float,
     ForeignKey,
     Numeric,
@@ -21,36 +20,28 @@ class Base(DeclarativeBase):
     pass
 
 
-ActorRole = Enum(
-    "farmer",
-    "collector",
-    "processor",
-    "exporter",
-    "auditor",
-    "admin",
-    name="actor_role",
-)
+# People are owned by the auth team's `public.users` table (Supabase), not a
+# table of ours — no local `actor` table. Its `role` enum currently only has
+# admin/farmer/exporter; collector/processor/auditor aren't login-backed yet,
+# so user_id below is intentionally nullable and role-agnostic.
+#
+# This stub only declares the column our FKs point at. It exists purely so
+# SQLAlchemy's ORM can resolve those FKs (insert ordering etc.) — we never
+# create/alter this table ourselves, and migrations/env.py excludes it from
+# autogenerate so a future `alembic revision --autogenerate` never proposes
+# "fixing" the real users table to match this stub.
+class User(Base):
+    __tablename__ = "users"
 
-
-class Actor(Base):
-    __tablename__ = "actor"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    role: Mapped[str] = mapped_column(ActorRole, nullable=False)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    phone: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
-    # NIC is stored hashed (e.g. sha256 hex digest) — the plaintext number is
-    # never persisted or returned by any endpoint.
-    nic_hash: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
 
 
 class Plot(Base):
     __tablename__ = "plot"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_actor_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("actor.id"), nullable=True
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     geometry = mapped_column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     area_ha: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
@@ -82,7 +73,7 @@ class Event(Base):
     # no-op — this is what makes offline sync idempotent (see B-13).
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     event_type: Mapped[str] = mapped_column(String, nullable=False)
-    actor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("actor.id"), nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("batch.id"), nullable=True)
     plot_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("plot.id"), nullable=True)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

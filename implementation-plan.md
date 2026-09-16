@@ -34,7 +34,7 @@ Task-by-task build plan for the web app, the mobile field client, the farmer mes
 
 | ID | Task | Size |
 |---|---|---|
-| OPS-01 | **Repo and local environment.** Monorepo: `/api`, `/web`, `/mobile`, `/data`, `/infra`. Docker Compose with Postgres + PostGIS. `.env.example` committed, real `.env` never. **Done when:** a fresh clone runs with one command. | S |
+| OPS-01 | **Repo and local environment.** Monorepo: `/api`, `/web`, `/mobile`, `/data`, `/infra`. Database is Supabase Postgres (shared with the auth team) — `infra/docker-compose.yml` still provisions local Postgres+PostGIS as an offline fallback. `.env.example` committed, real `.env` never. **Done when:** a fresh clone runs with one command. | S |
 | OPS-02 | **Deploy target.** Single VPS, Docker, nginx, TLS via Let's Encrypt, one staging environment. GitHub Actions on merge to main. **Done when:** a push deploys automatically and you can hit the health endpoint over HTTPS. | M |
 | B-01 | **FastAPI skeleton.** Settings via pydantic-settings, structured logging, consistent error envelope, `/health`, OpenAPI docs on. **Done when:** `/health` returns 200 and docs render. | S |
 | B-02 | **Schema v1 + Alembic.** Tables: `actor`, `plot`, `batch`, `event`, `scan`. PostGIS enabled, spatial index on `plot.geometry`. Append-only enforced with a trigger blocking UPDATE and DELETE on `event`. **Done when:** migrations run clean up and down, and a manual UPDATE on `event` is rejected. | M |

@@ -1,4 +1,4 @@
-"""schema v1: actor, plot, batch, event, scan
+"""schema v1: plot, batch, event, scan
 
 Revision ID: 88b32a1e5167
 Revises:
@@ -21,25 +21,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        'actor',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column(
-            'role',
-            sa.Enum('farmer', 'collector', 'processor', 'exporter', 'auditor', 'admin', name='actor_role'),
-            nullable=False,
-        ),
-        sa.Column('name', sa.String(), nullable=False),
-        sa.Column('phone', sa.String(), nullable=True),
-        sa.Column('nic_hash', sa.String(), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('phone'),
-    )
+    # People live in `public.users` (Supabase, owned by the auth team) — no
+    # local actor table. owner_user_id/user_id below reference it directly.
     op.create_table(
         'plot',
         sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('owner_actor_id', sa.UUID(), nullable=True),
+        sa.Column('owner_user_id', sa.UUID(), nullable=True),
         sa.Column(
             'geometry',
             geoalchemy2.types.Geometry(geometry_type='POLYGON', srid=4326, from_text='ST_GeomFromEWKT', name='geometry'),
@@ -50,7 +37,7 @@ def upgrade() -> None:
         sa.Column('dsd', sa.String(), nullable=True),
         sa.Column('gn_division', sa.String(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.ForeignKeyConstraint(['owner_actor_id'], ['actor.id']),
+        sa.ForeignKeyConstraint(['owner_user_id'], ['users.id']),
         sa.PrimaryKeyConstraint('id'),
     )
     # GeoAlchemy2's Geometry type auto-creates a GIST spatial index via an
@@ -71,13 +58,13 @@ def upgrade() -> None:
         'event',
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('event_type', sa.String(), nullable=False),
-        sa.Column('actor_id', sa.UUID(), nullable=True),
+        sa.Column('user_id', sa.UUID(), nullable=True),
         sa.Column('batch_id', sa.UUID(), nullable=True),
         sa.Column('plot_id', sa.UUID(), nullable=True),
         sa.Column('payload', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column('occurred_at', sa.DateTime(timezone=True), nullable=False),
         sa.Column('recorded_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.ForeignKeyConstraint(['actor_id'], ['actor.id']),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id']),
         sa.ForeignKeyConstraint(['batch_id'], ['batch.id']),
         sa.ForeignKeyConstraint(['plot_id'], ['plot.id']),
         sa.PrimaryKeyConstraint('id'),
@@ -132,5 +119,3 @@ def downgrade() -> None:
     op.drop_table('event')
     op.drop_table('batch')
     op.drop_table('plot')
-    op.drop_table('actor')
-    op.execute("DROP TYPE IF EXISTS actor_role;")

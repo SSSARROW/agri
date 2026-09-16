@@ -9,7 +9,7 @@ class EventCreate(BaseModel):
     # twice must create exactly one row (B-13).
     id: uuid.UUID
     event_type: str
-    actor_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
     batch_id: uuid.UUID | None = None
     plot_id: uuid.UUID | None = None
     payload: dict = {}
@@ -21,7 +21,7 @@ class EventOut(BaseModel):
 
     id: uuid.UUID
     event_type: str
-    actor_id: uuid.UUID | None
+    user_id: uuid.UUID | None
     batch_id: uuid.UUID | None
     plot_id: uuid.UUID | None
     payload: dict

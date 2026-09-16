@@ -48,7 +48,7 @@ async def create_event(
         .values(
             id=body.id,
             event_type=body.event_type,
-            actor_id=body.actor_id,
+            user_id=body.user_id,
             batch_id=body.batch_id,
             plot_id=body.plot_id,
             payload=body.payload,
@@ -64,7 +64,7 @@ async def create_event(
         await db.rollback()
         raise AppError(
             code="invalid_reference",
-            message="actor_id, batch_id or plot_id does not reference an existing row.",
+            message="user_id, batch_id or plot_id does not reference an existing row.",
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         ) from exc
 
