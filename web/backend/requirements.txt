@@ -1,13 +1,12 @@
-Collecting fastapi
-  Using cached fastapi-0.141.1-py3-none-any.whl.metadata (27 kB)
-Collecting python-multipart
-  Using cached python_multipart-0.0.32-py3-none-any.whl.metadata (2.1 kB)
-Collecting supabase
-  Using cached supabase-2.31.0-py3-none-any.whl.metadata (4.7 kB)
-Collecting httpx
-  Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
-Collecting python-dotenv
-  Using cached python_dotenv-1.2.3-py3-none-any.whl.metadata (29 kB)
-Collecting authlib
-  Using cached authlib-1.8.0-py2.py3-none-any.whl.metadata (10 kB)
-Requirement already satisfied: pip in c:\users\sasmitha\desktop\agri\web\backend\venv\lib\site-packages (24.0)
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+python-multipart>=0.0.9
+supabase>=2.31.0
+httpx>=0.27.0
+python-dotenv>=1.0.1
+pydantic[email]>=2.6.0
+email-validator>=2.1.0
+pydantic-settings>=2.2.0
+authlib>=1.3.0
+bcrypt>=4.1.2
+python-jose[cryptography]>=3.3.0
