@@ -1,10 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import CurrentUser, require_role
 from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.db.models import Event
@@ -88,6 +90,19 @@ async def create_event(
 
     response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
     return event
+
+
+@router.get("", response_model=list[EventOut])
+async def list_events(
+    batch_id: uuid.UUID = Query(...),
+    _: CurrentUser = Depends(require_role("admin", "exporter")),
+    db: AsyncSession = Depends(get_db),
+) -> list[Event]:
+    """Full event history for one batch — the admin/exporter batch detail
+    view (dev2). The public equivalent is GET /provenance/{batch_code},
+    which also walks lineage and strips location fields."""
+    result = await db.execute(select(Event).where(Event.batch_id == batch_id).order_by(Event.occurred_at))
+    return list(result.scalars().all())
 
 
 @router.get("/{event_id}", response_model=EventOut)

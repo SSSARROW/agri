@@ -5,7 +5,7 @@ from geoalchemy2.shape import to_shape
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import CurrentUser, get_current_user
+from app.core.auth import CurrentUser, get_current_user, require_role
 from app.core.geo import make_square_polygon
 from app.db.models import Plot
 from app.db.session import get_db
@@ -35,6 +35,17 @@ async def list_my_plots(
     db: AsyncSession = Depends(get_db),
 ) -> list[PlotOut]:
     result = await db.execute(select(Plot).where(Plot.owner_user_id == current_user.id))
+    return [to_plot_out(p) for p in result.scalars().all()]
+
+
+@router.get("", response_model=list[PlotOut])
+async def list_all_plots(
+    _: CurrentUser = Depends(require_role("admin", "exporter")),
+    db: AsyncSession = Depends(get_db),
+) -> list[PlotOut]:
+    """Unscoped — for the admin/exporter map view (dev2). Every farmer's
+    plot, not just the caller's own."""
+    result = await db.execute(select(Plot))
     return [to_plot_out(p) for p in result.scalars().all()]
 
 

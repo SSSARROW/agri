@@ -22,7 +22,12 @@ class Settings(BaseSettings):
     # different purpose (batch code checksums, not token signing).
     batch_code_secret: str = "dev-only-insecure-batch-code-secret-change-me"
 
-    cors_origins: list[str] = ["http://localhost:5173", "capacitor://localhost", "http://localhost"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "capacitor://localhost",
+        "http://localhost",
+    ]
 
     log_level: str = "INFO"
 
