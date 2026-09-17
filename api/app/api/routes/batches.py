@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends
+import uuid
+
+from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import CurrentUser, get_current_user
+from app.core.codegen import generate_batch_code
+from app.core.config import get_settings
+from app.core.errors import AppError
 from app.db.models import Batch, Event, Plot
 from app.db.session import get_db
-from app.schemas.batch import BatchOut
+from app.schemas.batch import BatchCreate, BatchOut
 
 router = APIRouter(prefix="/batches", tags=["batches"])
 
@@ -47,3 +53,52 @@ async def list_my_batches(
         )
     out.sort(key=lambda b: b.created_at, reverse=True)
     return out
+
+
+@router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
+async def create_batch(
+    body: BatchCreate,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> BatchOut:
+    plot = await db.get(Plot, body.plot_id)
+    if plot is None:
+        raise AppError(code="not_found", message="Plot not found.", status_code=status.HTTP_404_NOT_FOUND)
+    if plot.owner_user_id != current_user.id:
+        raise AppError(
+            code="forbidden",
+            message="You do not own this plot.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    settings = get_settings()
+    batch = Batch(id=uuid.uuid4(), crop=body.crop, plot_id=plot.id, code="")
+
+    # Codes are random (see codegen.py) — a collision is astronomically
+    # unlikely but the unique constraint plus a short retry loop makes the
+    # rare case safe rather than a 500.
+    for _ in range(5):
+        batch.code = generate_batch_code(settings.batch_code_secret)
+        db.add(batch)
+        try:
+            await db.commit()
+            break
+        except IntegrityError:
+            await db.rollback()
+    else:
+        raise AppError(
+            code="internal_error",
+            message="Could not generate a unique batch code — try again.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    await db.refresh(batch)
+    return BatchOut(
+        id=batch.id,
+        code=batch.code,
+        crop=batch.crop,
+        plot_id=batch.plot_id,
+        created_at=batch.created_at,
+        latest_status="registered",
+        latest_occurred_at=None,
+    )

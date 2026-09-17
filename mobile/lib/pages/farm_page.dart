@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../core/auth_service.dart';
@@ -217,6 +218,70 @@ class _FarmPageState extends State<FarmPage> {
     );
   }
 
+  Future<void> _registerBatch(Plot plot) async {
+    final cropController = TextEditingController(text: 'Tea');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Register a batch'),
+        content: TextField(
+          controller: cropController,
+          decoration: const InputDecoration(labelText: 'Crop'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Register')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // Unlike a planting record, a batch code is issued by the server — it
+    // can't be queued offline the way events can, since there's nothing
+    // meaningful to show the farmer until the server hands back a real code.
+    final result = await FarmService.createBatch(plotId: plot.id, crop: cropController.text.trim());
+    if (!mounted) return;
+
+    if (!result.isOk || result.data == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
+      return;
+    }
+
+    final code = result.data!.code;
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Batch registered'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Give this code to your collector, or write it on the batch:'),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                code,
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: code));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied.')));
+            },
+            child: const Text('Copy'),
+          ),
+          ElevatedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -286,13 +351,22 @@ class _FarmPageState extends State<FarmPage> {
                                       style: const TextStyle(color: Colors.black54, fontSize: 13),
                                     ),
                                     const SizedBox(height: 10),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: OutlinedButton.icon(
-                                        onPressed: () => _recordPlanting(plot),
-                                        icon: const Icon(Icons.eco_outlined, size: 18),
-                                        label: const Text('Record planting'),
-                                      ),
+                                    Wrap(
+                                      alignment: WrapAlignment.end,
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          onPressed: () => _recordPlanting(plot),
+                                          icon: const Icon(Icons.eco_outlined, size: 18),
+                                          label: const Text('Record planting'),
+                                        ),
+                                        OutlinedButton.icon(
+                                          onPressed: () => _registerBatch(plot),
+                                          icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                                          label: const Text('Register batch'),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

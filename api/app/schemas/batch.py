@@ -4,6 +4,11 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class BatchCreate(BaseModel):
+    plot_id: uuid.UUID
+    crop: str
+
+
 class BatchOut(BaseModel):
     id: uuid.UUID
     code: str

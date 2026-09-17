@@ -64,6 +64,25 @@ class FarmService {
     }
   }
 
+  static Future<FarmResult<Batch>> createBatch({
+    required String plotId,
+    required String crop,
+  }) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/batches'),
+            headers: _authHeaders,
+            body: jsonEncode({'plot_id': plotId, 'crop': crop}),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 201) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      return FarmResult.ok(Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>));
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
   static Future<FarmResult<List<Batch>>> myBatches() async {
     try {
       final res = await http

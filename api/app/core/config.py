@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-only-insecure-secret-change-me"
     jwt_algorithm: str = "HS256"
 
+    # Separate from jwt_secret on purpose — a different secret for a
+    # different purpose (batch code checksums, not token signing).
+    batch_code_secret: str = "dev-only-insecure-batch-code-secret-change-me"
+
     cors_origins: list[str] = ["http://localhost:5173", "capacitor://localhost", "http://localhost"]
 
     log_level: str = "INFO"
