@@ -72,7 +72,7 @@ class _RootShellState extends State<RootShell> {
     // initializes once the user actually opens it, and releases it on leaving.
     final page = switch (_index) {
       0 => FarmPage(onLoggedOut: widget.onLoggedOut),
-      1 => const BatchesPage(),
+      1 => BatchesPage(onLoggedOut: widget.onLoggedOut),
       2 => const ScanPage(),
       _ => const QueuePage(),
     };

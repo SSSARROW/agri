@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../core/auth_service.dart';
 import '../core/farm_service.dart';
 import '../models/batch.dart';
 
 class BatchesPage extends StatefulWidget {
-  const BatchesPage({super.key});
+  final VoidCallback onLoggedOut;
+  const BatchesPage({super.key, required this.onLoggedOut});
 
   @override
   State<BatchesPage> createState() => _BatchesPageState();
@@ -23,11 +25,17 @@ class _BatchesPageState extends State<BatchesPage> {
   Future<void> _load() async {
     final result = await FarmService.myBatches();
     if (!mounted) return;
+    if (!result.isOk && (result.error ?? '').startsWith('HTTP 401')) {
+      await AuthService.instance.logout();
+      widget.onLoggedOut();
+      return;
+    }
     setState(() {
       if (result.isOk) {
         _batches = result.data;
         _error = null;
       } else {
+        _batches = [];
         _error = result.error;
       }
     });

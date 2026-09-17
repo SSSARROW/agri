@@ -28,38 +28,85 @@ class _FarmPageState extends State<FarmPage> {
   Future<void> _load() async {
     final result = await FarmService.myPlots();
     if (!mounted) return;
+    if (!result.isOk && (result.error ?? '').startsWith('HTTP 401')) {
+      await AuthService.instance.logout();
+      widget.onLoggedOut();
+      return;
+    }
     setState(() {
       if (result.isOk) {
         _plots = result.data;
         _error = null;
       } else {
+        _plots = [];
         _error = result.error;
       }
     });
   }
 
+  void _showSnack(BuildContext context, String message) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  /// geolocator_android's plugin calls can hang indefinitely with zero
+  /// Android-level symptoms (no ANR — the platform thread itself isn't
+  /// blocked, the native async call to Play Services location just never
+  /// completes). Every call here gets its own timeout so a bad location
+  /// fix, a cold/rebooted device, or the plugin's known NmeaClient.stop()
+  /// ANR (baseflow/flutter-geolocator#...) can never leave this button
+  /// silently stuck with no feedback.
   Future<Position?> _getCurrentPosition(BuildContext context) async {
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+    LocationPermission permission;
+    try {
+      permission = await Geolocator.checkPermission().timeout(const Duration(seconds: 5));
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission().timeout(const Duration(seconds: 30));
+      }
+    } catch (_) {
+      _showSnack(context, 'Could not check location permission. Try again.');
+      return null;
     }
     if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permission is required to register a plot.')),
-        );
-      }
+      _showSnack(context, 'Location permission is required to register a plot.');
       return null;
     }
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Turn on location services to register a plot.')),
-        );
+
+    try {
+      if (!await Geolocator.isLocationServiceEnabled().timeout(const Duration(seconds: 5))) {
+        _showSnack(context, 'Turn on location services to register a plot.');
+        return null;
       }
+    } catch (_) {
+      _showSnack(context, 'Could not check location services. Try again.');
       return null;
     }
-    return Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+
+    // Prefer the cached last-known fix: geolocator_android's getCurrentPosition
+    // starts a live GNSS listener and then tears it down, and that teardown
+    // (NmeaClient.stop -> LocationManager.removeNmeaListener) is a known
+    // upstream ANR — a synchronous Binder call on the main thread that can
+    // hang for several seconds. getLastKnownPosition never touches that path.
+    try {
+      final lastKnown = await Geolocator.getLastKnownPosition().timeout(const Duration(seconds: 5));
+      if (lastKnown != null) return lastKnown;
+    } catch (_) {
+      // Fall through to a live fix below.
+    }
+
+    // No cached fix to fall back on — ask for a live one, but never hang the
+    // UI indefinitely: no fix at all (weak signal, indoors, this emulator's
+    // GPS simulator) must fail loudly rather than leave the button spinning
+    // forever with no feedback.
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 10)),
+      ).timeout(const Duration(seconds: 12));
+    } catch (_) {
+      _showSnack(context, 'Could not get a GPS fix. Move somewhere with a clearer view of the sky and try again.');
+      return null;
+    }
   }
 
   Future<void> _registerPlot() async {
