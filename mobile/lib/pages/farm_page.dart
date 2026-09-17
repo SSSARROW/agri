@@ -186,7 +186,16 @@ class _FarmPageState extends State<FarmPage> {
     }
   }
 
+  // Above this accuracy (metres), warn the farmer rather than silently
+  // recording a fix that's not trustworthy at plot scale (M-06).
+  static const _poorAccuracyMeters = 50.0;
+
   Future<void> _recordPlanting(Plot plot) async {
+    // Kick off location capture in the background while the farmer is still
+    // filling in the dialog, so it's usually already resolved by the time
+    // they hit Save instead of adding its own visible wait afterward.
+    final positionFuture = _getCurrentPosition(context);
+
     final cropController = TextEditingController(text: 'Tea');
     final confirmed = await showDialog<bool>(
       context: context,
@@ -205,17 +214,32 @@ class _FarmPageState extends State<FarmPage> {
     );
     if (confirmed != true) return;
 
+    // GPS is supplementary provenance data here, not a requirement — a
+    // planting record must still save even with no fix (indoors, permission
+    // denied, this emulator's flaky GPS simulator, etc).
+    final position = await positionFuture;
+    final payload = <String, dynamic>{'crop': cropController.text.trim()};
+    if (position != null) {
+      payload['lat'] = position.latitude;
+      payload['lon'] = position.longitude;
+      payload['accuracy_m'] = position.accuracy;
+    }
+
     await EventQueue.add(
       eventType: 'planted',
-      payload: {'crop': cropController.text.trim()},
+      payload: payload,
       userId: AuthService.instance.userId,
       plotId: plot.id,
     );
     SyncService.instance.syncNow();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Planting recorded — queued for sync.')),
-    );
+
+    final message = position == null
+        ? 'Planting recorded (no GPS fix) — queued for sync.'
+        : position.accuracy > _poorAccuracyMeters
+            ? 'Planting recorded — queued for sync. GPS accuracy was low (±${position.accuracy.round()}m).'
+            : 'Planting recorded — queued for sync.';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _registerBatch(Plot plot) async {

@@ -25,15 +25,23 @@ REQUIRED_PAYLOAD_KEYS: dict[str, set[str]] = {
 
 def validate_payload(event_type: str, payload: dict) -> None:
     required = REQUIRED_PAYLOAD_KEYS.get(event_type)
-    if not required:
-        return
-    missing = required - payload.keys()
-    if missing:
-        raise AppError(
-            code="invalid_payload",
-            message=f"event_type '{event_type}' payload is missing required fields: {sorted(missing)}",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+    if required:
+        missing = required - payload.keys()
+        if missing:
+            raise AppError(
+                code="invalid_payload",
+                message=f"event_type '{event_type}' payload is missing required fields: {sorted(missing)}",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+    # GPS capture (M-06) is optional best-effort provenance data on any event
+    # type, not a fixed field of the schema — but if it's there, it should be
+    # a real coordinate rather than garbage from a misbehaving client.
+    lat, lon = payload.get("lat"), payload.get("lon")
+    if lat is not None and not (isinstance(lat, (int, float)) and -90 <= lat <= 90):
+        raise AppError(code="invalid_payload", message="payload.lat must be between -90 and 90.", status_code=422)
+    if lon is not None and not (isinstance(lon, (int, float)) and -180 <= lon <= 180):
+        raise AppError(code="invalid_payload", message="payload.lon must be between -180 and 180.", status_code=422)
 
 
 @router.post("", response_model=EventOut)
