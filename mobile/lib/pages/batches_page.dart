@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../core/auth_service.dart';
 import '../core/farm_service.dart';
 import '../models/batch.dart';
 
 class BatchesPage extends StatefulWidget {
-  final VoidCallback onLoggedOut;
-  const BatchesPage({super.key, required this.onLoggedOut});
+  const BatchesPage({super.key});
 
   @override
   State<BatchesPage> createState() => _BatchesPageState();
@@ -25,18 +23,16 @@ class _BatchesPageState extends State<BatchesPage> {
   Future<void> _load() async {
     final result = await FarmService.myBatches();
     if (!mounted) return;
-    if (!result.isOk && (result.error ?? '').startsWith('HTTP 401')) {
-      await AuthService.instance.logout();
-      widget.onLoggedOut();
-      return;
-    }
+    // See farm_page.dart's _load() for why a 401 doesn't force a re-login.
     setState(() {
       if (result.isOk) {
         _batches = result.data;
         _error = null;
       } else {
-        _batches = [];
-        _error = result.error;
+        _batches = _batches ?? [];
+        _error = (result.error ?? '').startsWith('HTTP 401')
+            ? 'Your session needs refreshing — reconnect and log in again to sync new batches.'
+            : result.error;
       }
     });
   }

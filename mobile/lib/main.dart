@@ -6,6 +6,8 @@ import 'core/sync_service.dart';
 import 'pages/batches_page.dart';
 import 'pages/farm_page.dart';
 import 'pages/login_page.dart';
+import 'pages/pin_setup_page.dart';
+import 'pages/pin_unlock_page.dart';
 import 'pages/queue_page.dart';
 import 'pages/scan_page.dart';
 
@@ -46,12 +48,28 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
+  // Whether the PIN (or a fresh network login) has already proven identity
+  // for this app process — resets to false on every cold start, which is
+  // exactly the point: a stored token alone should never skip the PIN.
+  bool _unlockedThisLaunch = false;
+
   @override
   Widget build(BuildContext context) {
-    if (!AuthService.instance.isLoggedIn) {
+    final auth = AuthService.instance;
+
+    if (!auth.isLoggedIn) {
       return LoginPage(onLoggedIn: () => setState(() {}));
     }
-    return RootShell(onLoggedOut: () => setState(() {}));
+    if (!auth.hasPin) {
+      return PinSetupPage(onDone: () => setState(() => _unlockedThisLaunch = true));
+    }
+    if (!_unlockedThisLaunch) {
+      return PinUnlockPage(
+        onUnlocked: () => setState(() => _unlockedThisLaunch = true),
+        onUseEmailInstead: () => setState(() {}),
+      );
+    }
+    return RootShell(onLoggedOut: () => setState(() => _unlockedThisLaunch = false));
   }
 }
 
@@ -72,7 +90,7 @@ class _RootShellState extends State<RootShell> {
     // initializes once the user actually opens it, and releases it on leaving.
     final page = switch (_index) {
       0 => FarmPage(onLoggedOut: widget.onLoggedOut),
-      1 => BatchesPage(onLoggedOut: widget.onLoggedOut),
+      1 => const BatchesPage(),
       2 => const ScanPage(),
       _ => const QueuePage(),
     };

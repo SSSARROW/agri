@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -25,12 +27,21 @@ class AuthService {
   static const _tokenKey = 'auth_token';
   static const _userIdKey = 'auth_user_id';
   static const _roleKey = 'auth_role';
+  static const _pinHashKey = 'pin_hash';
+  static const _pinSaltKey = 'pin_salt';
 
   String? _token;
   String? _userId;
   String? _role;
+  String? _pinHash;
+  String? _pinSalt;
 
+  /// A stored token means there's a session on this device at all — not
+  /// necessarily one the server would still accept (see [isUnlocked] and
+  /// M-07: the whole point is that a farmer with no signal for weeks must
+  /// still be able to open the app and keep capturing).
   bool get isLoggedIn => _token != null;
+  bool get hasPin => _pinHash != null;
   String? get token => _token;
   String? get userId => _userId;
   String? get role => _role;
@@ -39,7 +50,30 @@ class AuthService {
     _token = await _storage.read(key: _tokenKey);
     _userId = await _storage.read(key: _userIdKey);
     _role = await _storage.read(key: _roleKey);
+    _pinHash = await _storage.read(key: _pinHashKey);
+    _pinSalt = await _storage.read(key: _pinSaltKey);
   }
+
+  Future<void> setPin(String pin) async {
+    final salt = _randomSalt();
+    final hash = _hashPin(pin, salt);
+    _pinSalt = salt;
+    _pinHash = hash;
+    await _storage.write(key: _pinSaltKey, value: salt);
+    await _storage.write(key: _pinHashKey, value: hash);
+  }
+
+  bool verifyPin(String pin) {
+    if (_pinHash == null || _pinSalt == null) return false;
+    return _hashPin(pin, _pinSalt!) == _pinHash;
+  }
+
+  String _randomSalt() {
+    final rand = Random.secure();
+    return base64Url.encode(List<int>.generate(16, (_) => rand.nextInt(256)));
+  }
+
+  String _hashPin(String pin, String salt) => sha256.convert(utf8.encode('$salt:$pin')).toString();
 
   Future<AuthResult> login(String email, String password) async {
     try {

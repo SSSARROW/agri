@@ -29,18 +29,19 @@ class _FarmPageState extends State<FarmPage> {
   Future<void> _load() async {
     final result = await FarmService.myPlots();
     if (!mounted) return;
-    if (!result.isOk && (result.error ?? '').startsWith('HTTP 401')) {
-      await AuthService.instance.logout();
-      widget.onLoggedOut();
-      return;
-    }
+    // A 401 here means the server won't honor this token right now — not
+    // that the farmer is logged out. Forcing a full re-login would defeat
+    // the entire point of the PIN unlock (M-07): a device with no signal
+    // for days must still open straight into a usable, offline-capable app.
     setState(() {
       if (result.isOk) {
         _plots = result.data;
         _error = null;
       } else {
-        _plots = [];
-        _error = result.error;
+        _plots = _plots ?? [];
+        _error = (result.error ?? '').startsWith('HTTP 401')
+            ? 'Your session needs refreshing — reconnect and log in again to sync new plots. Anything already recorded is safe.'
+            : result.error;
       }
     });
   }
