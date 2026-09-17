@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import events, health
+from app.api.routes import batches, events, health, plots
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
@@ -30,6 +30,8 @@ register_exception_handlers(app)
 
 app.include_router(health.router)
 app.include_router(events.router, prefix=settings.api_prefix)
+app.include_router(plots.router, prefix=settings.api_prefix)
+app.include_router(batches.router, prefix=settings.api_prefix)
 
 
 @app.on_event("startup")

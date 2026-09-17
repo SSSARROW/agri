@@ -10,14 +10,13 @@ those foreign keys are left null rather than fabricating accounts in
 someone else's auth table.
 """
 import asyncio
-import math
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from geoalchemy2.elements import WKTElement
 from sqlalchemy import select, text
 
+from app.core.geo import make_square_polygon
 from app.db.models import Batch, Event, Plot
 from app.db.session import async_session_factory
 
@@ -33,23 +32,6 @@ CROP = "Tea"
 
 # Unambiguous code alphabet — no 0/O, 1/I/L, so a code stays readable aloud.
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-
-
-def make_square_polygon(center_lat: float, center_lon: float, side_m: float) -> tuple[WKTElement, float]:
-    """A small square plot around (center_lat, center_lon). Returns (geometry, area_ha)."""
-    half = side_m / 2
-    dlat = half / 111_320  # metres per degree latitude, ~constant
-    dlon = half / (111_320 * abs(math.cos(math.radians(center_lat))))
-    corners = [
-        (center_lon - dlon, center_lat - dlat),
-        (center_lon + dlon, center_lat - dlat),
-        (center_lon + dlon, center_lat + dlat),
-        (center_lon - dlon, center_lat + dlat),
-        (center_lon - dlon, center_lat - dlat),
-    ]
-    wkt = "POLYGON((" + ", ".join(f"{lon} {lat}" for lon, lat in corners) + "))"
-    area_ha = (side_m * side_m) / 10_000
-    return WKTElement(wkt, srid=4326), round(area_ha, 4)
 
 
 def make_batch_code() -> str:

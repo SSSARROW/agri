@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 # than a rigid schema per type — new types shouldn't need a code change here.
 REQUIRED_PAYLOAD_KEYS: dict[str, set[str]] = {
     "scan": {"code"},
+    "planted": {"crop"},
 }
 
 

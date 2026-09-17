@@ -13,6 +13,11 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://agri:agri@localhost:5432/agri"
 
+    # Shared with web/backend's auth service — same HS256 secret, so this API
+    # can verify tokens it issues without calling it over the network.
+    jwt_secret: str = "dev-only-insecure-secret-change-me"
+    jwt_algorithm: str = "HS256"
+
     cors_origins: list[str] = ["http://localhost:5173", "capacitor://localhost", "http://localhost"]
 
     log_level: str = "INFO"

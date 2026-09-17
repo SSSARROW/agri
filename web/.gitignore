@@ -1,5 +1,6 @@
 # ── Python / FastAPI ──────────────────────────────
 venv/
+.venv/
 __pycache__/
 *.py[cod]
 *.pyo

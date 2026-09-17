@@ -19,6 +19,9 @@ class EventQueue {
   static Future<void> add({
     required String eventType,
     required Map<String, dynamic> payload,
+    String? userId,
+    String? plotId,
+    String? batchId,
   }) async {
     final now = DateTime.now().toIso8601String();
     final id = _uuid.v4();
@@ -26,6 +29,9 @@ class EventQueue {
       'id': id,
       'eventType': eventType,
       'payload': payload,
+      'userId': userId,
+      'plotId': plotId,
+      'batchId': batchId,
       'occurredAt': now,
       'status': 'pending',
       'createdAt': now,

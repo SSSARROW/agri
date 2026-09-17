@@ -8,3 +8,4 @@ asyncpg
 alembic
 geoalchemy2
 shapely
+python-jose[cryptography]

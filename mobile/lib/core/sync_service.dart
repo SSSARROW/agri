@@ -62,6 +62,9 @@ class SyncService {
               'event_type': event['eventType'],
               'payload': event['payload'],
               'occurred_at': event['occurredAt'],
+              'user_id': event['userId'],
+              'plot_id': event['plotId'],
+              'batch_id': event['batchId'],
             }),
           )
           .timeout(const Duration(seconds: 10));
