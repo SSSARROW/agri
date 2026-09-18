@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     func,
@@ -63,6 +64,66 @@ class Batch(Base):
     parent_batch_ids: Mapped[list[uuid.UUID] | None] = mapped_column(
         ARRAY(UUID(as_uuid=True)), nullable=True
     )
+    # Which quality standard this batch is claiming to meet (B-30) — chosen by
+    # the farmer at batch registration, since that's the point they commit to
+    # a grading path. Nullable: pre-protocol batches, or a farmer who skips it.
+    protocol_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("protocol.id"), nullable=True)
+    # Auto-matched to an open buyer commitment for the same crop/protocol at
+    # creation time (B-50) — "one buyer" for the first working loop makes this
+    # safe; a real matching/claim flow can replace it once there's more than one.
+    commitment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("commitment.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Protocol(Base):
+    __tablename__ = "protocol"
+
+    # A (crop, tier) pair, versioned rather than mutated in place — a batch
+    # stores the exact protocol_id it was registered under, so editing the
+    # "live" version for future batches never rewrites what past batches
+    # claimed to meet (B-30's versioning requirement).
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    crop: Mapped[str] = mapped_column(String, nullable=False)
+    tier: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Citation for where this standard actually comes from (circular number,
+    # standard number, URL) — shown to farmers and consumers, never fabricated.
+    source: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProtocolStage(Base):
+    __tablename__ = "protocol_stage"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    protocol_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("protocol.id"), nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Null day_offset means "applies throughout" (e.g. a standing pesticide
+    # restriction) rather than a one-time milestone.
+    day_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    instructions: Mapped[str] = mapped_column(String, nullable=False)
+    required_event_types: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+
+
+class Commitment(Base):
+    __tablename__ = "commitment"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    buyer_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    crop: Mapped[str] = mapped_column(String, nullable=False)
+    protocol_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("protocol.id"), nullable=True)
+    volume_kg: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    # Decremented as matched batches report a weight (B-50's "shows remaining
+    # unallocated volume") — never negative; clamped at 0 in the route.
+    remaining_kg: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    delivery_window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    delivery_window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    indicative_price_lkr_per_kg: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

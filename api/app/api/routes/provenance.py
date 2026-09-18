@@ -5,9 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
-from app.db.models import Batch, Event, Plot, Scan
+from app.db.models import Batch, Event, Plot, Protocol, ProtocolStage, Scan
 from app.db.session import get_db
-from app.schemas.provenance import ProvenanceBatch, ProvenanceEvent, ProvenanceOut, ProvenancePlot
+from app.schemas.protocol import ProtocolStageOut
+from app.schemas.provenance import ProvenanceBatch, ProvenanceEvent, ProvenanceOut, ProvenancePlot, ProvenanceProtocol
 
 router = APIRouter(prefix="/provenance", tags=["provenance"])
 
@@ -92,6 +93,29 @@ async def get_provenance(
         )
         planted_at = (await db.execute(planted_stmt)).scalar_one_or_none()
 
+    protocol_out = None
+    if batch.protocol_id is not None:
+        protocol = await db.get(Protocol, batch.protocol_id)
+        if protocol is not None:
+            stage_rows = (
+                (
+                    await db.execute(
+                        select(ProtocolStage)
+                        .where(ProtocolStage.protocol_id == protocol.id)
+                        .order_by(ProtocolStage.sequence)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            protocol_out = ProvenanceProtocol(
+                id=protocol.id,
+                tier=protocol.tier,
+                name=protocol.name,
+                source=protocol.source,
+                stages=[ProtocolStageOut.model_validate(s) for s in stage_rows],
+            )
+
     def to_provenance_batch(b: Batch) -> ProvenanceBatch:
         return ProvenanceBatch(
             code=b.code,
@@ -121,6 +145,7 @@ async def get_provenance(
     return ProvenanceOut(
         batch=to_provenance_batch(batch),
         plot=plot_out,
+        protocol=protocol_out,
         planted_at=planted_at,
         timeline=timeline,
         lineage=[to_provenance_batch(a) for a in ancestors],

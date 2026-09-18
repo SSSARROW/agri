@@ -3,6 +3,9 @@ class Batch {
   final String code;
   final String crop;
   final String? plotId;
+  final String? protocolId;
+  final String? protocolName;
+  final String? commitmentId;
   final DateTime createdAt;
   final String latestStatus;
   final DateTime? latestOccurredAt;
@@ -12,6 +15,9 @@ class Batch {
     required this.code,
     required this.crop,
     required this.plotId,
+    required this.protocolId,
+    required this.protocolName,
+    required this.commitmentId,
     required this.createdAt,
     required this.latestStatus,
     required this.latestOccurredAt,
@@ -22,6 +28,9 @@ class Batch {
         code: json['code'] as String,
         crop: json['crop'] as String,
         plotId: json['plot_id'] as String?,
+        protocolId: json['protocol_id'] as String?,
+        protocolName: json['protocol_name'] as String?,
+        commitmentId: json['commitment_id'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String),
         latestStatus: json['latest_status'] as String,
         latestOccurredAt: json['latest_occurred_at'] != null

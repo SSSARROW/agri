@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/batch.dart';
 import '../models/plot.dart';
+import '../models/protocol.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
 
@@ -67,17 +68,45 @@ class FarmService {
   static Future<FarmResult<Batch>> createBatch({
     required String plotId,
     required String crop,
+    String? protocolId,
   }) async {
     try {
       final res = await http
           .post(
             Uri.parse('${ApiClient.baseUrl}/api/v1/batches'),
             headers: _authHeaders,
-            body: jsonEncode({'plot_id': plotId, 'crop': crop}),
+            body: jsonEncode({'plot_id': plotId, 'crop': crop, 'protocol_id': protocolId}),
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 201) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
       return FarmResult.ok(Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>));
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  // Public endpoint (no farmer-specific data) — quality tiers a farmer can
+  // choose to grow a batch to, with the instructions attached (B-30).
+  static Future<FarmResult<List<ProtocolSummary>>> protocolsForCrop(String crop) async {
+    try {
+      final res = await http
+          .get(Uri.parse('${ApiClient.baseUrl}/api/v1/protocols?crop=$crop'), headers: _authHeaders)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+      return FarmResult.ok(list.map(ProtocolSummary.fromJson).toList());
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  static Future<FarmResult<ProtocolDetail>> protocolDetail(String protocolId) async {
+    try {
+      final res = await http
+          .get(Uri.parse('${ApiClient.baseUrl}/api/v1/protocols/$protocolId'), headers: _authHeaders)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      return FarmResult.ok(ProtocolDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>));
     } catch (e) {
       return FarmResult.fail(e.toString());
     }

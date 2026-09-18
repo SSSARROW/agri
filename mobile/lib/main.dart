@@ -60,7 +60,10 @@ class _AuthGateState extends State<AuthGate> {
     if (!auth.isLoggedIn) {
       return LoginPage(onLoggedIn: () => setState(() {}));
     }
-    if (!auth.hasPin) {
+    // _unlockedThisLaunch must win over hasPin here — "Skip for now" proves
+    // identity for this launch without setting a PIN, so checking hasPin
+    // first would loop the farmer straight back into PinSetupPage forever.
+    if (!auth.hasPin && !_unlockedThisLaunch) {
       return PinSetupPage(onDone: () => setState(() => _unlockedThisLaunch = true));
     }
     if (!_unlockedThisLaunch) {

@@ -1,6 +1,17 @@
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel
+
+from app.schemas.protocol import ProtocolStageOut
+
+
+class ProvenanceProtocol(BaseModel):
+    id: uuid.UUID
+    tier: str
+    name: str
+    source: str
+    stages: list[ProtocolStageOut]
 
 
 class ProvenanceEvent(BaseModel):
@@ -33,6 +44,7 @@ class ProvenanceBatch(BaseModel):
 class ProvenanceOut(BaseModel):
     batch: ProvenanceBatch
     plot: ProvenancePlot | None
+    protocol: ProvenanceProtocol | None
     planted_at: datetime | None
     timeline: list[ProvenanceEvent]
     lineage: list[ProvenanceBatch]

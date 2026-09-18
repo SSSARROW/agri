@@ -7,6 +7,7 @@ import '../core/event_queue.dart';
 import '../core/farm_service.dart';
 import '../core/sync_service.dart';
 import '../models/plot.dart';
+import '../models/protocol.dart';
 
 class FarmPage extends StatefulWidget {
   final VoidCallback onLoggedOut;
@@ -243,21 +244,91 @@ class _FarmPageState extends State<FarmPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _registerBatch(Plot plot) async {
-    final cropController = TextEditingController(text: 'Tea');
-    final confirmed = await showDialog<bool>(
+  Future<void> _showProtocolInstructions(ProtocolSummary protocol) async {
+    final result = await FarmService.protocolDetail(protocol.id);
+    if (!mounted) return;
+    if (!result.isOk || result.data == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load instructions: ${result.error}')));
+      return;
+    }
+    final detail = result.data!;
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Register a batch'),
-        content: TextField(
-          controller: cropController,
-          decoration: const InputDecoration(labelText: 'Crop'),
-          autofocus: true,
+        title: Text(detail.name),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(detail.source, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+              const SizedBox(height: 16),
+              for (final stage in detail.stages) ...[
+                Text(stage.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(stage.instructions),
+                const SizedBox(height: 16),
+              ],
+            ],
+          ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Register')),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))],
+      ),
+    );
+  }
+
+  Future<void> _registerBatch(Plot plot) async {
+    final cropController = TextEditingController(text: 'Tea');
+
+    // Public endpoint, best-effort — a farmer can still register a batch
+    // with no quality standard attached if this fails or nothing's seeded.
+    final protocolsResult = await FarmService.protocolsForCrop(cropController.text.trim());
+    final protocols = protocolsResult.isOk ? (protocolsResult.data ?? []) : <ProtocolSummary>[];
+    if (!mounted) return;
+
+    ProtocolSummary? selectedProtocol;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Register a batch'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: cropController,
+                  decoration: const InputDecoration(labelText: 'Crop'),
+                  autofocus: true,
+                ),
+                if (protocols.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Grow to a quality standard? (optional)', style: TextStyle(color: Colors.black54, fontSize: 13)),
+                  DropdownButton<ProtocolSummary?>(
+                    isExpanded: true,
+                    value: selectedProtocol,
+                    hint: const Text('No specific standard'),
+                    items: [
+                      const DropdownMenuItem<ProtocolSummary?>(value: null, child: Text('No specific standard')),
+                      for (final p in protocols) DropdownMenuItem<ProtocolSummary?>(value: p, child: Text(p.name)),
+                    ],
+                    onChanged: (p) => setDialogState(() => selectedProtocol = p),
+                  ),
+                  if (selectedProtocol != null)
+                    TextButton(
+                      onPressed: () => _showProtocolInstructions(selectedProtocol!),
+                      child: const Text('View planting instructions'),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Register')),
+          ],
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -265,7 +336,11 @@ class _FarmPageState extends State<FarmPage> {
     // Unlike a planting record, a batch code is issued by the server — it
     // can't be queued offline the way events can, since there's nothing
     // meaningful to show the farmer until the server hands back a real code.
-    final result = await FarmService.createBatch(plotId: plot.id, crop: cropController.text.trim());
+    final result = await FarmService.createBatch(
+      plotId: plot.id,
+      crop: cropController.text.trim(),
+      protocolId: selectedProtocol?.id,
+    );
     if (!mounted) return;
 
     if (!result.isOk || result.data == null) {
@@ -291,6 +366,13 @@ class _FarmPageState extends State<FarmPage> {
                 style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
               ),
             ),
+            if (result.data!.commitmentId != null) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Matched to an open buyer order for this quality standard.',
+                style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold),
+              ),
+            ],
           ],
         ),
         actions: [

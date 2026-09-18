@@ -87,7 +87,10 @@ class _BatchesPageState extends State<BatchesPage> {
                                         children: [
                                           Text(batch.code, style: const TextStyle(fontWeight: FontWeight.bold)),
                                           const SizedBox(height: 2),
-                                          Text(batch.crop, style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                                          Text(
+                                            batch.protocolName != null ? '${batch.crop} · ${batch.protocolName}' : batch.crop,
+                                            style: const TextStyle(color: Colors.black54, fontSize: 13),
+                                          ),
                                         ],
                                       ),
                                     ),

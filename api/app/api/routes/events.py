@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import CurrentUser, require_role
 from app.core.errors import AppError
 from app.core.logging import get_logger
-from app.db.models import Event
+from app.db.models import Batch, Commitment, Event
 from app.db.session import get_db
 from app.schemas.event import EventCreate, EventOut
 
@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 REQUIRED_PAYLOAD_KEYS: dict[str, set[str]] = {
     "scan": {"code"},
     "planted": {"crop"},
+    "weigh": {"weight_kg"},
 }
 
 
@@ -87,6 +88,18 @@ async def create_event(
 
     if not created:
         logger.info("event_duplicate_ignored", event_id=str(body.id), event_type=body.event_type)
+
+    # Draws down the matched buyer commitment's remaining volume (B-50) as
+    # weight actually gets reported — only on first insert, so a re-synced
+    # duplicate never double-counts.
+    if created and body.event_type == "weigh" and body.batch_id is not None:
+        batch = await db.get(Batch, body.batch_id)
+        if batch is not None and batch.commitment_id is not None:
+            commitment = await db.get(Commitment, batch.commitment_id)
+            if commitment is not None:
+                weight_kg = body.payload["weight_kg"]
+                commitment.remaining_kg = max(0, float(commitment.remaining_kg) - float(weight_kg))
+                await db.commit()
 
     response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
     return event

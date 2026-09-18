@@ -9,11 +9,27 @@ from app.core.auth import CurrentUser, get_current_user
 from app.core.codegen import generate_batch_code
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.db.models import Batch, Event, Plot
+from app.db.models import Batch, Commitment, Event, Plot, Protocol
 from app.db.session import get_db
 from app.schemas.batch import BatchCreate, BatchOut
 
 router = APIRouter(prefix="/batches", tags=["batches"])
+
+
+async def _match_open_commitment(db: AsyncSession, crop: str, protocol_id: uuid.UUID | None) -> Commitment | None:
+    """First-come matching for the 'one buyer' MVP (B-50): any open
+    commitment for the same crop, preferring one that names this exact
+    protocol, otherwise one that doesn't care which protocol. A real
+    marketplace would let farmers choose among several — not needed yet."""
+    stmt = select(Commitment).where(Commitment.crop == crop, Commitment.remaining_kg > 0)
+    candidates = (await db.execute(stmt)).scalars().all()
+    if not candidates:
+        return None
+    exact = [c for c in candidates if c.protocol_id == protocol_id and protocol_id is not None]
+    if exact:
+        return exact[0]
+    open_ended = [c for c in candidates if c.protocol_id is None]
+    return open_ended[0] if open_ended else None
 
 
 @router.get("/me", response_model=list[BatchOut])
@@ -37,6 +53,12 @@ async def list_my_batches(
     )
     latest_by_batch = {row.batch_id: row for row in (await db.execute(latest_stmt)).all()}
 
+    protocol_ids = {b.protocol_id for b in batches if b.protocol_id is not None}
+    protocol_names = {}
+    if protocol_ids:
+        protocol_rows = (await db.execute(select(Protocol.id, Protocol.name).where(Protocol.id.in_(protocol_ids)))).all()
+        protocol_names = {row.id: row.name for row in protocol_rows}
+
     out = []
     for b in batches:
         latest = latest_by_batch.get(b.id)
@@ -46,6 +68,9 @@ async def list_my_batches(
                 code=b.code,
                 crop=b.crop,
                 plot_id=b.plot_id,
+                protocol_id=b.protocol_id,
+                protocol_name=protocol_names.get(b.protocol_id),
+                commitment_id=b.commitment_id,
                 created_at=b.created_at,
                 latest_status=latest.event_type if latest else "registered",
                 latest_occurred_at=latest.occurred_at if latest else None,
@@ -71,8 +96,30 @@ async def create_batch(
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
+    protocol_name = None
+    if body.protocol_id is not None:
+        protocol = await db.get(Protocol, body.protocol_id)
+        if protocol is None:
+            raise AppError(code="not_found", message="Protocol not found.", status_code=status.HTTP_404_NOT_FOUND)
+        if protocol.crop != body.crop:
+            raise AppError(
+                code="invalid_payload",
+                message="protocol_id does not match crop.",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        protocol_name = protocol.name
+
+    commitment = await _match_open_commitment(db, body.crop, body.protocol_id)
+
     settings = get_settings()
-    batch = Batch(id=uuid.uuid4(), crop=body.crop, plot_id=plot.id, code="")
+    batch = Batch(
+        id=uuid.uuid4(),
+        crop=body.crop,
+        plot_id=plot.id,
+        protocol_id=body.protocol_id,
+        commitment_id=commitment.id if commitment else None,
+        code="",
+    )
 
     # Codes are random (see codegen.py) — a collision is astronomically
     # unlikely but the unique constraint plus a short retry loop makes the
@@ -98,6 +145,9 @@ async def create_batch(
         code=batch.code,
         crop=batch.crop,
         plot_id=batch.plot_id,
+        protocol_id=batch.protocol_id,
+        protocol_name=protocol_name,
+        commitment_id=batch.commitment_id,
         created_at=batch.created_at,
         latest_status="registered",
         latest_occurred_at=None,
