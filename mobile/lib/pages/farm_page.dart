@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../core/auth_service.dart';
@@ -8,6 +7,7 @@ import '../core/farm_service.dart';
 import '../core/sync_service.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
+import '../widgets/batch_qr_dialog.dart';
 
 class FarmPage extends StatefulWidget {
   final VoidCallback onLoggedOut;
@@ -49,7 +49,8 @@ class _FarmPageState extends State<FarmPage> {
 
   void _showSnack(BuildContext context, String message) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -63,21 +64,31 @@ class _FarmPageState extends State<FarmPage> {
   Future<Position?> _getCurrentPosition(BuildContext context) async {
     LocationPermission permission;
     try {
-      permission = await Geolocator.checkPermission().timeout(const Duration(seconds: 5));
+      permission = await Geolocator.checkPermission().timeout(
+        const Duration(seconds: 5),
+      );
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission().timeout(const Duration(seconds: 30));
+        permission = await Geolocator.requestPermission().timeout(
+          const Duration(seconds: 30),
+        );
       }
     } catch (_) {
       _showSnack(context, 'Could not check location permission. Try again.');
       return null;
     }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      _showSnack(context, 'Location permission is required to register a plot.');
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      _showSnack(
+        context,
+        'Location permission is required to register a plot.',
+      );
       return null;
     }
 
     try {
-      if (!await Geolocator.isLocationServiceEnabled().timeout(const Duration(seconds: 5))) {
+      if (!await Geolocator.isLocationServiceEnabled().timeout(
+        const Duration(seconds: 5),
+      )) {
         _showSnack(context, 'Turn on location services to register a plot.');
         return null;
       }
@@ -92,7 +103,9 @@ class _FarmPageState extends State<FarmPage> {
     // upstream ANR — a synchronous Binder call on the main thread that can
     // hang for several seconds. getLastKnownPosition never touches that path.
     try {
-      final lastKnown = await Geolocator.getLastKnownPosition().timeout(const Duration(seconds: 5));
+      final lastKnown = await Geolocator.getLastKnownPosition().timeout(
+        const Duration(seconds: 5),
+      );
       if (lastKnown != null) return lastKnown;
     } catch (_) {
       // Fall through to a live fix below.
@@ -104,10 +117,16 @@ class _FarmPageState extends State<FarmPage> {
     // forever with no feedback.
     try {
       return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 10)),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
+        ),
       ).timeout(const Duration(seconds: 12));
     } catch (_) {
-      _showSnack(context, 'Could not get a GPS fix. Move somewhere with a clearer view of the sky and try again.');
+      _showSnack(
+        context,
+        'Could not get a GPS fix. Move somewhere with a clearer view of the sky and try again.',
+      );
       return null;
     }
   }
@@ -135,7 +154,10 @@ class _FarmPageState extends State<FarmPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Register plot at current location', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Register plot at current location',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 4),
             Text(
               '${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
@@ -144,15 +166,28 @@ class _FarmPageState extends State<FarmPage> {
             const SizedBox(height: 16),
             TextField(
               controller: sideController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Approximate plot size (side length, metres)'),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Approximate plot size (side length, metres)',
+              ),
             ),
             const SizedBox(height: 12),
-            TextField(controller: districtController, decoration: const InputDecoration(labelText: 'District')),
+            TextField(
+              controller: districtController,
+              decoration: const InputDecoration(labelText: 'District'),
+            ),
             const SizedBox(height: 12),
-            TextField(controller: dsdController, decoration: const InputDecoration(labelText: 'DSD')),
+            TextField(
+              controller: dsdController,
+              decoration: const InputDecoration(labelText: 'DSD'),
+            ),
             const SizedBox(height: 12),
-            TextField(controller: gnController, decoration: const InputDecoration(labelText: 'GN Division')),
+            TextField(
+              controller: gnController,
+              decoration: const InputDecoration(labelText: 'GN Division'),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -182,9 +217,11 @@ class _FarmPageState extends State<FarmPage> {
     if (result.isOk) {
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Plot registered.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Plot registered.')));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
     }
   }
 
@@ -209,8 +246,14 @@ class _FarmPageState extends State<FarmPage> {
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Save')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
@@ -239,16 +282,19 @@ class _FarmPageState extends State<FarmPage> {
     final message = position == null
         ? 'Planting recorded (no GPS fix) — queued for sync.'
         : position.accuracy > _poorAccuracyMeters
-            ? 'Planting recorded — queued for sync. GPS accuracy was low (±${position.accuracy.round()}m).'
-            : 'Planting recorded — queued for sync.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        ? 'Planting recorded — queued for sync. GPS accuracy was low (±${position.accuracy.round()}m).'
+        : 'Planting recorded — queued for sync.';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showProtocolInstructions(ProtocolSummary protocol) async {
     final result = await FarmService.protocolDetail(protocol.id);
     if (!mounted) return;
     if (!result.isOk || result.data == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load instructions: ${result.error}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load instructions: ${result.error}')),
+      );
       return;
     }
     final detail = result.data!;
@@ -261,10 +307,16 @@ class _FarmPageState extends State<FarmPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(detail.source, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+              Text(
+                detail.source,
+                style: const TextStyle(color: Colors.black54, fontSize: 12),
+              ),
               const SizedBox(height: 16),
               for (final stage in detail.stages) ...[
-                Text(stage.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  stage.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 4),
                 Text(stage.instructions),
                 const SizedBox(height: 16),
@@ -272,7 +324,12 @@ class _FarmPageState extends State<FarmPage> {
             ],
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -282,8 +339,12 @@ class _FarmPageState extends State<FarmPage> {
 
     // Public endpoint, best-effort — a farmer can still register a batch
     // with no quality standard attached if this fails or nothing's seeded.
-    final protocolsResult = await FarmService.protocolsForCrop(cropController.text.trim());
-    final protocols = protocolsResult.isOk ? (protocolsResult.data ?? []) : <ProtocolSummary>[];
+    final protocolsResult = await FarmService.protocolsForCrop(
+      cropController.text.trim(),
+    );
+    final protocols = protocolsResult.isOk
+        ? (protocolsResult.data ?? [])
+        : <ProtocolSummary>[];
     if (!mounted) return;
 
     ProtocolSummary? selectedProtocol;
@@ -304,20 +365,32 @@ class _FarmPageState extends State<FarmPage> {
                 ),
                 if (protocols.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  const Text('Grow to a quality standard? (optional)', style: TextStyle(color: Colors.black54, fontSize: 13)),
+                  const Text(
+                    'Grow to a quality standard? (optional)',
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
                   DropdownButton<ProtocolSummary?>(
                     isExpanded: true,
                     value: selectedProtocol,
                     hint: const Text('No specific standard'),
                     items: [
-                      const DropdownMenuItem<ProtocolSummary?>(value: null, child: Text('No specific standard')),
-                      for (final p in protocols) DropdownMenuItem<ProtocolSummary?>(value: p, child: Text(p.name)),
+                      const DropdownMenuItem<ProtocolSummary?>(
+                        value: null,
+                        child: Text('No specific standard'),
+                      ),
+                      for (final p in protocols)
+                        DropdownMenuItem<ProtocolSummary?>(
+                          value: p,
+                          child: Text(p.name),
+                        ),
                     ],
-                    onChanged: (p) => setDialogState(() => selectedProtocol = p),
+                    onChanged: (p) =>
+                        setDialogState(() => selectedProtocol = p),
                   ),
                   if (selectedProtocol != null)
                     TextButton(
-                      onPressed: () => _showProtocolInstructions(selectedProtocol!),
+                      onPressed: () =>
+                          _showProtocolInstructions(selectedProtocol!),
                       child: const Text('View planting instructions'),
                     ),
                 ],
@@ -325,8 +398,14 @@ class _FarmPageState extends State<FarmPage> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Register')),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Register'),
+            ),
           ],
         ),
       ),
@@ -344,48 +423,19 @@ class _FarmPageState extends State<FarmPage> {
     if (!mounted) return;
 
     if (!result.isOk || result.data == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
       return;
     }
 
     final code = result.data!.code;
     if (!context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Batch registered'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Give this code to your collector, or write it on the batch:'),
-            const SizedBox(height: 16),
-            Center(
-              child: Text(
-                code,
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
-              ),
-            ),
-            if (result.data!.commitmentId != null) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Matched to an open buyer order for this quality standard.',
-                style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: code));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied.')));
-            },
-            child: const Text('Copy'),
-          ),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
-        ],
-      ),
+    await showBatchQrDialog(
+      context,
+      code,
+      subtitle: result.data!.commitmentId != null
+          ? 'Matched to an open buyer order for this quality standard.'
+          : null,
     );
   }
 
@@ -400,7 +450,10 @@ class _FarmPageState extends State<FarmPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('My Farm', style: Theme.of(context).textTheme.headlineMedium),
+                Text(
+                  'My Farm',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
                 IconButton(
                   icon: const Icon(Icons.logout),
                   onPressed: () async {
@@ -411,76 +464,101 @@ class _FarmPageState extends State<FarmPage> {
               ],
             ),
             const SizedBox(height: 4),
-            const Text('Your registered plots.', style: TextStyle(color: Colors.black54)),
+            const Text(
+              'Your registered plots.',
+              style: TextStyle(color: Colors.black54),
+            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1B5E20),
                 foregroundColor: Colors.white,
                 minimumSize: const Size(0, 48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: _registerPlot,
               icon: const Icon(Icons.add_location_alt_outlined),
-              label: const Text('Register a plot here', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Register a plot here',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 16),
-            if (_error != null) Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),
+            if (_error != null)
+              Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),
             Expanded(
               child: _plots == null
                   ? const Center(child: CircularProgressIndicator())
                   : _plots!.isEmpty
-                      ? const Center(child: Text('No plots yet.', style: TextStyle(color: Colors.black54)))
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.separated(
-                            itemCount: _plots!.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
-                            itemBuilder: (context, i) {
-                              final plot = _plots![i];
-                              return Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF5F5F5),
-                                  borderRadius: BorderRadius.circular(12),
+                  ? const Center(
+                      child: Text(
+                        'No plots yet.',
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.separated(
+                        itemCount: _plots!.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, i) {
+                          final plot = _plots![i];
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F5F5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${plot.district ?? 'Unknown district'} · ${plot.gnDivision ?? ''}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha · '
+                                  '${plot.centerLat.toStringAsFixed(4)}, ${plot.centerLon.toStringAsFixed(4)}',
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  alignment: WrapAlignment.end,
+                                  spacing: 8,
+                                  runSpacing: 8,
                                   children: [
-                                    Text(
-                                      '${plot.district ?? 'Unknown district'} · ${plot.gnDivision ?? ''}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    OutlinedButton.icon(
+                                      onPressed: () => _recordPlanting(plot),
+                                      icon: const Icon(
+                                        Icons.eco_outlined,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Record planting'),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha · '
-                                      '${plot.centerLat.toStringAsFixed(4)}, ${plot.centerLon.toStringAsFixed(4)}',
-                                      style: const TextStyle(color: Colors.black54, fontSize: 13),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Wrap(
-                                      alignment: WrapAlignment.end,
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        OutlinedButton.icon(
-                                          onPressed: () => _recordPlanting(plot),
-                                          icon: const Icon(Icons.eco_outlined, size: 18),
-                                          label: const Text('Record planting'),
-                                        ),
-                                        OutlinedButton.icon(
-                                          onPressed: () => _registerBatch(plot),
-                                          icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                                          label: const Text('Register batch'),
-                                        ),
-                                      ],
+                                    OutlinedButton.icon(
+                                      onPressed: () => _registerBatch(plot),
+                                      icon: const Icon(
+                                        Icons.inventory_2_outlined,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Register batch'),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
-                          ),
-                        ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),

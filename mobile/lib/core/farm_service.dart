@@ -18,16 +18,22 @@ class FarmResult<T> {
 
 class FarmService {
   static Map<String, String> get _authHeaders => {
-        'Content-Type': 'application/json',
-        if (AuthService.instance.token != null) 'Authorization': 'Bearer ${AuthService.instance.token}',
-      };
+    'Content-Type': 'application/json',
+    if (AuthService.instance.token != null)
+      'Authorization': 'Bearer ${AuthService.instance.token}',
+  };
 
   static Future<FarmResult<List<Plot>>> myPlots() async {
     try {
       final res = await http
-          .get(Uri.parse('${ApiClient.baseUrl}/api/v1/plots/me'), headers: _authHeaders)
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/plots/me'),
+            headers: _authHeaders,
+          )
           .timeout(const Duration(seconds: 10));
-      if (res.statusCode != 200) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(Plot.fromJson).toList());
     } catch (e) {
@@ -58,8 +64,12 @@ class FarmService {
             }),
           )
           .timeout(const Duration(seconds: 10));
-      if (res.statusCode != 201) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
-      return FarmResult.ok(Plot.fromJson(jsonDecode(res.body) as Map<String, dynamic>));
+      if (res.statusCode != 201) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        Plot.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
     } catch (e) {
       return FarmResult.fail(e.toString());
     }
@@ -75,11 +85,19 @@ class FarmService {
           .post(
             Uri.parse('${ApiClient.baseUrl}/api/v1/batches'),
             headers: _authHeaders,
-            body: jsonEncode({'plot_id': plotId, 'crop': crop, 'protocol_id': protocolId}),
+            body: jsonEncode({
+              'plot_id': plotId,
+              'crop': crop,
+              'protocol_id': protocolId,
+            }),
           )
           .timeout(const Duration(seconds: 10));
-      if (res.statusCode != 201) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
-      return FarmResult.ok(Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>));
+      if (res.statusCode != 201) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
     } catch (e) {
       return FarmResult.fail(e.toString());
     }
@@ -87,12 +105,19 @@ class FarmService {
 
   // Public endpoint (no farmer-specific data) — quality tiers a farmer can
   // choose to grow a batch to, with the instructions attached (B-30).
-  static Future<FarmResult<List<ProtocolSummary>>> protocolsForCrop(String crop) async {
+  static Future<FarmResult<List<ProtocolSummary>>> protocolsForCrop(
+    String crop,
+  ) async {
     try {
       final res = await http
-          .get(Uri.parse('${ApiClient.baseUrl}/api/v1/protocols?crop=$crop'), headers: _authHeaders)
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/protocols?crop=$crop'),
+            headers: _authHeaders,
+          )
           .timeout(const Duration(seconds: 10));
-      if (res.statusCode != 200) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(ProtocolSummary.fromJson).toList());
     } catch (e) {
@@ -100,13 +125,41 @@ class FarmService {
     }
   }
 
-  static Future<FarmResult<ProtocolDetail>> protocolDetail(String protocolId) async {
+  static Future<FarmResult<ProtocolDetail>> protocolDetail(
+    String protocolId,
+  ) async {
     try {
       final res = await http
-          .get(Uri.parse('${ApiClient.baseUrl}/api/v1/protocols/$protocolId'), headers: _authHeaders)
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/protocols/$protocolId'),
+            headers: _authHeaders,
+          )
           .timeout(const Duration(seconds: 10));
-      if (res.statusCode != 200) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
-      return FarmResult.ok(ProtocolDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>));
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        ProtocolDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  static Future<FarmResult<Batch>> batchByCode(String code) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/batches/by-code/$code'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
     } catch (e) {
       return FarmResult.fail(e.toString());
     }
@@ -115,9 +168,14 @@ class FarmService {
   static Future<FarmResult<List<Batch>>> myBatches() async {
     try {
       final res = await http
-          .get(Uri.parse('${ApiClient.baseUrl}/api/v1/batches/me'), headers: _authHeaders)
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/batches/me'),
+            headers: _authHeaders,
+          )
           .timeout(const Duration(seconds: 10));
-      if (res.statusCode != 200) return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(Batch.fromJson).toList());
     } catch (e) {

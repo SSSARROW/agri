@@ -16,6 +16,34 @@ from app.schemas.batch import BatchCreate, BatchOut
 router = APIRouter(prefix="/batches", tags=["batches"])
 
 
+async def _to_batch_out(db: AsyncSession, batch: Batch) -> BatchOut:
+    protocol_name = None
+    if batch.protocol_id is not None:
+        protocol = await db.get(Protocol, batch.protocol_id)
+        protocol_name = protocol.name if protocol is not None else None
+
+    latest_stmt = (
+        select(Event.event_type, Event.occurred_at)
+        .where(Event.batch_id == batch.id)
+        .order_by(Event.occurred_at.desc())
+        .limit(1)
+    )
+    latest = (await db.execute(latest_stmt)).first()
+
+    return BatchOut(
+        id=batch.id,
+        code=batch.code,
+        crop=batch.crop,
+        plot_id=batch.plot_id,
+        protocol_id=batch.protocol_id,
+        protocol_name=protocol_name,
+        commitment_id=batch.commitment_id,
+        created_at=batch.created_at,
+        latest_status=latest.event_type if latest else "registered",
+        latest_occurred_at=latest.occurred_at if latest else None,
+    )
+
+
 async def _match_open_commitment(db: AsyncSession, crop: str, protocol_id: uuid.UUID | None) -> Commitment | None:
     """First-come matching for the 'one buyer' MVP (B-50): any open
     commitment for the same crop, preferring one that names this exact
@@ -80,6 +108,23 @@ async def list_my_batches(
     return out
 
 
+@router.get("/by-code/{code}", response_model=BatchOut)
+async def get_batch_by_code(
+    code: str,
+    _: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> BatchOut:
+    """Resolves a scanned QR code to a batch — any logged-in user, not just
+    the plot's owner, since a collector/processor recording the next
+    pipeline stage on someone else's batch isn't a role this build tracks
+    separately yet (see events.py's pipeline-stage endpoint)."""
+    normalized = code.strip().upper()
+    batch = (await db.execute(select(Batch).where(Batch.code == normalized))).scalar_one_or_none()
+    if batch is None:
+        raise AppError(code="not_found", message="No batch found with that code.", status_code=status.HTTP_404_NOT_FOUND)
+    return await _to_batch_out(db, batch)
+
+
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
 async def create_batch(
     body: BatchCreate,
@@ -96,7 +141,6 @@ async def create_batch(
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
-    protocol_name = None
     if body.protocol_id is not None:
         protocol = await db.get(Protocol, body.protocol_id)
         if protocol is None:
@@ -107,7 +151,6 @@ async def create_batch(
                 message="protocol_id does not match crop.",
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        protocol_name = protocol.name
 
     commitment = await _match_open_commitment(db, body.crop, body.protocol_id)
 
@@ -140,15 +183,4 @@ async def create_batch(
         )
 
     await db.refresh(batch)
-    return BatchOut(
-        id=batch.id,
-        code=batch.code,
-        crop=batch.crop,
-        plot_id=batch.plot_id,
-        protocol_id=batch.protocol_id,
-        protocol_name=protocol_name,
-        commitment_id=batch.commitment_id,
-        created_at=batch.created_at,
-        latest_status="registered",
-        latest_occurred_at=None,
-    )
+    return await _to_batch_out(db, batch)
