@@ -119,6 +119,67 @@ export const fetchUserProfile = async (token?: string): Promise<UserProfile> => 
   return response.data;
 };
 
+export interface Actor {
+  id: string;
+  email: string;
+  role: "admin" | "farmer" | "exporter";
+  name?: string;
+  phone?: string;
+  district?: string;
+  dsd?: string;
+  gn_division?: string;
+  farm_address?: string;
+  farm_size_ha?: number;
+  business_name?: string;
+  business_reg_no?: string;
+  business_address?: string;
+  export_license_no?: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface PaginatedActors {
+  items: Actor[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export const fetchActors = async (params?: { search?: string; role?: string; page?: number; page_size?: number }): Promise<PaginatedActors> => {
+  const token = getAuthToken();
+  const response = await axios.get<PaginatedActors>(`${API_BASE_URL}/actors`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params: {
+      search: params?.search || undefined,
+      role: params?.role && params.role !== "all" ? params.role : undefined,
+      page: params?.page || 1,
+      page_size: params?.page_size || 10,
+    },
+  });
+  return response.data;
+};
+
+export const fetchActorById = async (id: string): Promise<Actor> => {
+  const token = getAuthToken();
+  const response = await axios.get<Actor>(`${API_BASE_URL}/actors/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+};
+
+export const updateActorActiveStatus = async (id: string, is_active: boolean): Promise<Actor> => {
+  const token = getAuthToken();
+  const response = await axios.patch<Actor>(
+    `${API_BASE_URL}/actors/${id}`,
+    { is_active },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return response.data;
+};
+
 export const auth = {
   isLoggedIn: (): boolean => {
     if (typeof window !== "undefined") {
@@ -146,3 +207,4 @@ export const auth = {
   getGoogleAuthUrl,
   fetchUserProfile,
 };
+
