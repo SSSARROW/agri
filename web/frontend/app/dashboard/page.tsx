@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fetchUserProfile, clearAuthToken, UserProfile } from "@/lib/api";
 
@@ -73,7 +74,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          {user.role === "admin" && (
+            <Link
+              href="/admin/users"
+              className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <span>👥</span> Actor Registry
+            </Link>
+          )}
           <span
             className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
               roleColors[user.role] || "bg-zinc-800 text-zinc-300 border-zinc-700"
@@ -154,7 +163,7 @@ export default function DashboardPage() {
               <p className="text-zinc-400 text-xs mb-6 leading-relaxed">
                 As a registered <span className="text-emerald-400 font-semibold">{user.role}</span>, you have full authorization to manage listings, inspect digital certificates, and communicate across direct buyer-seller pipelines.
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="p-4 bg-zinc-800/50 rounded-2xl border border-zinc-700/50 text-center">
                   <p className="text-2xl font-bold text-emerald-400">Active</p>
                   <p className="text-[11px] text-zinc-400 mt-1 uppercase font-semibold">JWT Status</p>
@@ -164,6 +173,18 @@ export default function DashboardPage() {
                   <p className="text-[11px] text-zinc-400 mt-1 uppercase font-semibold">OAuth Connection</p>
                 </div>
               </div>
+
+              {user.role === "admin" && (
+                <Link
+                  href="/admin/users"
+                  className="w-full py-3 px-4 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/40 hover:to-indigo-600/40 border border-purple-500/40 rounded-2xl text-xs font-bold text-purple-200 flex items-center justify-between transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>👥</span> Open Actor Registry Management
+                  </span>
+                  <span>→</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
