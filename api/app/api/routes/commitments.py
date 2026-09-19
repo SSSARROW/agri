@@ -15,14 +15,27 @@ router = APIRouter(prefix="/commitments", tags=["commitments"])
 async def list_open_commitments(
     crop: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-) -> list[Commitment]:
+) -> list[CommitmentOut]:
     """Public — this is the farmer-facing 'who wants to buy what' view
     (B-50 / the connect-farmers-with-buyers ask). Only shows commitments
     with volume left to fill."""
     stmt = select(Commitment).where(Commitment.remaining_kg > 0)
     if crop is not None:
         stmt = stmt.where(Commitment.crop == crop)
-    return list((await db.execute(stmt)).scalars().all())
+    commitments = (await db.execute(stmt)).scalars().all()
+
+    protocol_ids = {c.protocol_id for c in commitments if c.protocol_id is not None}
+    protocol_names = {}
+    if protocol_ids:
+        rows = (await db.execute(select(Protocol.id, Protocol.name).where(Protocol.id.in_(protocol_ids)))).all()
+        protocol_names = {row.id: row.name for row in rows}
+
+    return [
+        CommitmentOut.model_validate(c, from_attributes=True).model_copy(
+            update={"protocol_name": protocol_names.get(c.protocol_id)}
+        )
+        for c in commitments
+    ]
 
 
 @router.post("", response_model=CommitmentOut, status_code=status.HTTP_201_CREATED)

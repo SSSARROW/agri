@@ -20,6 +20,7 @@ class CommitmentOut(BaseModel):
     buyer_user_id: uuid.UUID
     crop: str
     protocol_id: uuid.UUID | None
+    protocol_name: str | None = None
     volume_kg: float
     remaining_kg: float
     delivery_window_start: datetime

@@ -5,6 +5,7 @@ import '../core/auth_service.dart';
 import '../core/event_queue.dart';
 import '../core/farm_service.dart';
 import '../core/sync_service.dart';
+import '../models/commitment.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
 import '../widgets/batch_qr_dialog.dart';
@@ -20,11 +21,22 @@ class FarmPage extends StatefulWidget {
 class _FarmPageState extends State<FarmPage> {
   List<Plot>? _plots;
   String? _error;
+  List<Commitment>? _commitments;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadCommitments();
+  }
+
+  // Best-effort and silent on failure — this is informational (what buyers
+  // want right now), not core farm data, so it should never show an error
+  // banner or block the rest of the page from loading.
+  Future<void> _loadCommitments() async {
+    final result = await FarmService.openCommitments(crop: 'Tea');
+    if (!mounted || !result.isOk) return;
+    setState(() => _commitments = result.data);
   }
 
   Future<void> _load() async {
@@ -46,6 +58,8 @@ class _FarmPageState extends State<FarmPage> {
       }
     });
   }
+
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
   void _showSnack(BuildContext context, String message) {
     if (context.mounted) {
@@ -485,6 +499,74 @@ class _FarmPageState extends State<FarmPage> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
+            if (_commitments != null && _commitments!.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              const Text(
+                'Buyers looking for Tea right now',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 108,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _commitments!.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
+                  itemBuilder: (context, i) {
+                    final c = _commitments![i];
+                    return Container(
+                      width: 220,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF1B5E20).withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            c.protocolName ?? '${c.crop} — any standard',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${c.remainingKg.toStringAsFixed(0)} kg wanted',
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (c.indicativePriceLkrPerKg != null)
+                            Text(
+                              'LKR ${c.indicativePriceLkrPerKg!.toStringAsFixed(0)}/kg',
+                              style: const TextStyle(
+                                color: Colors.black54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          const Spacer(),
+                          Text(
+                            'By ${_formatDate(c.deliveryWindowEnd)}',
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             if (_error != null)
               Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),

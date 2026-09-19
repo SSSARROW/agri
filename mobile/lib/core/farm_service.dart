@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/batch.dart';
+import '../models/commitment.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
 import 'api_client.dart';
@@ -160,6 +161,28 @@ class FarmService {
       return FarmResult.ok(
         Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  // Public endpoint — open buyer orders a farmer can see before deciding
+  // what to grow (B-50 / "connect farmers with buyers"). Only ever shows
+  // commitments with volume left to fill.
+  static Future<FarmResult<List<Commitment>>> openCommitments({
+    String? crop,
+  }) async {
+    try {
+      final uri = Uri.parse('${ApiClient.baseUrl}/api/v1/commitments')
+          .replace(queryParameters: crop != null ? {'crop': crop} : null);
+      final res = await http
+          .get(uri, headers: _authHeaders)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+      return FarmResult.ok(list.map(Commitment.fromJson).toList());
     } catch (e) {
       return FarmResult.fail(e.toString());
     }
