@@ -9,8 +9,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     FRONTEND_URL: str = "http://localhost:3000"
+    BATCH_CODE_SECRET: str = "dev-secret-change-in-prod"
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()

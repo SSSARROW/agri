@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.router import router as auth_router
 from actors.router import router as actors_router
 from plots.router import router as plots_router
+from batches.router import router as batches_router
 
 app = FastAPI(title="Paramparā API")
 
@@ -17,6 +18,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(actors_router)
 app.include_router(plots_router)
+app.include_router(batches_router)
 
 @app.get("/")
 def root():
