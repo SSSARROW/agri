@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
-from app.db.models import Batch, Event, Plot, Protocol, ProtocolStage, Scan
+from app.core.tier_evaluation import evaluate_batch_protocol, get_planted_at
+from app.db.models import Batch, Event, Plot, Protocol, Scan
 from app.db.session import get_db
-from app.schemas.protocol import ProtocolStageOut
-from app.schemas.provenance import ProvenanceBatch, ProvenanceEvent, ProvenanceOut, ProvenancePlot, ProvenanceProtocol
+from app.schemas.provenance import ProvenanceBatch, ProvenanceEvent, ProvenanceOut, ProvenancePlot
 
 router = APIRouter(prefix="/provenance", tags=["provenance"])
 
@@ -42,19 +42,36 @@ async def _load_lineage(db: AsyncSession, root: Batch) -> list[Batch]:
     return list(ancestors.values())
 
 
-@router.get("/{batch_code}", response_model=ProvenanceOut)
-async def get_provenance(
-    batch_code: str,
-    request: Request,
-    lat: float | None = Query(default=None, ge=-90, le=90),
-    lon: float | None = Query(default=None, ge=-180, le=180),
-    db: AsyncSession = Depends(get_db),
-) -> ProvenanceOut:
+async def resolve_batch_by_code(db: AsyncSession, batch_code: str) -> Batch | None:
     normalized = batch_code.strip().upper()
-    batch = (await db.execute(select(Batch).where(Batch.code == normalized))).scalar_one_or_none()
-    if batch is None:
-        raise AppError(code="not_found", message="No batch found with that code.", status_code=status.HTTP_404_NOT_FOUND)
+    return (await db.execute(select(Batch).where(Batch.code == normalized))).scalar_one_or_none()
 
+
+async def log_scan(db: AsyncSession, *, batch_id, request: Request, lat: float | None, lon: float | None) -> None:
+    """Best-effort scan log for abuse monitoring (Scan is separate from the
+    append-only Event log on purpose — a public hit isn't provenance data).
+    Never let logging failure break the actual provenance lookup. Shared by
+    the JSON API and the HTML page — both are "someone looked this batch up"."""
+    try:
+        client_ip = request.client.host if request.client else "unknown"
+        db.add(
+            Scan(
+                batch_id=batch_id,
+                hashed_ip=hashlib.sha256(client_ip.encode()).hexdigest(),
+                coarse_lat=round(lat, 2) if lat is not None else None,
+                coarse_lon=round(lon, 2) if lon is not None else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
+
+async def build_provenance(db: AsyncSession, batch: Batch) -> ProvenanceOut:
+    """Everything about a batch a public viewer (JSON API or the HTML page)
+    is allowed to see. Pulled out of the route so the page route can render
+    the identical data instead of re-deriving it with its own queries."""
     ancestors = await _load_lineage(db, batch)
     all_batches = [batch] + ancestors
     code_by_id = {b.id: b.code for b in all_batches}
@@ -79,41 +96,14 @@ async def get_provenance(
         else None
     )
 
-    planted_at = None
-    if batch.plot_id is not None:
-        planted_stmt = (
-            select(Event.occurred_at)
-            .where(
-                Event.plot_id == batch.plot_id,
-                Event.event_type == "planted",
-                Event.occurred_at <= batch.created_at,
-            )
-            .order_by(Event.occurred_at.desc())
-            .limit(1)
-        )
-        planted_at = (await db.execute(planted_stmt)).scalar_one_or_none()
+    planted_at = await get_planted_at(db, plot_id=batch.plot_id, before=batch.created_at)
 
     protocol_out = None
     if batch.protocol_id is not None:
         protocol = await db.get(Protocol, batch.protocol_id)
         if protocol is not None:
-            stage_rows = (
-                (
-                    await db.execute(
-                        select(ProtocolStage)
-                        .where(ProtocolStage.protocol_id == protocol.id)
-                        .order_by(ProtocolStage.sequence)
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            protocol_out = ProvenanceProtocol(
-                id=protocol.id,
-                tier=protocol.tier,
-                name=protocol.name,
-                source=protocol.source,
-                stages=[ProtocolStageOut.model_validate(s) for s in stage_rows],
+            protocol_out = await evaluate_batch_protocol(
+                db, protocol=protocol, batch_id=batch.id, planted_at=planted_at
             )
 
     def to_provenance_batch(b: Batch) -> ProvenanceBatch:
@@ -124,24 +114,6 @@ async def get_provenance(
             parent_codes=[code_by_id.get(pid, str(pid)) for pid in (b.parent_batch_ids or [])],
         )
 
-    # Best-effort scan log for abuse monitoring (Scan is separate from the
-    # append-only Event log on purpose — a public hit isn't provenance data).
-    # Never let logging failure break the actual provenance lookup.
-    try:
-        client_ip = request.client.host if request.client else "unknown"
-        db.add(
-            Scan(
-                batch_id=batch.id,
-                hashed_ip=hashlib.sha256(client_ip.encode()).hexdigest(),
-                coarse_lat=round(lat, 2) if lat is not None else None,
-                coarse_lon=round(lon, 2) if lon is not None else None,
-                user_agent=request.headers.get("user-agent"),
-            )
-        )
-        await db.commit()
-    except Exception:
-        await db.rollback()
-
     return ProvenanceOut(
         batch=to_provenance_batch(batch),
         plot=plot_out,
@@ -150,3 +122,19 @@ async def get_provenance(
         timeline=timeline,
         lineage=[to_provenance_batch(a) for a in ancestors],
     )
+
+
+@router.get("/{batch_code}", response_model=ProvenanceOut)
+async def get_provenance(
+    batch_code: str,
+    request: Request,
+    lat: float | None = Query(default=None, ge=-90, le=90),
+    lon: float | None = Query(default=None, ge=-180, le=180),
+    db: AsyncSession = Depends(get_db),
+) -> ProvenanceOut:
+    batch = await resolve_batch_by_code(db, batch_code)
+    if batch is None:
+        raise AppError(code="not_found", message="No batch found with that code.", status_code=status.HTTP_404_NOT_FOUND)
+    result = await build_provenance(db, batch)
+    await log_scan(db, batch_id=batch.id, request=request, lat=lat, lon=lon)
+    return result

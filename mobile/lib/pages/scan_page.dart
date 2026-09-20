@@ -27,10 +27,22 @@ class _ScanPageState extends State<ScanPage> {
   // same label re-triggers the resolve-and-record flow underneath it.
   bool _busy = false;
 
+  // The QR now encodes a full URL to the public provenance page (so a
+  // consumer's plain camera app can open it directly) — our own scanner
+  // needs the bare code back out of that to look the batch up by code.
+  String _extractCode(String scanned) {
+    final uri = Uri.tryParse(scanned);
+    if (uri != null && uri.pathSegments.isNotEmpty) {
+      return uri.pathSegments.last;
+    }
+    return scanned;
+  }
+
   void _onDetect(BarcodeCapture capture) {
     if (_busy) return;
-    final code = capture.barcodes.firstOrNull?.rawValue;
-    if (code == null) return;
+    final raw = capture.barcodes.firstOrNull?.rawValue;
+    if (raw == null) return;
+    final code = _extractCode(raw);
 
     final now = DateTime.now();
     if (_lastCode == code &&

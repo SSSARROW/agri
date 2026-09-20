@@ -9,9 +9,11 @@ from app.core.auth import CurrentUser, get_current_user
 from app.core.codegen import generate_batch_code
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.core.tier_evaluation import evaluate_batch_protocol, get_planted_at
 from app.db.models import Batch, Commitment, Event, Plot, Protocol
 from app.db.session import get_db
 from app.schemas.batch import BatchCreate, BatchOut
+from app.schemas.tier_evaluation import ProtocolEvaluationOut
 
 router = APIRouter(prefix="/batches", tags=["batches"])
 
@@ -123,6 +125,34 @@ async def get_batch_by_code(
     if batch is None:
         raise AppError(code="not_found", message="No batch found with that code.", status_code=status.HTTP_404_NOT_FOUND)
     return await _to_batch_out(db, batch)
+
+
+@router.get("/{batch_id}/schedule", response_model=ProtocolEvaluationOut)
+async def get_batch_schedule(
+    batch_id: uuid.UUID,
+    _: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProtocolEvaluationOut:
+    """The staged view of a batch's quality standard (B-32/B-33): which
+    stages are done, which are due or overdue by day-offset-from-planting,
+    and whether the batch currently satisfies the protocol it claims. Same
+    computation the public provenance page shows a consumer — this is just
+    the farmer's own view of it, keyed by batch id instead of code."""
+    batch = await db.get(Batch, batch_id)
+    if batch is None:
+        raise AppError(code="not_found", message="Batch not found.", status_code=status.HTTP_404_NOT_FOUND)
+    if batch.protocol_id is None:
+        raise AppError(
+            code="no_protocol",
+            message="This batch wasn't registered against a quality standard.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    protocol = await db.get(Protocol, batch.protocol_id)
+    if protocol is None:
+        raise AppError(code="not_found", message="Protocol not found.", status_code=status.HTTP_404_NOT_FOUND)
+
+    planted_at = await get_planted_at(db, plot_id=batch.plot_id, before=batch.created_at)
+    return await evaluate_batch_protocol(db, protocol=protocol, batch_id=batch.id, planted_at=planted_at)
 
 
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)

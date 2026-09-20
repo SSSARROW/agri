@@ -6,6 +6,7 @@ import '../models/batch.dart';
 import '../models/commitment.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
+import '../models/protocol_evaluation.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
 
@@ -160,6 +161,32 @@ class FarmService {
       }
       return FarmResult.ok(
         Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  // The staged view of a batch's quality standard (B-32/B-33) — which
+  // stages are done, due, overdue or standing, and whether the batch
+  // currently satisfies the protocol it was registered under.
+  static Future<FarmResult<ProtocolEvaluation>> batchSchedule(
+    String batchId,
+  ) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/batches/$batchId/schedule'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        ProtocolEvaluation.fromJson(
+          jsonDecode(res.body) as Map<String, dynamic>,
+        ),
       );
     } catch (e) {
       return FarmResult.fail(e.toString());

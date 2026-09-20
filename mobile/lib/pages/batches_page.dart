@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/farm_service.dart';
 import '../models/batch.dart';
 import '../widgets/batch_qr_dialog.dart';
+import 'batch_schedule_page.dart';
 
 class BatchesPage extends StatefulWidget {
   const BatchesPage({super.key});
@@ -126,6 +127,23 @@ class _BatchesPageState extends State<BatchesPage> {
                                       ],
                                     ),
                                   ),
+                                  if (batch.protocolId != null)
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.checklist_outlined,
+                                        size: 20,
+                                      ),
+                                      tooltip: 'View quality standard progress',
+                                      onPressed: () =>
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => BatchSchedulePage(
+                                                batchId: batch.id,
+                                                batchCode: batch.code,
+                                              ),
+                                            ),
+                                          ),
+                                    ),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 10,

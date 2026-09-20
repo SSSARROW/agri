@@ -1,0 +1,10 @@
+{% extends "_base.html" %}
+{% block title %}Code not found{% endblock %}
+{% block content %}
+  <h1>Batch not found</h1>
+  <p class="muted">Code scanned: <span class="code">{{ code }}</span></p>
+  <div class="badge badge-red">
+    ⚠ This code could not be verified.
+    <p>It does not match any batch in the system. This could mean it was mistyped, damaged, or is not a genuine label from this platform. If you bought this product expecting a verified batch, contact the seller.</p>
+  </div>
+{% endblock %}

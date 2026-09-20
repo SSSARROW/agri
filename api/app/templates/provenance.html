@@ -1,0 +1,90 @@
+{% extends "_base.html" %}
+{% block title %}{{ p.batch.code }} — Batch Provenance{% endblock %}
+{% block content %}
+  <h1 class="code">{{ p.batch.code }}</h1>
+  <p class="muted">{{ p.batch.crop }} · registered {{ p.batch.created_at.strftime('%d %b %Y') }}</p>
+
+  {% if p.protocol %}
+    {% if p.protocol.tier_achieved %}
+      <div class="badge badge-green">
+        ✓ Verified — meets {{ p.protocol.protocol_name }}
+        <p>All {{ p.protocol.required_total }} checkable requirements of this standard have a matching recorded event.</p>
+      </div>
+    {% elif p.protocol.required_satisfied > 0 %}
+      <div class="badge badge-amber">
+        ⏳ In progress — {{ p.protocol.required_satisfied }}/{{ p.protocol.required_total }} required steps verified so far
+        <p>Claiming {{ p.protocol.protocol_name }}. Not every required step has a matching recorded event yet.</p>
+      </div>
+    {% else %}
+      <div class="badge badge-amber">
+        Not yet verified — 0/{{ p.protocol.required_total }} required steps recorded
+        <p>Claiming {{ p.protocol.protocol_name }}, but no checkable step has been recorded yet.</p>
+      </div>
+    {% endif %}
+  {% endif %}
+
+  {% if p.plot %}
+  <div class="card">
+    <h2>Origin</h2>
+    <div class="row"><span class="label">District</span><span>{{ p.plot.district or "—" }}</span></div>
+    <div class="row"><span class="label">DS Division</span><span>{{ p.plot.dsd or "—" }}</span></div>
+    <div class="row"><span class="label">GN Division</span><span>{{ p.plot.gn_division or "—" }}</span></div>
+    {% if p.plot.area_ha %}
+    <div class="row"><span class="label">Plot size</span><span>{{ "%.2f"|format(p.plot.area_ha) }} ha</span></div>
+    {% endif %}
+    {% if p.planted_at %}
+    <div class="row"><span class="label">Planted</span><span>{{ p.planted_at.strftime('%d %b %Y') }}</span></div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if p.protocol %}
+  <div class="card">
+    <h2>Quality standard: {{ p.protocol.protocol_name }}</h2>
+    {% for stage in p.protocol.stages %}
+    <div class="stage">
+      <div class="stage-title">{{ stage.title }}
+        <span class="stage-status status-{{ stage.status }}">
+          {%- if stage.status == "done" -%} ✓ Done
+          {%- elif stage.status == "overdue" -%} ⚠ Overdue
+          {%- elif stage.status == "upcoming" -%} Upcoming
+          {%- elif stage.status == "pending" -%} Pending
+          {%- else -%} Standing rule
+          {%- endif -%}
+        </span>
+      </div>
+      <div class="stage-instructions">{{ stage.instructions }}</div>
+    </div>
+    {% endfor %}
+    <p class="source-cite">Source: {{ p.protocol.protocol_source }}</p>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Timeline</h2>
+    {% if p.timeline %}
+      {% for e in p.timeline %}
+      <div class="timeline-item">
+        <span class="timeline-type">{{ e.event_type }}</span>
+        {% if e.batch_code != p.batch.code %}<span class="muted">(batch {{ e.batch_code }})</span>{% endif %}
+        <div class="timeline-meta">{{ e.occurred_at.strftime('%d %b %Y, %H:%M') }}
+          {%- if e.payload -%}
+            {% for k, v in e.payload.items() %} · {{ k }}: {{ v }}{% endfor %}
+          {%- endif -%}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">No events recorded yet.</p>
+    {% endif %}
+  </div>
+
+  {% if p.lineage %}
+  <div class="card">
+    <h2>Merged from</h2>
+    {% for parent in p.lineage %}
+    <div class="row"><span class="label code">{{ parent.code }}</span><span>{{ parent.crop }} · {{ parent.created_at.strftime('%d %b %Y') }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endblock %}
