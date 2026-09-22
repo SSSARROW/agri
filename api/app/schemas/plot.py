@@ -46,4 +46,8 @@ class PlotOut(BaseModel):
     district: str | None
     dsd: str | None
     gn_division: str | None
+    # Which protocol (if any) the farmer confirmed adherence to at planting
+    # time (see farm_page.dart's checklist) — self-reported, not verified.
+    committed_protocol_id: uuid.UUID | None
+    committed_protocol_name: str | None
     created_at: datetime

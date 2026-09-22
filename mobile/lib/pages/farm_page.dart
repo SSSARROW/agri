@@ -145,25 +145,139 @@ class _FarmPageState extends State<FarmPage> {
     final positionFuture = LocationService.getCurrentPosition();
 
     final cropController = TextEditingController(text: 'Tea');
+
+    // Public endpoint, best-effort — planting still records with no quality
+    // standard attached if this fails or nothing's seeded for the crop.
+    final protocolsResult = await FarmService.protocolsForCrop(
+      cropController.text.trim(),
+    );
+    final protocols = protocolsResult.isOk
+        ? (protocolsResult.data ?? [])
+        : <ProtocolSummary>[];
+    if (!mounted) return;
+
+    ProtocolSummary? selectedProtocol;
+    ProtocolDetail? selectedProtocolDetail;
+    bool loadingDetail = false;
+    final confirmedSequences = <int>{};
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Record planting'),
-        content: TextField(
-          controller: cropController,
-          decoration: const InputDecoration(labelText: 'Crop'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final allConfirmed =
+              selectedProtocol == null ||
+              (selectedProtocolDetail != null &&
+                  confirmedSequences.length ==
+                      selectedProtocolDetail!.stages.length);
+          return AlertDialog(
+            title: const Text('Record planting'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: cropController,
+                    decoration: const InputDecoration(labelText: 'Crop'),
+                    autofocus: true,
+                  ),
+                  if (protocols.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Growing to a quality standard? (optional)',
+                      style: TextStyle(color: Colors.black54, fontSize: 13),
+                    ),
+                    DropdownButton<ProtocolSummary?>(
+                      isExpanded: true,
+                      value: selectedProtocol,
+                      hint: const Text('No specific standard'),
+                      items: [
+                        const DropdownMenuItem<ProtocolSummary?>(
+                          value: null,
+                          child: Text('No specific standard'),
+                        ),
+                        for (final p in protocols)
+                          DropdownMenuItem<ProtocolSummary?>(
+                            value: p,
+                            child: Text(p.name),
+                          ),
+                      ],
+                      onChanged: (p) async {
+                        setDialogState(() {
+                          selectedProtocol = p;
+                          selectedProtocolDetail = null;
+                          confirmedSequences.clear();
+                          loadingDetail = p != null;
+                        });
+                        if (p == null) return;
+                        final detailResult = await FarmService.protocolDetail(
+                          p.id,
+                        );
+                        setDialogState(() {
+                          loadingDetail = false;
+                          if (detailResult.isOk) {
+                            selectedProtocolDetail = detailResult.data;
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                  if (loadingDetail) ...[
+                    const SizedBox(height: 16),
+                    const Center(child: CircularProgressIndicator()),
+                  ],
+                  if (selectedProtocolDetail != null) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      "Confirm you'll follow every requirement below — this "
+                      "is what the batch will be checked against later.",
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    for (final stage in selectedProtocolDetail!.stages)
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        dense: true,
+                        title: Text(
+                          stage.title,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          stage.instructions,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        value: confirmedSequences.contains(stage.sequence),
+                        onChanged: (checked) => setDialogState(() {
+                          if (checked == true) {
+                            confirmedSequences.add(stage.sequence);
+                          } else {
+                            confirmedSequences.remove(stage.sequence);
+                          }
+                        }),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: allConfirmed
+                    ? () => Navigator.of(context).pop(true)
+                    : null,
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (confirmed != true) return;
@@ -177,6 +291,14 @@ class _FarmPageState extends State<FarmPage> {
       payload['lat'] = position.latitude;
       payload['lon'] = position.longitude;
       payload['accuracy_m'] = position.accuracy;
+    }
+    // Self-reported by the farmer at planting time, not independently
+    // verified — a collector/inspector co-sign is a real gap, not something
+    // this checklist claims to solve.
+    if (selectedProtocol != null) {
+      payload['protocol_id'] = selectedProtocol!.id;
+      payload['protocol_name'] = selectedProtocol!.name;
+      payload['confirmed_stages'] = confirmedSequences.toList()..sort();
     }
 
     await EventQueue.add(
@@ -256,67 +378,102 @@ class _FarmPageState extends State<FarmPage> {
         : <ProtocolSummary>[];
     if (!mounted) return;
 
-    ProtocolSummary? selectedProtocol;
+    // Pre-select whatever the farmer confirmed adherence to at planting time
+    // (see _recordPlanting's checklist) — if it's still in this crop's list.
+    ProtocolSummary? selectedProtocol = protocols
+        .cast<ProtocolSummary?>()
+        .firstWhere(
+          (p) => p?.id == plot.committedProtocolId,
+          orElse: () => null,
+        );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Register a batch'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: cropController,
-                  decoration: const InputDecoration(labelText: 'Crop'),
-                  autofocus: true,
-                ),
-                if (protocols.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Grow to a quality standard? (optional)',
-                    style: TextStyle(color: Colors.black54, fontSize: 13),
+        builder: (context, setDialogState) {
+          final mismatch =
+              plot.committedProtocolId != null &&
+              selectedProtocol?.id != plot.committedProtocolId;
+          return AlertDialog(
+            title: const Text('Register a batch'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: cropController,
+                    decoration: const InputDecoration(labelText: 'Crop'),
+                    autofocus: true,
                   ),
-                  DropdownButton<ProtocolSummary?>(
-                    isExpanded: true,
-                    value: selectedProtocol,
-                    hint: const Text('No specific standard'),
-                    items: [
-                      const DropdownMenuItem<ProtocolSummary?>(
-                        value: null,
-                        child: Text('No specific standard'),
-                      ),
-                      for (final p in protocols)
-                        DropdownMenuItem<ProtocolSummary?>(
-                          value: p,
-                          child: Text(p.name),
-                        ),
-                    ],
-                    onChanged: (p) =>
-                        setDialogState(() => selectedProtocol = p),
-                  ),
-                  if (selectedProtocol != null)
-                    TextButton(
-                      onPressed: () =>
-                          _showProtocolInstructions(selectedProtocol!),
-                      child: const Text('View planting instructions'),
+                  if (protocols.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Grow to a quality standard? (optional)',
+                      style: TextStyle(color: Colors.black54, fontSize: 13),
                     ),
+                    DropdownButton<ProtocolSummary?>(
+                      isExpanded: true,
+                      value: selectedProtocol,
+                      hint: const Text('No specific standard'),
+                      items: [
+                        const DropdownMenuItem<ProtocolSummary?>(
+                          value: null,
+                          child: Text('No specific standard'),
+                        ),
+                        for (final p in protocols)
+                          DropdownMenuItem<ProtocolSummary?>(
+                            value: p,
+                            child: Text(p.name),
+                          ),
+                      ],
+                      onChanged: (p) =>
+                          setDialogState(() => selectedProtocol = p),
+                    ),
+                    if (selectedProtocol != null)
+                      TextButton(
+                        onPressed: () =>
+                            _showProtocolInstructions(selectedProtocol!),
+                        child: const Text('View planting instructions'),
+                      ),
+                    if (mismatch) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          selectedProtocol == null
+                              ? "This plot's planting was confirmed against "
+                                    "${plot.committedProtocolName} — this batch "
+                                    "won't claim that standard."
+                              : "This plot's planting was confirmed against "
+                                    "${plot.committedProtocolName}, not "
+                                    "${selectedProtocol!.name}.",
+                          style: const TextStyle(
+                            color: Color(0xFF9A6B00),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Register'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Register'),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (confirmed != true || !mounted) return;

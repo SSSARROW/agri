@@ -8,6 +8,12 @@ class Plot {
   final String? district;
   final String? dsd;
   final String? gnDivision;
+  // Which protocol the farmer confirmed adherence to when recording planting
+  // (see farm_page.dart's checklist) — self-reported at that time, not
+  // independently verified. Null if no protocol was confirmed, or nothing's
+  // been planted on this plot yet.
+  final String? committedProtocolId;
+  final String? committedProtocolName;
   final DateTime createdAt;
 
   Plot({
@@ -20,6 +26,8 @@ class Plot {
     required this.district,
     required this.dsd,
     required this.gnDivision,
+    required this.committedProtocolId,
+    required this.committedProtocolName,
     required this.createdAt,
   });
 
@@ -33,6 +41,8 @@ class Plot {
     district: json['district'] as String?,
     dsd: json['dsd'] as String?,
     gnDivision: json['gn_division'] as String?,
+    committedProtocolId: json['committed_protocol_id'] as String?,
+    committedProtocolName: json['committed_protocol_name'] as String?,
     createdAt: DateTime.parse(json['created_at'] as String),
   );
 }
