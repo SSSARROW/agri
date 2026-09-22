@@ -43,6 +43,9 @@ class FarmService {
     }
   }
 
+  // Fallback for when walking the plot isn't practical — a single dropped
+  // pin plus an approximate side length. registerPlotWalked (below) is the
+  // preferred path; the server tags whichever was used via boundary_source.
   static Future<FarmResult<Plot>> registerPlot({
     required double centerLat,
     required double centerLon,
@@ -51,19 +54,39 @@ class FarmService {
     String? dsd,
     String? gnDivision,
   }) async {
+    return _createPlot({
+      'center_lat': centerLat,
+      'center_lon': centerLon,
+      'side_m': sideM,
+      'district': district,
+      'dsd': dsd,
+      'gn_division': gnDivision,
+    });
+  }
+
+  // A real surveyed boundary — the farmer walks the edge of the plot and
+  // drops a pin at each corner (>=3 points).
+  static Future<FarmResult<Plot>> registerPlotWalked({
+    required List<Map<String, double>> boundaryPoints,
+    required String district,
+    String? dsd,
+    String? gnDivision,
+  }) async {
+    return _createPlot({
+      'boundary_points': boundaryPoints,
+      'district': district,
+      'dsd': dsd,
+      'gn_division': gnDivision,
+    });
+  }
+
+  static Future<FarmResult<Plot>> _createPlot(Map<String, dynamic> body) async {
     try {
       final res = await http
           .post(
             Uri.parse('${ApiClient.baseUrl}/api/v1/plots'),
             headers: _authHeaders,
-            body: jsonEncode({
-              'center_lat': centerLat,
-              'center_lon': centerLon,
-              'side_m': sideM,
-              'district': district,
-              'dsd': dsd,
-              'gn_division': gnDivision,
-            }),
+            body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 201) {

@@ -46,6 +46,10 @@ class Plot(Base):
     )
     geometry = mapped_column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     area_ha: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
+    # "walked" (a real boundary, corner pins dropped in the field) vs
+    # "estimated_square" (a single GPS pin + an approximate side length) —
+    # downstream consumers (an exporter, a certifier) need to know which.
+    boundary_source: Mapped[str] = mapped_column(String, nullable=False, server_default="estimated_square")
     district: Mapped[str | None] = mapped_column(String, nullable=True)
     dsd: Mapped[str | None] = mapped_column(String, nullable=True)
     gn_division: Mapped[str | None] = mapped_column(String, nullable=True)

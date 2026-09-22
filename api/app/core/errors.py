@@ -21,6 +21,22 @@ def error_envelope(code: str, message: str, details: object | None = None) -> di
     return {"error": {"code": code, "message": message, "details": details}}
 
 
+def _sanitize_pydantic_errors(errors: list[dict]) -> list[dict]:
+    """A @model_validator that raises a plain ValueError leaves the raw
+    exception object in error["ctx"]["error"] — pydantic itself stringifies
+    this when rendering its own output, but exc.errors() doesn't, so passing
+    it straight to JSONResponse crashes with a 500 instead of the intended
+    422. Stringify it here rather than at every validator call site."""
+    sanitized = []
+    for err in errors:
+        err = dict(err)
+        ctx = err.get("ctx")
+        if isinstance(ctx, dict) and "error" in ctx:
+            err["ctx"] = {**ctx, "error": str(ctx["error"])}
+        sanitized.append(err)
+    return sanitized
+
+
 def register_exception_handlers(app) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
@@ -30,7 +46,7 @@ def register_exception_handlers(app) -> None:
     async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content=error_envelope("validation_error", "Request failed validation.", exc.errors()),
+            content=error_envelope("validation_error", "Request failed validation.", _sanitize_pydantic_errors(exc.errors())),
         )
 
     @app.exception_handler(StarletteHTTPException)

@@ -4,6 +4,7 @@ class Plot {
   final double centerLat;
   final double centerLon;
   final double? areaHa;
+  final String boundarySource;
   final String? district;
   final String? dsd;
   final String? gnDivision;
@@ -15,6 +16,7 @@ class Plot {
     required this.centerLat,
     required this.centerLon,
     required this.areaHa,
+    required this.boundarySource,
     required this.district,
     required this.dsd,
     required this.gnDivision,
@@ -22,14 +24,15 @@ class Plot {
   });
 
   factory Plot.fromJson(Map<String, dynamic> json) => Plot(
-        id: json['id'] as String,
-        ownerUserId: json['owner_user_id'] as String?,
-        centerLat: (json['center_lat'] as num).toDouble(),
-        centerLon: (json['center_lon'] as num).toDouble(),
-        areaHa: (json['area_ha'] as num?)?.toDouble(),
-        district: json['district'] as String?,
-        dsd: json['dsd'] as String?,
-        gnDivision: json['gn_division'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+    id: json['id'] as String,
+    ownerUserId: json['owner_user_id'] as String?,
+    centerLat: (json['center_lat'] as num).toDouble(),
+    centerLon: (json['center_lon'] as num).toDouble(),
+    areaHa: (json['area_ha'] as num?)?.toDouble(),
+    boundarySource: json['boundary_source'] as String? ?? 'estimated_square',
+    district: json['district'] as String?,
+    dsd: json['dsd'] as String?,
+    gnDivision: json['gn_division'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
 }

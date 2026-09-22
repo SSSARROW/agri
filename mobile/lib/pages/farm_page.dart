@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../core/auth_service.dart';
 import '../core/event_queue.dart';
 import '../core/farm_service.dart';
+import '../core/location_service.dart';
 import '../core/sync_service.dart';
 import '../models/commitment.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
 import '../widgets/batch_qr_dialog.dart';
+import 'plot_boundary_walk_page.dart';
 
 class FarmPage extends StatefulWidget {
   final VoidCallback onLoggedOut;
@@ -61,95 +62,7 @@ class _FarmPageState extends State<FarmPage> {
 
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
-  void _showSnack(BuildContext context, String message) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
-  /// geolocator_android's plugin calls can hang indefinitely with zero
-  /// Android-level symptoms (no ANR — the platform thread itself isn't
-  /// blocked, the native async call to Play Services location just never
-  /// completes). Every call here gets its own timeout so a bad location
-  /// fix, a cold/rebooted device, or the plugin's known NmeaClient.stop()
-  /// ANR (baseflow/flutter-geolocator#...) can never leave this button
-  /// silently stuck with no feedback.
-  Future<Position?> _getCurrentPosition(BuildContext context) async {
-    LocationPermission permission;
-    try {
-      permission = await Geolocator.checkPermission().timeout(
-        const Duration(seconds: 5),
-      );
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission().timeout(
-          const Duration(seconds: 30),
-        );
-      }
-    } catch (_) {
-      _showSnack(context, 'Could not check location permission. Try again.');
-      return null;
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      _showSnack(
-        context,
-        'Location permission is required to register a plot.',
-      );
-      return null;
-    }
-
-    try {
-      if (!await Geolocator.isLocationServiceEnabled().timeout(
-        const Duration(seconds: 5),
-      )) {
-        _showSnack(context, 'Turn on location services to register a plot.');
-        return null;
-      }
-    } catch (_) {
-      _showSnack(context, 'Could not check location services. Try again.');
-      return null;
-    }
-
-    // Prefer the cached last-known fix: geolocator_android's getCurrentPosition
-    // starts a live GNSS listener and then tears it down, and that teardown
-    // (NmeaClient.stop -> LocationManager.removeNmeaListener) is a known
-    // upstream ANR — a synchronous Binder call on the main thread that can
-    // hang for several seconds. getLastKnownPosition never touches that path.
-    try {
-      final lastKnown = await Geolocator.getLastKnownPosition().timeout(
-        const Duration(seconds: 5),
-      );
-      if (lastKnown != null) return lastKnown;
-    } catch (_) {
-      // Fall through to a live fix below.
-    }
-
-    // No cached fix to fall back on — ask for a live one, but never hang the
-    // UI indefinitely: no fix at all (weak signal, indoors, this emulator's
-    // GPS simulator) must fail loudly rather than leave the button spinning
-    // forever with no feedback.
-    try {
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 10),
-        ),
-      ).timeout(const Duration(seconds: 12));
-    } catch (_) {
-      _showSnack(
-        context,
-        'Could not get a GPS fix. Move somewhere with a clearer view of the sky and try again.',
-      );
-      return null;
-    }
-  }
-
   Future<void> _registerPlot() async {
-    final position = await _getCurrentPosition(context);
-    if (!mounted || position == null) return;
-
-    final sideController = TextEditingController(text: '50');
     final districtController = TextEditingController(text: 'Nuwara Eliya');
     final dsdController = TextEditingController(text: 'Nuwara Eliya DSD');
     final gnController = TextEditingController(text: 'Kandapola');
@@ -169,25 +82,15 @@ class _FarmPageState extends State<FarmPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Register plot at current location',
+              'Register a plot',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 4),
-            Text(
-              '${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
-              style: const TextStyle(color: Colors.black54),
+            const Text(
+              "You'll walk the edge of the plot next and drop a pin at each corner.",
+              style: TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: sideController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Approximate plot size (side length, metres)',
-              ),
-            ),
-            const SizedBox(height: 12),
             TextField(
               controller: districtController,
               decoration: const InputDecoration(labelText: 'District'),
@@ -210,33 +113,25 @@ class _FarmPageState extends State<FarmPage> {
                 minimumSize: const Size(0, 48),
               ),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Register'),
+              child: const Text('Continue to boundary walk'),
             ),
           ],
         ),
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
-    final result = await FarmService.registerPlot(
-      centerLat: position.latitude,
-      centerLon: position.longitude,
-      sideM: double.tryParse(sideController.text) ?? 50,
-      district: districtController.text.trim(),
-      dsd: dsdController.text.trim(),
-      gnDivision: gnController.text.trim(),
+    final registered = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PlotBoundaryWalkPage(
+          district: districtController.text.trim(),
+          dsd: dsdController.text.trim(),
+          gnDivision: gnController.text.trim(),
+        ),
+      ),
     );
-    if (!mounted) return;
-    if (result.isOk) {
-      await _load();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Plot registered.')));
-    } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
-    }
+    if (registered == true) await _load();
   }
 
   // Above this accuracy (metres), warn the farmer rather than silently
@@ -247,7 +142,7 @@ class _FarmPageState extends State<FarmPage> {
     // Kick off location capture in the background while the farmer is still
     // filling in the dialog, so it's usually already resolved by the time
     // they hit Save instead of adding its own visible wait afterward.
-    final positionFuture = _getCurrentPosition(context);
+    final positionFuture = LocationService.getCurrentPosition();
 
     final cropController = TextEditingController(text: 'Tea');
     final confirmed = await showDialog<bool>(
@@ -276,7 +171,7 @@ class _FarmPageState extends State<FarmPage> {
     // GPS is supplementary provenance data here, not a requirement — a
     // planting record must still save even with no fix (indoors, permission
     // denied, this emulator's flaky GPS simulator, etc).
-    final position = await positionFuture;
+    final position = (await positionFuture).position;
     final payload = <String, dynamic>{'crop': cropController.text.trim()};
     if (position != null) {
       payload['lat'] = position.latitude;
@@ -609,6 +504,19 @@ class _FarmPageState extends State<FarmPage> {
                                   style: const TextStyle(
                                     color: Colors.black54,
                                     fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  plot.boundarySource == 'walked'
+                                      ? 'Boundary walked in the field'
+                                      : 'Estimated square (no boundary walk)',
+                                  style: TextStyle(
+                                    color: plot.boundarySource == 'walked'
+                                        ? const Color(0xFF1B5E20)
+                                        : const Color(0xFF9A6B00),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 const SizedBox(height: 10),
