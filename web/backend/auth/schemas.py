@@ -6,6 +6,7 @@ class UserRole(str, Enum):
     admin = "admin"
     farmer = "farmer"
     exporter = "exporter"
+    collector = "collector"
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -22,6 +23,16 @@ class FarmerSignupRequest(BaseModel):
     gn_division: str
     farm_address: str
     farm_size_ha: float
+
+class CollectorSignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    phone: str
+    nic: str                  # raw — will be hashed before storage, same as farmer
+    district: str              # the area this collector operates in
+    dsd: str
+    gn_division: str
 
 class ExporterSignupRequest(BaseModel):
     email: EmailStr

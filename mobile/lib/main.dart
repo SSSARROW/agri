@@ -4,6 +4,7 @@ import 'core/auth_service.dart';
 import 'core/event_queue.dart';
 import 'core/sync_service.dart';
 import 'pages/batches_page.dart';
+import 'pages/collector_home_page.dart';
 import 'pages/farm_page.dart';
 import 'pages/login_page.dart';
 import 'pages/pin_setup_page.dart';
@@ -64,7 +65,9 @@ class _AuthGateState extends State<AuthGate> {
     // identity for this launch without setting a PIN, so checking hasPin
     // first would loop the farmer straight back into PinSetupPage forever.
     if (!auth.hasPin && !_unlockedThisLaunch) {
-      return PinSetupPage(onDone: () => setState(() => _unlockedThisLaunch = true));
+      return PinSetupPage(
+        onDone: () => setState(() => _unlockedThisLaunch = true),
+      );
     }
     if (!_unlockedThisLaunch) {
       return PinUnlockPage(
@@ -72,7 +75,9 @@ class _AuthGateState extends State<AuthGate> {
         onUseEmailInstead: () => setState(() {}),
       );
     }
-    return RootShell(onLoggedOut: () => setState(() => _unlockedThisLaunch = false));
+    return RootShell(
+      onLoggedOut: () => setState(() => _unlockedThisLaunch = false),
+    );
   }
 }
 
@@ -89,6 +94,13 @@ class _RootShellState extends State<RootShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Collectors get a single-purpose scan-and-merge screen, not the
+    // farmer's Farm/Batches/Scan/Queue nav — the two roles do genuinely
+    // different field work, not just a filtered view of the same one.
+    if (AuthService.instance.role == 'collector') {
+      return Scaffold(body: CollectorHomePage(onLoggedOut: widget.onLoggedOut));
+    }
+
     // Built on demand (not an IndexedStack) so the Scan tab's camera only
     // initializes once the user actually opens it, and releases it on leaving.
     final page = switch (_index) {
@@ -105,12 +117,26 @@ class _RootShellState extends State<RootShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         height: 64,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.grass_outlined), selectedIcon: Icon(Icons.grass), label: 'Farm'),
-          NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Batches'),
           NavigationDestination(
-              icon: Icon(Icons.qr_code_scanner_outlined), selectedIcon: Icon(Icons.qr_code_scanner), label: 'Scan'),
+            icon: Icon(Icons.grass_outlined),
+            selectedIcon: Icon(Icons.grass),
+            label: 'Farm',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox), label: 'Queue'),
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
+            label: 'Batches',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_scanner_outlined),
+            selectedIcon: Icon(Icons.qr_code_scanner),
+            label: 'Scan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inbox_outlined),
+            selectedIcon: Icon(Icons.inbox),
+            label: 'Queue',
+          ),
         ],
       ),
     );

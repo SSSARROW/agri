@@ -73,7 +73,8 @@ class AuthService {
     return base64Url.encode(List<int>.generate(16, (_) => rand.nextInt(256)));
   }
 
-  String _hashPin(String pin, String salt) => sha256.convert(utf8.encode('$salt:$pin')).toString();
+  String _hashPin(String pin, String salt) =>
+      sha256.convert(utf8.encode('$salt:$pin')).toString();
 
   Future<AuthResult> login(String email, String password) async {
     try {
@@ -135,6 +136,43 @@ class AuthService {
     }
   }
 
+  Future<AuthResult> signupCollector({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required String nic,
+    required String district,
+    required String dsd,
+    required String gnDivision,
+  }) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$_authBaseUrl/auth/signup/collector'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email,
+              'password': password,
+              'name': name,
+              'phone': phone,
+              'nic': nic,
+              'district': district,
+              'dsd': dsd,
+              'gn_division': gnDivision,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return AuthResult(false, _extractError(res.body));
+      }
+      await _storeSession(jsonDecode(res.body) as Map<String, dynamic>);
+      return AuthResult(true);
+    } catch (e) {
+      return AuthResult(false, e.toString());
+    }
+  }
+
   Future<void> _storeSession(Map<String, dynamic> body) async {
     final token = body['access_token'] as String;
     final role = body['role'] as String;
@@ -154,7 +192,9 @@ class AuthService {
       final parts = token.split('.');
       var payload = parts[1];
       payload = payload.padRight((payload.length + 3) ~/ 4 * 4, '=');
-      final decoded = jsonDecode(utf8.decode(base64Url.decode(payload))) as Map<String, dynamic>;
+      final decoded = jsonDecode(
+        utf8.decode(base64Url.decode(payload)),
+      ) as Map<String, dynamic>;
       return decoded['sub'] as String?;
     } catch (_) {
       return null;

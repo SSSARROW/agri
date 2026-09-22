@@ -5,14 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import CurrentUser, get_current_user
+from app.core.auth import CurrentUser, get_current_user, require_role
 from app.core.codegen import generate_batch_code
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.tier_evaluation import evaluate_batch_protocol, get_planted_at
 from app.db.models import Batch, Commitment, Event, Plot, Protocol
 from app.db.session import get_db
-from app.schemas.batch import BatchCreate, BatchOut
+from app.schemas.batch import BatchCreate, BatchMergeCreate, BatchOut
 from app.schemas.tier_evaluation import ProtocolEvaluationOut
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -43,6 +43,25 @@ async def _to_batch_out(db: AsyncSession, batch: Batch) -> BatchOut:
         created_at=batch.created_at,
         latest_status=latest.event_type if latest else "registered",
         latest_occurred_at=latest.occurred_at if latest else None,
+    )
+
+
+async def _assign_unique_code(db: AsyncSession, batch: Batch, secret: str) -> None:
+    """Codes are random (see codegen.py) — a collision is astronomically
+    unlikely but the unique constraint plus a short retry loop makes the
+    rare case safe rather than a 500."""
+    for _ in range(5):
+        batch.code = generate_batch_code(secret)
+        db.add(batch)
+        try:
+            await db.commit()
+            return
+        except IntegrityError:
+            await db.rollback()
+    raise AppError(
+        code="internal_error",
+        message="Could not generate a unique batch code — try again.",
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
 
 
@@ -193,24 +212,71 @@ async def create_batch(
         commitment_id=commitment.id if commitment else None,
         code="",
     )
+    await _assign_unique_code(db, batch, settings.batch_code_secret)
 
-    # Codes are random (see codegen.py) — a collision is astronomically
-    # unlikely but the unique constraint plus a short retry loop makes the
-    # rare case safe rather than a 500.
-    for _ in range(5):
-        batch.code = generate_batch_code(settings.batch_code_secret)
-        db.add(batch)
-        try:
-            await db.commit()
-            break
-        except IntegrityError:
-            await db.rollback()
-    else:
+    await db.refresh(batch)
+    return await _to_batch_out(db, batch)
+
+
+@router.post("/merge", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
+async def merge_batches(
+    body: BatchMergeCreate,
+    current_user: CurrentUser = Depends(require_role("collector", "admin")),
+    db: AsyncSession = Depends(get_db),
+) -> BatchOut:
+    """A collector combining leaf from several farmers' own batches into one
+    at the collection point (B-14 lineage, put to use) — a single
+    smallholder's harvest is rarely enough to ship on its own. Each parent
+    batch keeps its full independent history; this just adds a new batch
+    downstream of all of them, the way a real collection point works."""
+    if len(body.parent_batch_ids) < 2:
         raise AppError(
-            code="internal_error",
-            message="Could not generate a unique batch code — try again.",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="invalid_payload",
+            message="A merge needs at least two parent batches.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
+    if len(set(body.parent_batch_ids)) != len(body.parent_batch_ids):
+        raise AppError(
+            code="invalid_payload",
+            message="Duplicate batch in parent_batch_ids.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    parents = []
+    for parent_id in body.parent_batch_ids:
+        parent = await db.get(Batch, parent_id)
+        if parent is None:
+            raise AppError(
+                code="not_found",
+                message=f"Batch {parent_id} not found.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        parents.append(parent)
+
+    if body.protocol_id is not None:
+        protocol = await db.get(Protocol, body.protocol_id)
+        if protocol is None:
+            raise AppError(code="not_found", message="Protocol not found.", status_code=status.HTTP_404_NOT_FOUND)
+        if protocol.crop != body.crop:
+            raise AppError(
+                code="invalid_payload",
+                message="protocol_id does not match crop.",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+    commitment = await _match_open_commitment(db, body.crop, body.protocol_id)
+
+    settings = get_settings()
+    batch = Batch(
+        id=uuid.uuid4(),
+        crop=body.crop,
+        plot_id=None,
+        parent_batch_ids=[p.id for p in parents],
+        protocol_id=body.protocol_id,
+        commitment_id=commitment.id if commitment else None,
+        code="",
+    )
+    await _assign_unique_code(db, batch, settings.batch_code_secret)
 
     await db.refresh(batch)
     return await _to_batch_out(db, batch)

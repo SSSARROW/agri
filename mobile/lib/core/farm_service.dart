@@ -215,6 +215,37 @@ class FarmService {
     }
   }
 
+  // A collector combining several farmers' individually-registered batches
+  // into one at the collection point (B-14 lineage, put to use) — see
+  // POST /batches/merge on the backend.
+  static Future<FarmResult<Batch>> mergeBatches({
+    required List<String> parentBatchIds,
+    required String crop,
+    String? protocolId,
+  }) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/batches/merge'),
+            headers: _authHeaders,
+            body: jsonEncode({
+              'parent_batch_ids': parentBatchIds,
+              'crop': crop,
+              'protocol_id': protocolId,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 201) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
   static Future<FarmResult<List<Batch>>> myBatches() async {
     try {
       final res = await http

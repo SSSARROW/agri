@@ -64,6 +64,36 @@ async def signup_farmer(body: FarmerSignupRequest):
     token = create_access_token({"sub": str(user["id"]), "role": "farmer", "email": user["email"]})
     return {"access_token": token, "role": "farmer"}
 
+# ── Collector signup ─────────────────────────────────────────
+@router.post("/signup/collector", response_model=TokenResponse)
+async def signup_collector(body: CollectorSignupRequest):
+    existing = supabase.table("users").select("id").eq("email", body.email).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    nic_hash, nic_salt = hash_nic(body.nic)
+    pw_hash = hash_password(body.password)
+
+    new_user = {
+        "email": body.email,
+        "password_hash": pw_hash,
+        "role": "collector",
+        "name": body.name,
+        "phone": body.phone,
+        "nic_hash": nic_hash,
+        "nic_salt": nic_salt,
+        "district": body.district,
+        "dsd": body.dsd,
+        "gn_division": body.gn_division,
+    }
+    res = supabase.table("users").insert(new_user).execute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to create user record")
+
+    user = res.data[0]
+    token = create_access_token({"sub": str(user["id"]), "role": "collector", "email": user["email"]})
+    return {"access_token": token, "role": "collector"}
+
 # ── Exporter signup ───────────────────────────────────────────
 @router.post("/signup/exporter", response_model=TokenResponse)
 async def signup_exporter(body: ExporterSignupRequest):

@@ -12,6 +12,16 @@ class BatchCreate(BaseModel):
     protocol_id: uuid.UUID | None = None
 
 
+class BatchMergeCreate(BaseModel):
+    # A collector combining several farmers' individually-registered batches
+    # into one at the collection point — the batches a smallholder actually
+    # produces are too small to ship alone. Each parent keeps its own full
+    # history; this just adds one more batch downstream of all of them.
+    parent_batch_ids: list[uuid.UUID]
+    crop: str
+    protocol_id: uuid.UUID | None = None
+
+
 class BatchOut(BaseModel):
     id: uuid.UUID
     code: str
