@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_client.dart';
+import 'auth_service.dart';
 import 'event_queue.dart';
 
 /// Sync engine (M-04): pushes queued offline events to the backend's
@@ -24,7 +25,10 @@ class SyncService {
         syncNow();
       }
     });
-    _pollTimer ??= Timer.periodic(const Duration(seconds: 20), (_) => syncNow());
+    _pollTimer ??= Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => syncNow(),
+    );
     syncNow();
   }
 
@@ -56,7 +60,13 @@ class SyncService {
       final res = await http
           .post(
             Uri.parse('${ApiClient.baseUrl}/api/v1/events'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              // The server now checks who's allowed to record a given event
+              // (B-custody) — without this every synced event 401s.
+              if (AuthService.instance.token != null)
+                'Authorization': 'Bearer ${AuthService.instance.token}',
+            },
             body: jsonEncode({
               'id': id,
               'event_type': event['eventType'],
