@@ -14,8 +14,7 @@ import '../widgets/batch_qr_dialog.dart';
 import 'plot_boundary_walk_page.dart';
 
 class FarmPage extends StatefulWidget {
-  final VoidCallback onLoggedOut;
-  const FarmPage({super.key, required this.onLoggedOut});
+  const FarmPage({super.key});
 
   @override
   State<FarmPage> createState() => _FarmPageState();
@@ -645,22 +644,7 @@ class _FarmPageState extends State<FarmPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'My Farm',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () async {
-                    await AuthService.instance.logout();
-                    widget.onLoggedOut();
-                  },
-                ),
-              ],
-            ),
+            Text('My Farm', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 4),
             const Text(
               'Your registered plots.',
@@ -711,14 +695,26 @@ class _FarmPageState extends State<FarmPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            c.protocolName ?? '${c.crop} — any standard',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.storefront_outlined,
+                                size: 15,
+                                color: Color(0xFF1B5E20),
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  c.protocolName ?? '${c.crop} — any standard',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -771,102 +767,113 @@ class _FarmPageState extends State<FarmPage> {
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, i) {
                           final plot = _plots![i];
-                          return Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF5F5F5),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${plot.district ?? 'Unknown district'} · ${plot.gnDivision ?? ''}'
-                                  '${plot.plotType != 'open_field' ? ' · ${_plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.grass,
+                                        size: 18,
+                                        color: Color(0xFF1B5E20),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          '${plot.district ?? 'Unknown district'} · ${plot.gnDivision ?? ''}'
+                                          '${plot.plotType != 'open_field' ? ' · ${_plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha · '
-                                  '${plot.centerLat.toStringAsFixed(4)}, ${plot.centerLon.toStringAsFixed(4)}',
-                                  style: const TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  plot.boundarySource == 'walked'
-                                      ? 'Boundary walked in the field'
-                                      : 'Estimated square (no boundary walk)',
-                                  style: TextStyle(
-                                    color: plot.boundarySource == 'walked'
-                                        ? const Color(0xFF1B5E20)
-                                        : const Color(0xFF9A6B00),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                if (_photoStatusText(plot) != null) ...[
-                                  const SizedBox(height: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha · '
+                                    '${plot.centerLat.toStringAsFixed(4)}, ${plot.centerLon.toStringAsFixed(4)}',
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: 13,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: _photoStatusIsUrgent(plot)
-                                          ? const Color(0xFFFDECEA)
-                                          : const Color(0xFFF5F5F5),
-                                      borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    plot.boundarySource == 'walked'
+                                        ? 'Boundary walked in the field'
+                                        : 'Estimated square (no boundary walk)',
+                                    style: TextStyle(
+                                      color: plot.boundarySource == 'walked'
+                                          ? const Color(0xFF1B5E20)
+                                          : const Color(0xFF9A6B00),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                    child: Text(
-                                      _photoStatusText(plot)!,
-                                      style: TextStyle(
+                                  ),
+                                  if (_photoStatusText(plot) != null) ...[
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
                                         color: _photoStatusIsUrgent(plot)
-                                            ? const Color(0xFFB71C1C)
-                                            : Colors.black54,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                            ? const Color(0xFFFDECEA)
+                                            : const Color(0xFFF5F5F5),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 10),
-                                Wrap(
-                                  alignment: WrapAlignment.end,
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    OutlinedButton.icon(
-                                      onPressed: () => _recordPlanting(plot),
-                                      icon: const Icon(
-                                        Icons.eco_outlined,
-                                        size: 18,
+                                      child: Text(
+                                        _photoStatusText(plot)!,
+                                        style: TextStyle(
+                                          color: _photoStatusIsUrgent(plot)
+                                              ? const Color(0xFFB71C1C)
+                                              : Colors.black54,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                      label: const Text('Record planting'),
-                                    ),
-                                    OutlinedButton.icon(
-                                      onPressed: () => _registerBatch(plot),
-                                      icon: const Icon(
-                                        Icons.inventory_2_outlined,
-                                        size: 18,
-                                      ),
-                                      label: const Text('Register batch'),
-                                    ),
-                                    OutlinedButton.icon(
-                                      onPressed: () => _addProgressPhoto(plot),
-                                      icon: const Icon(
-                                        Icons.camera_alt_outlined,
-                                        size: 18,
-                                      ),
-                                      label: const Text('Add photo'),
                                     ),
                                   ],
-                                ),
-                              ],
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    alignment: WrapAlignment.end,
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: () => _recordPlanting(plot),
+                                        icon: const Icon(
+                                          Icons.eco_outlined,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Record planting'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: () => _registerBatch(plot),
+                                        icon: const Icon(
+                                          Icons.inventory_2_outlined,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Register batch'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: () =>
+                                            _addProgressPhoto(plot),
+                                        icon: const Icon(
+                                          Icons.camera_alt_outlined,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Add photo'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },

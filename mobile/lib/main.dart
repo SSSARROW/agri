@@ -11,6 +11,11 @@ import 'pages/pin_setup_page.dart';
 import 'pages/pin_unlock_page.dart';
 import 'pages/queue_page.dart';
 import 'pages/scan_page.dart';
+import 'pages/settings_page.dart';
+
+// One seed color drives the whole app's palette (kept — it was already
+// "fine," per feedback; what needed work was consistency, not the hue).
+const _seedColor = Color(0xFF1B5E20);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,15 +30,119 @@ class AgriFieldApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.fromSeed(seedColor: _seedColor);
     return MaterialApp(
       title: 'Agri Field',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF1B5E20),
-        scaffoldBackgroundColor: Colors.white,
+        colorScheme: colorScheme,
+        scaffoldBackgroundColor: const Color(0xFFFAFAF7),
         textTheme: const TextTheme(
-          headlineMedium: TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
+          headlineMedium: TextStyle(fontWeight: FontWeight.bold, fontSize: 26),
+          titleLarge: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFFAFAF7),
+          foregroundColor: Colors.black87,
+          elevation: 0,
+          centerTitle: false,
+          surfaceTintColor: Colors.transparent,
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          color: const Color(0xFFF3F4F0),
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: colorScheme.outlineVariant),
+          ),
+          selectedColor: _seedColor,
+          labelStyle: const TextStyle(color: Colors.black87),
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: colorScheme.outlineVariant),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: colorScheme.outlineVariant),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: _seedColor, width: 2),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _seedColor,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: _seedColor.withValues(alpha: 0.35),
+            minimumSize: const Size(0, 50),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _seedColor,
+            minimumSize: const Size(0, 46),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            side: BorderSide(color: colorScheme.outlineVariant),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: _seedColor),
+        ),
+        dialogTheme: DialogThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: _seedColor.withValues(alpha: 0.15),
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              fontSize: 12,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w700
+                  : FontWeight.w500,
+              color: states.contains(WidgetState.selected)
+                  ? _seedColor
+                  : Colors.black54,
+            ),
+          ),
         ),
       ),
       home: const AuthGate(),
@@ -94,20 +203,44 @@ class _RootShellState extends State<RootShell> {
 
   @override
   Widget build(BuildContext context) {
-    // Collectors get a single-purpose scan-and-merge screen, not the
-    // farmer's Farm/Batches/Scan/Queue nav — the two roles do genuinely
-    // different field work, not just a filtered view of the same one.
+    // Collectors get a single-purpose scan-and-merge screen plus Settings,
+    // not the farmer's Farm/Batches/Scan/Queue nav — the two roles do
+    // genuinely different field work, not just a filtered view of the same
+    // one.
     if (AuthService.instance.role == 'collector') {
-      return Scaffold(body: CollectorHomePage(onLoggedOut: widget.onLoggedOut));
+      final page = _index == 0
+          ? const CollectorHomePage()
+          : SettingsPage(onLoggedOut: widget.onLoggedOut);
+      return Scaffold(
+        body: page,
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          height: 64,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.qr_code_scanner_outlined),
+              selectedIcon: Icon(Icons.qr_code_scanner),
+              label: 'Round',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings),
+              label: 'Settings',
+            ),
+          ],
+        ),
+      );
     }
 
     // Built on demand (not an IndexedStack) so the Scan tab's camera only
     // initializes once the user actually opens it, and releases it on leaving.
     final page = switch (_index) {
-      0 => FarmPage(onLoggedOut: widget.onLoggedOut),
+      0 => const FarmPage(),
       1 => const BatchesPage(),
       2 => const ScanPage(),
-      _ => const QueuePage(),
+      3 => const QueuePage(),
+      _ => SettingsPage(onLoggedOut: widget.onLoggedOut),
     };
 
     return Scaffold(
@@ -136,6 +269,11 @@ class _RootShellState extends State<RootShell> {
             icon: Icon(Icons.inbox_outlined),
             selectedIcon: Icon(Icons.inbox),
             label: 'Queue',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
       ),

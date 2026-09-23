@@ -11,6 +11,7 @@ import '../models/photo_schedule.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
 import '../models/protocol_evaluation.dart';
+import '../models/user_profile.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
 
@@ -408,6 +409,26 @@ class FarmService {
       }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(Batch.fromJson).toList());
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  // The signed-in user's own profile — for the Settings screen.
+  static Future<FarmResult<UserProfile>> myProfile() async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/users/me'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        UserProfile.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
     } catch (e) {
       return FarmResult.fail(e.toString());
     }

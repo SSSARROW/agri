@@ -29,8 +29,7 @@ class _WeighAndCondition {
 /// batch once it's full — a single smallholder's harvest is too small to
 /// ship on its own, but a collector's combined round is.
 class CollectorHomePage extends StatefulWidget {
-  final VoidCallback onLoggedOut;
-  const CollectorHomePage({super.key, required this.onLoggedOut});
+  const CollectorHomePage({super.key});
 
   @override
   State<CollectorHomePage> createState() => _CollectorHomePageState();
@@ -260,21 +259,9 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Collection round',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () async {
-                    await AuthService.instance.logout();
-                    widget.onLoggedOut();
-                  },
-                ),
-              ],
+            Text(
+              'Collection round',
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 4),
             const Text(
