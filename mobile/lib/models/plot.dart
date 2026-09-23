@@ -5,6 +5,11 @@ class Plot {
   final double centerLon;
   final double? areaHa;
   final String boundarySource;
+  // The growing environment — a plot's boundary shape already supports any
+  // polygon (a walked circle, an irregular greenhouse footprint), this is
+  // separate metadata since it affects which protocol requirements apply
+  // (e.g. organic's buffer-zone-from-neighbors rule doesn't fit a greenhouse).
+  final String plotType;
   final String? district;
   final String? dsd;
   final String? gnDivision;
@@ -23,6 +28,7 @@ class Plot {
     required this.centerLon,
     required this.areaHa,
     required this.boundarySource,
+    required this.plotType,
     required this.district,
     required this.dsd,
     required this.gnDivision,
@@ -38,6 +44,7 @@ class Plot {
     centerLon: (json['center_lon'] as num).toDouble(),
     areaHa: (json['area_ha'] as num?)?.toDouble(),
     boundarySource: json['boundary_source'] as String? ?? 'estimated_square',
+    plotType: json['plot_type'] as String? ?? 'open_field',
     district: json['district'] as String?,
     dsd: json['dsd'] as String?,
     gnDivision: json['gn_division'] as String?,

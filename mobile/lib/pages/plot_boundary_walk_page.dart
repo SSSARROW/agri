@@ -23,11 +23,13 @@ class PlotBoundaryWalkPage extends StatefulWidget {
   final String district;
   final String? dsd;
   final String? gnDivision;
+  final String plotType;
   const PlotBoundaryWalkPage({
     super.key,
     required this.district,
     this.dsd,
     this.gnDivision,
+    this.plotType = 'open_field',
   });
 
   @override
@@ -95,6 +97,7 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
       district: widget.district,
       dsd: widget.dsd,
       gnDivision: widget.gnDivision,
+      plotType: widget.plotType,
     );
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -183,6 +186,7 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
       district: widget.district,
       dsd: widget.dsd,
       gnDivision: widget.gnDivision,
+      plotType: widget.plotType,
     );
     if (!mounted) return;
     setState(() => _submitting = false);

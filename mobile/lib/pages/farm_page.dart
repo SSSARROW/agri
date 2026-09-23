@@ -62,60 +62,88 @@ class _FarmPageState extends State<FarmPage> {
 
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
+  static const _plotTypeLabels = {
+    'open_field': 'Open field',
+    'greenhouse': 'Greenhouse',
+    'shade_house': 'Shade house',
+    'hydroponic': 'Hydroponic',
+  };
+
   Future<void> _registerPlot() async {
     final districtController = TextEditingController(text: 'Nuwara Eliya');
     final dsdController = TextEditingController(text: 'Nuwara Eliya DSD');
     final gnController = TextEditingController(text: 'Kandapola');
+    String plotType = 'open_field';
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Register a plot',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "You'll walk the edge of the plot next and drop a pin at each corner.",
-              style: TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: districtController,
-              decoration: const InputDecoration(labelText: 'District'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: dsdController,
-              decoration: const InputDecoration(labelText: 'DSD'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: gnController,
-              decoration: const InputDecoration(labelText: 'GN Division'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B5E20),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 48),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Register a plot',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Continue to boundary walk'),
-            ),
-          ],
+              const SizedBox(height: 4),
+              const Text(
+                "You'll walk the edge of the plot next and drop a pin at each corner.",
+                style: TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Growing environment',
+                style: TextStyle(color: Colors.black54, fontSize: 13),
+              ),
+              DropdownButton<String>(
+                isExpanded: true,
+                value: plotType,
+                items: [
+                  for (final entry in _plotTypeLabels.entries)
+                    DropdownMenuItem(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    ),
+                ],
+                onChanged: (v) =>
+                    setSheetState(() => plotType = v ?? 'open_field'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: districtController,
+                decoration: const InputDecoration(labelText: 'District'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: dsdController,
+                decoration: const InputDecoration(labelText: 'DSD'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: gnController,
+                decoration: const InputDecoration(labelText: 'GN Division'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B5E20),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 48),
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Continue to boundary walk'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -128,6 +156,7 @@ class _FarmPageState extends State<FarmPage> {
           district: districtController.text.trim(),
           dsd: dsdController.text.trim(),
           gnDivision: gnController.text.trim(),
+          plotType: plotType,
         ),
       ),
     );
@@ -649,7 +678,8 @@ class _FarmPageState extends State<FarmPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${plot.district ?? 'Unknown district'} · ${plot.gnDivision ?? ''}',
+                                  '${plot.district ?? 'Unknown district'} · ${plot.gnDivision ?? ''}'
+                                  '${plot.plotType != 'open_field' ? ' · ${_plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),

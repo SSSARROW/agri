@@ -53,11 +53,13 @@ class FarmService {
     required String district,
     String? dsd,
     String? gnDivision,
+    String plotType = 'open_field',
   }) async {
     return _createPlot({
       'center_lat': centerLat,
       'center_lon': centerLon,
       'side_m': sideM,
+      'plot_type': plotType,
       'district': district,
       'dsd': dsd,
       'gn_division': gnDivision,
@@ -71,9 +73,11 @@ class FarmService {
     required String district,
     String? dsd,
     String? gnDivision,
+    String plotType = 'open_field',
   }) async {
     return _createPlot({
       'boundary_points': boundaryPoints,
+      'plot_type': plotType,
       'district': district,
       'dsd': dsd,
       'gn_division': gnDivision,

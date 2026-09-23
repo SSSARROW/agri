@@ -1,7 +1,15 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+# A plot's boundary polygon already supports any shape — a walked circle or
+# an irregular greenhouse footprint work the same as a field. This is
+# separate metadata about the growing environment, since some protocol
+# requirements (e.g. organic's buffer-zone-from-neighbors rule) don't apply
+# cleanly to an enclosed structure.
+PlotType = Literal["open_field", "greenhouse", "shade_house", "hydroponic"]
 
 
 class BoundaryPoint(BaseModel):
@@ -19,6 +27,7 @@ class PlotCreate(BaseModel):
     center_lat: float | None = Field(default=None, ge=-90, le=90)
     center_lon: float | None = Field(default=None, ge=-180, le=180)
     side_m: float | None = Field(default=None, gt=0, le=2000)
+    plot_type: PlotType = "open_field"
     district: str
     dsd: str | None = None
     gn_division: str | None = None
@@ -43,6 +52,7 @@ class PlotOut(BaseModel):
     center_lon: float
     area_ha: float | None
     boundary_source: str
+    plot_type: str
     district: str | None
     dsd: str | None
     gn_division: str | None

@@ -50,6 +50,12 @@ class Plot(Base):
     # "estimated_square" (a single GPS pin + an approximate side length) —
     # downstream consumers (an exporter, a certifier) need to know which.
     boundary_source: Mapped[str] = mapped_column(String, nullable=False, server_default="estimated_square")
+    # A plot's boundary polygon already supports any shape (a walked circle
+    # or an irregular greenhouse footprint work the same as a field) — this
+    # is separate metadata about the growing environment itself, since some
+    # protocol requirements (e.g. organic's buffer-zone-from-neighbors rule)
+    # don't cleanly apply to an enclosed structure.
+    plot_type: Mapped[str] = mapped_column(String, nullable=False, server_default="open_field")
     district: Mapped[str | None] = mapped_column(String, nullable=True)
     dsd: Mapped[str | None] = mapped_column(String, nullable=True)
     gn_division: Mapped[str | None] = mapped_column(String, nullable=True)
