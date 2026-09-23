@@ -2,12 +2,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, UploadFile, status
+from geoalchemy2.shape import to_shape
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.errors import AppError
+from app.core.geo import haversine_distance_m
 from app.core.storage import upload_photo
 from app.core.tier_evaluation import get_planted_at
 from app.db.models import Event, Plot
@@ -26,6 +28,11 @@ ALLOWED_EVENT_TYPES = {"plot_photo", "progress_photo"}
 ALLOWED_CONTENT_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 
+# Flag (never reject — GPS can genuinely be off by hundreds of metres on a
+# cheap device or a large plot) a photo whose capture location is further
+# than this from the plot it claims to document.
+LOCATION_FLAG_THRESHOLD_M = 500
+
 # How often a progress photo is expected during the growing cycle — a
 # platform quality-maintenance cadence, not a claim from any cited protocol
 # (SLTB/SLS 1324 say nothing about photo frequency, so this isn't attributed
@@ -41,6 +48,8 @@ async def upload_field_photo(
     event_id: uuid.UUID = Form(default_factory=uuid.uuid4),
     caption: str | None = Form(None),
     occurred_at: datetime | None = Form(None),
+    lat: float | None = Form(None),
+    lon: float | None = Form(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Event:
@@ -86,6 +95,13 @@ async def upload_field_photo(
     payload: dict = {"photo_url": photo_url}
     if caption:
         payload["caption"] = caption
+    if lat is not None and lon is not None:
+        centroid = to_shape(plot.geometry).centroid
+        distance_m = haversine_distance_m(lat, lon, centroid.y, centroid.x)
+        payload["lat"] = lat
+        payload["lon"] = lon
+        payload["distance_from_plot_m"] = round(distance_m, 1)
+        payload["location_flagged"] = distance_m > LOCATION_FLAG_THRESHOLD_M
 
     stmt = (
         pg_insert(Event)

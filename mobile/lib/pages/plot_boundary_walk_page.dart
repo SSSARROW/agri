@@ -116,6 +116,9 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
       );
       if (!mounted) return;
 
+      // Captured alongside the photo, not required for it — a missing GPS
+      // fix (M-06) never blocks the mandatory photo itself.
+      final positionFuture = LocationService.getCurrentPosition();
       final file = await PhotoCapture.takePhoto();
       if (!mounted) return;
       if (file == null) {
@@ -125,15 +128,22 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
         continue;
       }
 
+      final position = (await positionFuture).position;
       final result = await FarmService.uploadPlotPhoto(
         plotId: plotId,
         eventType: 'plot_photo',
         imageFile: file,
+        lat: position?.latitude,
+        lon: position?.longitude,
       );
       if (!mounted) return;
       if (result.isOk) {
+        final message = result.data!.locationFlagged
+            ? 'Photo uploaded — but it was taken '
+                  '${result.data!.distanceFromPlotM!.round()}m from this plot.'
+            : 'Photo uploaded.';
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Photo uploaded.')));
+            .showSnackBar(SnackBar(content: Text(message)));
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(

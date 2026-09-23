@@ -400,6 +400,10 @@ class _FarmPageState extends State<FarmPage> {
   // offered right after registering the plot) — evidence of progress and
   // condition over time, not just a single point-in-time snapshot.
   Future<void> _addProgressPhoto(Plot plot) async {
+    // Captured alongside the photo, not required for it — GPS is
+    // best-effort provenance here (M-06), same as everywhere else it's
+    // used, so a missing fix never blocks taking or uploading the photo.
+    final positionFuture = LocationService.getCurrentPosition();
     final file = await PhotoCapture.takePhoto();
     if (file == null || !mounted) return;
 
@@ -427,22 +431,24 @@ class _FarmPageState extends State<FarmPage> {
     );
     if (confirmed != true || !mounted) return;
 
+    final position = (await positionFuture).position;
     final result = await FarmService.uploadPlotPhoto(
       plotId: plot.id,
       eventType: 'progress_photo',
       imageFile: file,
       caption: captionController.text.trim(),
+      lat: position?.latitude,
+      lon: position?.longitude,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result.isOk
-              ? 'Progress photo uploaded.'
-              : 'Could not upload photo: ${result.error}',
-        ),
-      ),
-    );
+    final message = !result.isOk
+        ? 'Could not upload photo: ${result.error}'
+        : result.data!.locationFlagged
+        ? 'Progress photo uploaded — but it was taken '
+              '${result.data!.distanceFromPlotM!.round()}m from this plot.'
+        : 'Progress photo uploaded.';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showProtocolInstructions(ProtocolSummary protocol) async {

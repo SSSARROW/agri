@@ -34,6 +34,19 @@ def make_polygon_from_points(points: list[tuple[float, float]]) -> tuple[WKTElem
     return WKTElement(wkt, srid=4326), round(area_ha, 4)
 
 
+_EARTH_RADIUS_M = 6_371_000
+
+
+def haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance between two points — used to flag a field photo
+    taken somewhere other than the plot it claims to be of (B-photo-geo)."""
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * _EARTH_RADIUS_M * math.asin(math.sqrt(a))
+
+
 def make_square_polygon(center_lat: float, center_lon: float, side_m: float) -> tuple[WKTElement, float]:
     """A small square plot around (center_lat, center_lon). Returns (geometry, area_ha).
 

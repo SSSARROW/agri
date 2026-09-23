@@ -22,6 +22,19 @@ class FarmResult<T> {
   bool get isOk => error == null;
 }
 
+class PhotoUploadResult {
+  final String photoUrl;
+  // Null when no GPS fix was available at capture time — not itself
+  // suspicious (see location_service.dart's known failure modes).
+  final double? distanceFromPlotM;
+  final bool locationFlagged;
+  PhotoUploadResult({
+    required this.photoUrl,
+    required this.distanceFromPlotM,
+    required this.locationFlagged,
+  });
+}
+
 class FarmService {
   static Map<String, String> get _authHeaders => {
     'Content-Type': 'application/json',
@@ -52,11 +65,13 @@ class FarmService {
   // to fake than a checkbox, even though it's still self-reported rather
   // than independently verified. event_type is "plot_photo" (at
   // registration) or "progress_photo" (during the growing cycle).
-  static Future<FarmResult<String>> uploadPlotPhoto({
+  static Future<FarmResult<PhotoUploadResult>> uploadPlotPhoto({
     required String plotId,
     required String eventType,
     required File imageFile,
     String? caption,
+    double? lat,
+    double? lon,
   }) async {
     try {
       final request = http.MultipartRequest(
@@ -72,6 +87,13 @@ class FarmService {
       request.fields['event_id'] = const Uuid().v4();
       if (caption != null && caption.isNotEmpty) {
         request.fields['caption'] = caption;
+      }
+      // Lets the server flag a photo taken somewhere other than the plot it
+      // claims to document — GPS is best-effort, so this is sent when
+      // available rather than required to take the photo at all.
+      if (lat != null && lon != null) {
+        request.fields['lat'] = lat.toString();
+        request.fields['lon'] = lon.toString();
       }
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -89,10 +111,17 @@ class FarmService {
       if (res.statusCode != 201) {
         return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
       }
-      final photoUrl =
-          (jsonDecode(res.body) as Map<String, dynamic>)['payload']['photo_url']
-              as String;
-      return FarmResult.ok(photoUrl);
+      final payload =
+          (jsonDecode(res.body) as Map<String, dynamic>)['payload']
+              as Map<String, dynamic>;
+      return FarmResult.ok(
+        PhotoUploadResult(
+          photoUrl: payload['photo_url'] as String,
+          distanceFromPlotM: (payload['distance_from_plot_m'] as num?)
+              ?.toDouble(),
+          locationFlagged: payload['location_flagged'] as bool? ?? false,
+        ),
+      );
     } catch (e) {
       return FarmResult.fail(e.toString());
     }
