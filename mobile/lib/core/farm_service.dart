@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/batch.dart';
 import '../models/commitment.dart';
@@ -41,6 +44,68 @@ class FarmService {
     } catch (e) {
       return FarmResult.fail(e.toString());
     }
+  }
+
+  // A geotagged, timestamped field photo — captured live (never from the
+  // gallery, see the camera-only picker call sites) so it's at least harder
+  // to fake than a checkbox, even though it's still self-reported rather
+  // than independently verified. event_type is "plot_photo" (at
+  // registration) or "progress_photo" (during the growing cycle).
+  static Future<FarmResult<String>> uploadPlotPhoto({
+    required String plotId,
+    required String eventType,
+    required File imageFile,
+    String? caption,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiClient.baseUrl}/api/v1/photos'),
+      );
+      if (AuthService.instance.token != null) {
+        request.headers['Authorization'] =
+            'Bearer ${AuthService.instance.token}';
+      }
+      request.fields['plot_id'] = plotId;
+      request.fields['event_type'] = eventType;
+      request.fields['event_id'] = const Uuid().v4();
+      if (caption != null && caption.isNotEmpty) {
+        request.fields['caption'] = caption;
+      }
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          imageFile.path,
+          // fromPath leaves this as application/octet-stream otherwise —
+          // the server checks the declared content type, not the bytes.
+          contentType: MediaType('image', _extensionSubtype(imageFile.path)),
+        ),
+      );
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final res = await http.Response.fromStream(streamed);
+      if (res.statusCode != 201) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      final photoUrl =
+          (jsonDecode(res.body) as Map<String, dynamic>)['payload']['photo_url']
+              as String;
+      return FarmResult.ok(photoUrl);
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  // image_picker's camera capture produces .jpg on Android/iOS — this only
+  // needs to handle that plus the two other types the server accepts.
+  static String _extensionSubtype(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    return switch (ext) {
+      'png' => 'png',
+      'webp' => 'webp',
+      _ => 'jpeg',
+    };
   }
 
   // Fallback for when walking the plot isn't practical — a single dropped

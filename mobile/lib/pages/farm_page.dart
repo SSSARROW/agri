@@ -4,6 +4,7 @@ import '../core/auth_service.dart';
 import '../core/event_queue.dart';
 import '../core/farm_service.dart';
 import '../core/location_service.dart';
+import '../core/photo_capture.dart';
 import '../core/sync_service.dart';
 import '../models/commitment.dart';
 import '../models/plot.dart';
@@ -346,6 +347,55 @@ class _FarmPageState extends State<FarmPage> {
         : 'Planting recorded — queued for sync.';
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // A periodic photo during the growing cycle (unlike the one-time photo
+  // offered right after registering the plot) — evidence of progress and
+  // condition over time, not just a single point-in-time snapshot.
+  Future<void> _addProgressPhoto(Plot plot) async {
+    final file = await PhotoCapture.takePhoto();
+    if (file == null || !mounted) return;
+
+    final captionController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add progress photo'),
+        content: TextField(
+          controller: captionController,
+          decoration: const InputDecoration(labelText: 'Note (optional)'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Upload'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final result = await FarmService.uploadPlotPhoto(
+      plotId: plot.id,
+      eventType: 'progress_photo',
+      imageFile: file,
+      caption: captionController.text.trim(),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.isOk
+              ? 'Progress photo uploaded.'
+              : 'Could not upload photo: ${result.error}',
+        ),
+      ),
+    );
   }
 
   Future<void> _showProtocolInstructions(ProtocolSummary protocol) async {
@@ -727,6 +777,14 @@ class _FarmPageState extends State<FarmPage> {
                                         size: 18,
                                       ),
                                       label: const Text('Register batch'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: () => _addProgressPhoto(plot),
+                                      icon: const Icon(
+                                        Icons.camera_alt_outlined,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Add photo'),
                                     ),
                                   ],
                                 ),

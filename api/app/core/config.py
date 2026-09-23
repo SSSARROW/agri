@@ -13,6 +13,11 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://agri:agri@localhost:5432/agri"
 
+    # Same Supabase project as database_url, used for Storage (field photos)
+    # rather than the direct Postgres connection. Shared with web/backend.
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+
     # Shared with web/backend's auth service — same HS256 secret, so this API
     # can verify tokens it issues without calling it over the network.
     jwt_secret: str = "dev-only-insecure-secret-change-me"

@@ -10,3 +10,4 @@ geoalchemy2
 shapely
 python-jose[cryptography]
 jinja2
+supabase

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/farm_service.dart';
 import '../core/location_service.dart';
+import '../core/photo_capture.dart';
 
 class _CornerPin {
   final double lat;
@@ -89,6 +90,52 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
     setState(() => _pins.removeLast());
   }
 
+  // A geotagged photo of the plot itself — the closest thing to independent
+  // evidence a boundary walk or a square estimate has behind it. Optional
+  // and best-effort: a failed or skipped photo never blocks the plot itself
+  // from being registered, since that data is already safely saved.
+  Future<void> _promptForPlotPhoto(String plotId) async {
+    final takePhoto = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add a photo?'),
+        content: const Text(
+          "A photo of the plot helps back up this registration. Optional.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Skip'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Take photo'),
+          ),
+        ],
+      ),
+    );
+    if (takePhoto != true || !mounted) return;
+
+    final file = await PhotoCapture.takePhoto();
+    if (file == null || !mounted) return;
+
+    final result = await FarmService.uploadPlotPhoto(
+      plotId: plotId,
+      eventType: 'plot_photo',
+      imageFile: file,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.isOk
+              ? 'Photo uploaded.'
+              : 'Could not upload photo: ${result.error}',
+        ),
+      ),
+    );
+  }
+
   Future<void> _finish() async {
     if (_pins.length < 3) return;
     setState(() => _submitting = true);
@@ -114,6 +161,8 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
         ),
       ),
     );
+    await _promptForPlotPhoto(result.data!.id);
+    if (!mounted) return;
     Navigator.of(context).pop(true);
   }
 
@@ -199,6 +248,8 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Plot registered as an estimate.')),
     );
+    await _promptForPlotPhoto(result2.data!.id);
+    if (!mounted) return;
     Navigator.of(context).pop(true);
   }
 

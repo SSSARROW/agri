@@ -1,7 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import batches, commitments, events, health, plots, protocols, provenance, provenance_page, users
+from app.api.routes import (
+    batches,
+    commitments,
+    events,
+    health,
+    photos,
+    plots,
+    protocols,
+    provenance,
+    provenance_page,
+    users,
+)
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
@@ -36,6 +47,7 @@ app.include_router(provenance.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(protocols.router, prefix=settings.api_prefix)
 app.include_router(commitments.router, prefix=settings.api_prefix)
+app.include_router(photos.router, prefix=settings.api_prefix)
 app.include_router(provenance_page.router)
 
 
