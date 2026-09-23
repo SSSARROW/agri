@@ -7,6 +7,7 @@ import '../core/location_service.dart';
 import '../core/photo_capture.dart';
 import '../core/sync_service.dart';
 import '../models/commitment.dart';
+import '../models/photo_schedule.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
 import '../widgets/batch_qr_dialog.dart';
@@ -24,6 +25,7 @@ class _FarmPageState extends State<FarmPage> {
   List<Plot>? _plots;
   String? _error;
   List<Commitment>? _commitments;
+  final Map<String, PlotPhotoSchedule> _photoSchedules = {};
 
   @override
   void initState() {
@@ -59,9 +61,54 @@ class _FarmPageState extends State<FarmPage> {
             : result.error;
       }
     });
+    if (result.isOk) await _loadPhotoSchedules(result.data ?? []);
+  }
+
+  // Best-effort per plot — a schedule failing to load just means that
+  // plot's card skips the reminder, not that the whole page breaks.
+  Future<void> _loadPhotoSchedules(List<Plot> plots) async {
+    for (final plot in plots) {
+      final result = await FarmService.plotPhotoSchedule(plot.id);
+      if (!mounted) return;
+      if (result.isOk && result.data != null) {
+        setState(() => _photoSchedules[plot.id] = result.data!);
+      }
+    }
   }
 
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+
+  // The most urgent thing to tell the farmer about this plot's photo
+  // evidence — a missing mandatory registration photo takes priority over
+  // any progress-photo checkpoint, since it should never actually be
+  // missing (the registration flow requires one) unless something failed.
+  String? _photoStatusText(Plot plot) {
+    final schedule = _photoSchedules[plot.id];
+    if (schedule == null) return null;
+    if (!schedule.hasRegistrationPhoto) {
+      return 'No registration photo on file';
+    }
+    final overdue = schedule.checkpoints
+        .where((c) => c.status == 'overdue')
+        .toList();
+    if (overdue.isNotEmpty) {
+      return 'Progress photo overdue since ${_formatDate(overdue.first.dueDate)}';
+    }
+    final upcoming = schedule.checkpoints
+        .where((c) => c.status == 'upcoming')
+        .toList();
+    if (upcoming.isNotEmpty) {
+      return 'Next progress photo due ${_formatDate(upcoming.first.dueDate)}';
+    }
+    return null;
+  }
+
+  bool _photoStatusIsUrgent(Plot plot) {
+    final schedule = _photoSchedules[plot.id];
+    if (schedule == null) return false;
+    if (!schedule.hasRegistrationPhoto) return true;
+    return schedule.checkpoints.any((c) => c.status == 'overdue');
+  }
 
   static const _plotTypeLabels = {
     'open_field': 'Open field',
@@ -756,6 +803,31 @@ class _FarmPageState extends State<FarmPage> {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
+                                if (_photoStatusText(plot) != null) ...[
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _photoStatusIsUrgent(plot)
+                                          ? const Color(0xFFFDECEA)
+                                          : const Color(0xFFF5F5F5),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      _photoStatusText(plot)!,
+                                      style: TextStyle(
+                                        color: _photoStatusIsUrgent(plot)
+                                            ? const Color(0xFFB71C1C)
+                                            : Colors.black54,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 10),
                                 Wrap(
                                   alignment: WrapAlignment.end,

@@ -91,49 +91,57 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
   }
 
   // A geotagged photo of the plot itself — the closest thing to independent
-  // evidence a boundary walk or a square estimate has behind it. Optional
-  // and best-effort: a failed or skipped photo never blocks the plot itself
-  // from being registered, since that data is already safely saved.
-  Future<void> _promptForPlotPhoto(String plotId) async {
-    final takePhoto = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add a photo?'),
-        content: const Text(
-          "A photo of the plot helps back up this registration. Optional.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Skip'),
+  // evidence a boundary walk or a square estimate has behind it. Mandatory:
+  // the plot record is already saved by the time this runs, but the farmer
+  // can't move on from this screen without a photo backing it up. Loops
+  // rather than blocking forever on one failed attempt — a cancelled camera
+  // or a dropped upload just means "try again," not "stuck."
+  Future<void> _requirePlotPhoto(String plotId) async {
+    while (mounted) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Photo required'),
+          content: const Text(
+            'A photo of the plot is required to finish registering it.',
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Take photo'),
-          ),
-        ],
-      ),
-    );
-    if (takePhoto != true || !mounted) return;
-
-    final file = await PhotoCapture.takePhoto();
-    if (file == null || !mounted) return;
-
-    final result = await FarmService.uploadPlotPhoto(
-      plotId: plotId,
-      eventType: 'plot_photo',
-      imageFile: file,
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result.isOk
-              ? 'Photo uploaded.'
-              : 'Could not upload photo: ${result.error}',
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Take photo'),
+            ),
+          ],
         ),
-      ),
-    );
+      );
+      if (!mounted) return;
+
+      final file = await PhotoCapture.takePhoto();
+      if (!mounted) return;
+      if (file == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A photo is required — try again.')),
+        );
+        continue;
+      }
+
+      final result = await FarmService.uploadPlotPhoto(
+        plotId: plotId,
+        eventType: 'plot_photo',
+        imageFile: file,
+      );
+      if (!mounted) return;
+      if (result.isOk) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Photo uploaded.')));
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not upload photo: ${result.error} — try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> _finish() async {
@@ -161,7 +169,7 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
         ),
       ),
     );
-    await _promptForPlotPhoto(result.data!.id);
+    await _requirePlotPhoto(result.data!.id);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -248,7 +256,7 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Plot registered as an estimate.')),
     );
-    await _promptForPlotPhoto(result2.data!.id);
+    await _requirePlotPhoto(result2.data!.id);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }

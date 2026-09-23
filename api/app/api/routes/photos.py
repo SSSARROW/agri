@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, UploadFile, status
 from sqlalchemy import select
@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import CurrentUser, get_current_user
 from app.core.errors import AppError
 from app.core.storage import upload_photo
+from app.core.tier_evaluation import get_planted_at
 from app.db.models import Event, Plot
 from app.db.session import get_db
 from app.schemas.event import EventOut
+from app.schemas.photo_schedule import PhotoCheckpointOut, PlotPhotoScheduleOut
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 
@@ -23,6 +25,12 @@ router = APIRouter(prefix="/photos", tags=["photos"])
 ALLOWED_EVENT_TYPES = {"plot_photo", "progress_photo"}
 ALLOWED_CONTENT_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
+
+# How often a progress photo is expected during the growing cycle — a
+# platform quality-maintenance cadence, not a claim from any cited protocol
+# (SLTB/SLS 1324 say nothing about photo frequency, so this isn't attributed
+# to them anywhere it's shown).
+PROGRESS_PHOTO_INTERVAL_DAYS = 30
 
 
 @router.post("", response_model=EventOut, status_code=status.HTTP_201_CREATED)
@@ -115,3 +123,65 @@ async def list_plot_photos(
         .order_by(Event.occurred_at.desc())
     )
     return list((await db.execute(stmt)).scalars().all())
+
+
+@router.get("/schedule", response_model=PlotPhotoScheduleOut)
+async def plot_photo_schedule(
+    plot_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PlotPhotoScheduleOut:
+    """Which progress-photo checkpoints are done, overdue or upcoming since
+    planting — every PROGRESS_PHOTO_INTERVAL_DAYS days, one photo satisfies
+    the window it falls in. No planting recorded yet means no schedule: a
+    plot with nothing planted has no growing cycle to check in on."""
+    plot = await db.get(Plot, plot_id)
+    if plot is None:
+        raise AppError(code="not_found", message="Plot not found.", status_code=status.HTTP_404_NOT_FOUND)
+    if plot.owner_user_id != current_user.id:
+        raise AppError(
+            code="forbidden", message="You do not own this plot.", status_code=status.HTTP_403_FORBIDDEN
+        )
+
+    now = datetime.now(timezone.utc)
+    planted_at = await get_planted_at(db, plot_id=plot_id, before=now)
+
+    has_registration_photo = (
+        await db.execute(
+            select(Event.id).where(Event.plot_id == plot_id, Event.event_type == "plot_photo").limit(1)
+        )
+    ).first() is not None
+
+    checkpoints: list[PhotoCheckpointOut] = []
+    if planted_at is not None:
+        progress_dates = (
+            await db.execute(
+                select(Event.occurred_at).where(Event.plot_id == plot_id, Event.event_type == "progress_photo")
+            )
+        ).scalars().all()
+
+        days_elapsed = (now - planted_at).days
+        # +1 so the next checkpoint always shows before it's overdue, not
+        # just once it already is.
+        num_checkpoints = days_elapsed // PROGRESS_PHOTO_INTERVAL_DAYS + 1
+        for i in range(1, num_checkpoints + 1):
+            window_start = planted_at + timedelta(days=(i - 1) * PROGRESS_PHOTO_INTERVAL_DAYS)
+            due_date = planted_at + timedelta(days=i * PROGRESS_PHOTO_INTERVAL_DAYS)
+            satisfied = any(window_start < d <= due_date for d in progress_dates)
+            if satisfied:
+                cp_status = "done"
+            elif due_date < now:
+                cp_status = "overdue"
+            else:
+                cp_status = "upcoming"
+            checkpoints.append(
+                PhotoCheckpointOut(sequence=i, due_date=due_date, satisfied=satisfied, status=cp_status)
+            )
+
+    return PlotPhotoScheduleOut(
+        plot_id=plot_id,
+        has_registration_photo=has_registration_photo,
+        planted_at=planted_at,
+        interval_days=PROGRESS_PHOTO_INTERVAL_DAYS,
+        checkpoints=checkpoints,
+    )

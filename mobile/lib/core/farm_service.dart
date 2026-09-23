@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/batch.dart';
 import '../models/commitment.dart';
+import '../models/photo_schedule.dart';
 import '../models/plot.dart';
 import '../models/protocol.dart';
 import '../models/protocol_evaluation.dart';
@@ -106,6 +107,33 @@ class FarmService {
       'webp' => 'webp',
       _ => 'jpeg',
     };
+  }
+
+  // Which progress-photo checkpoints are done, overdue or upcoming since
+  // planting (see api/app/api/routes/photos.py's schedule endpoint).
+  static Future<FarmResult<PlotPhotoSchedule>> plotPhotoSchedule(
+    String plotId,
+  ) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse(
+              '${ApiClient.baseUrl}/api/v1/photos/schedule?plot_id=$plotId',
+            ),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      return FarmResult.ok(
+        PlotPhotoSchedule.fromJson(
+          jsonDecode(res.body) as Map<String, dynamic>,
+        ),
+      );
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
   }
 
   // Fallback for when walking the plot isn't practical — a single dropped
