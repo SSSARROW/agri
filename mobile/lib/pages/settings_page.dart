@@ -62,9 +62,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('PIN updated.')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('PIN updated.')));
   }
 
   Future<void> _confirmLogout() async {
@@ -186,9 +185,8 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 24),
           Text(
             'Security',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontSize: 15),
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontSize: 15),
           ),
           const SizedBox(height: 8),
           Card(
@@ -197,9 +195,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ListTile(
                   leading: const Icon(Icons.pin_outlined),
                   title: Text(
-                    AuthService.instance.hasPin
-                        ? 'Change PIN'
-                        : 'Set up a PIN',
+                    AuthService.instance.hasPin ? 'Change PIN' : 'Set up a PIN',
                   ),
                   subtitle: const Text(
                     'Used to open the app without a network connection',
@@ -214,9 +210,8 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 24),
             Text(
               'Account type',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontSize: 15),
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontSize: 15),
             ),
             const SizedBox(height: 8),
             Card(
@@ -273,9 +268,7 @@ class _InfoRow extends StatelessWidget {
               style: const TextStyle(color: Colors.black54, fontSize: 13),
             ),
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
         ],
       ),
     );

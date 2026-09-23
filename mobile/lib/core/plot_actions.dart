@@ -1,0 +1,456 @@
+import 'package:flutter/material.dart';
+
+import '../models/plot.dart';
+import '../models/protocol.dart';
+import '../widgets/batch_qr_dialog.dart';
+import 'auth_service.dart';
+import 'event_queue.dart';
+import 'farm_service.dart';
+import 'location_service.dart';
+import 'photo_capture.dart';
+import 'sync_service.dart';
+
+/// The three things a farmer does to a specific plot — recording planting,
+/// registering a batch, adding a progress photo — pulled out of farm_page.dart
+/// so both the plot list and the plot detail page can trigger them with
+/// their own BuildContext instead of duplicating ~350 lines of dialog logic
+/// in two places. `onDone` lets the caller refresh whatever it's showing
+/// (a plot's photo schedule, its batch list) after a successful action.
+
+// Above this accuracy (metres), warn the farmer rather than silently
+// recording a fix that's not trustworthy at plot scale (M-06).
+const _poorAccuracyMeters = 50.0;
+
+Future<void> recordPlanting(
+  BuildContext context,
+  Plot plot, {
+  VoidCallback? onDone,
+}) async {
+  // Kick off location capture in the background while the farmer is still
+  // filling in the dialog, so it's usually already resolved by the time
+  // they hit Save instead of adding its own visible wait afterward.
+  final positionFuture = LocationService.getCurrentPosition();
+
+  final cropController = TextEditingController(text: 'Tea');
+
+  // Public endpoint, best-effort — planting still records with no quality
+  // standard attached if this fails or nothing's seeded for the crop.
+  final protocolsResult = await FarmService.protocolsForCrop(
+    cropController.text.trim(),
+  );
+  final protocols = protocolsResult.isOk
+      ? (protocolsResult.data ?? [])
+      : <ProtocolSummary>[];
+  if (!context.mounted) return;
+
+  ProtocolSummary? selectedProtocol;
+  ProtocolDetail? selectedProtocolDetail;
+  bool loadingDetail = false;
+  final confirmedSequences = <int>{};
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final allConfirmed =
+            selectedProtocol == null ||
+            (selectedProtocolDetail != null &&
+                confirmedSequences.length ==
+                    selectedProtocolDetail!.stages.length);
+        return AlertDialog(
+          title: const Text('Record planting'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: cropController,
+                  decoration: const InputDecoration(labelText: 'Crop'),
+                  autofocus: true,
+                ),
+                if (protocols.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Growing to a quality standard? (optional)',
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
+                  DropdownButton<ProtocolSummary?>(
+                    isExpanded: true,
+                    value: selectedProtocol,
+                    hint: const Text('No specific standard'),
+                    items: [
+                      const DropdownMenuItem<ProtocolSummary?>(
+                        value: null,
+                        child: Text('No specific standard'),
+                      ),
+                      for (final p in protocols)
+                        DropdownMenuItem<ProtocolSummary?>(
+                          value: p,
+                          child: Text(p.name),
+                        ),
+                    ],
+                    onChanged: (p) async {
+                      setDialogState(() {
+                        selectedProtocol = p;
+                        selectedProtocolDetail = null;
+                        confirmedSequences.clear();
+                        loadingDetail = p != null;
+                      });
+                      if (p == null) return;
+                      final detailResult = await FarmService.protocolDetail(
+                        p.id,
+                      );
+                      setDialogState(() {
+                        loadingDetail = false;
+                        if (detailResult.isOk) {
+                          selectedProtocolDetail = detailResult.data;
+                        }
+                      });
+                    },
+                  ),
+                ],
+                if (loadingDetail) ...[
+                  const SizedBox(height: 16),
+                  const Center(child: CircularProgressIndicator()),
+                ],
+                if (selectedProtocolDetail != null) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Confirm you'll follow every requirement below — this "
+                    "is what the batch will be checked against later.",
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  for (final stage in selectedProtocolDetail!.stages)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      dense: true,
+                      title: Text(
+                        stage.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        stage.instructions,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      value: confirmedSequences.contains(stage.sequence),
+                      onChanged: (checked) => setDialogState(() {
+                        if (checked == true) {
+                          confirmedSequences.add(stage.sequence);
+                        } else {
+                          confirmedSequences.remove(stage.sequence);
+                        }
+                      }),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: allConfirmed
+                  ? () => Navigator.of(context).pop(true)
+                  : null,
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  if (confirmed != true) return;
+
+  // GPS is supplementary provenance data here, not a requirement — a
+  // planting record must still save even with no fix (indoors, permission
+  // denied, this emulator's flaky GPS simulator, etc).
+  final position = (await positionFuture).position;
+  final payload = <String, dynamic>{'crop': cropController.text.trim()};
+  if (position != null) {
+    payload['lat'] = position.latitude;
+    payload['lon'] = position.longitude;
+    payload['accuracy_m'] = position.accuracy;
+  }
+  // Self-reported by the farmer at planting time, not independently
+  // verified — a collector/inspector co-sign is a real gap, not something
+  // this checklist claims to solve.
+  if (selectedProtocol != null) {
+    payload['protocol_id'] = selectedProtocol!.id;
+    payload['protocol_name'] = selectedProtocol!.name;
+    payload['confirmed_stages'] = confirmedSequences.toList()..sort();
+  }
+
+  await EventQueue.add(
+    eventType: 'planted',
+    payload: payload,
+    userId: AuthService.instance.userId,
+    plotId: plot.id,
+  );
+  SyncService.instance.syncNow();
+  onDone?.call();
+  if (!context.mounted) return;
+
+  final message = position == null
+      ? 'Planting recorded (no GPS fix) — queued for sync.'
+      : position.accuracy > _poorAccuracyMeters
+      ? 'Planting recorded — queued for sync. GPS accuracy was low (±${position.accuracy.round()}m).'
+      : 'Planting recorded — queued for sync.';
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+// A periodic photo during the growing cycle (unlike the one-time photo
+// offered right after registering the plot) — evidence of progress and
+// condition over time, not just a single point-in-time snapshot.
+Future<void> addProgressPhoto(
+  BuildContext context,
+  Plot plot, {
+  VoidCallback? onDone,
+}) async {
+  // Captured alongside the photo, not required for it — GPS is best-effort
+  // provenance here (M-06), so a missing fix never blocks the photo.
+  final positionFuture = LocationService.getCurrentPosition();
+  final file = await PhotoCapture.takePhoto();
+  if (file == null || !context.mounted) return;
+
+  final captionController = TextEditingController();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Add progress photo'),
+      content: TextField(
+        controller: captionController,
+        decoration: const InputDecoration(labelText: 'Note (optional)'),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Upload'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  final position = (await positionFuture).position;
+  final result = await FarmService.uploadPlotPhoto(
+    plotId: plot.id,
+    eventType: 'progress_photo',
+    imageFile: file,
+    caption: captionController.text.trim(),
+    lat: position?.latitude,
+    lon: position?.longitude,
+  );
+  if (result.isOk) onDone?.call();
+  if (!context.mounted) return;
+  final message = !result.isOk
+      ? 'Could not upload photo: ${result.error}'
+      : result.data!.locationFlagged
+      ? 'Progress photo uploaded — but it was taken '
+            '${result.data!.distanceFromPlotM!.round()}m from this plot.'
+      : 'Progress photo uploaded.';
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+Future<void> _showProtocolInstructions(
+  BuildContext context,
+  ProtocolSummary protocol,
+) async {
+  final result = await FarmService.protocolDetail(protocol.id);
+  if (!context.mounted) return;
+  if (!result.isOk || result.data == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Could not load instructions: ${result.error}')),
+    );
+    return;
+  }
+  final detail = result.data!;
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(detail.name),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              detail.source,
+              style: const TextStyle(color: Colors.black54, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            for (final stage in detail.stages) ...[
+              Text(
+                stage.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(stage.instructions),
+              const SizedBox(height: 16),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> registerBatchForPlot(
+  BuildContext context,
+  Plot plot, {
+  VoidCallback? onDone,
+}) async {
+  final cropController = TextEditingController(text: 'Tea');
+
+  // Public endpoint, best-effort — a farmer can still register a batch with
+  // no quality standard attached if this fails or nothing's seeded.
+  final protocolsResult = await FarmService.protocolsForCrop(
+    cropController.text.trim(),
+  );
+  final protocols = protocolsResult.isOk
+      ? (protocolsResult.data ?? [])
+      : <ProtocolSummary>[];
+  if (!context.mounted) return;
+
+  // Pre-select whatever the farmer confirmed adherence to at planting time
+  // (see recordPlanting's checklist) — if it's still in this crop's list.
+  ProtocolSummary? selectedProtocol = protocols
+      .cast<ProtocolSummary?>()
+      .firstWhere((p) => p?.id == plot.committedProtocolId, orElse: () => null);
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final mismatch =
+            plot.committedProtocolId != null &&
+            selectedProtocol?.id != plot.committedProtocolId;
+        return AlertDialog(
+          title: const Text('Register a batch'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: cropController,
+                  decoration: const InputDecoration(labelText: 'Crop'),
+                  autofocus: true,
+                ),
+                if (protocols.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Grow to a quality standard? (optional)',
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
+                  DropdownButton<ProtocolSummary?>(
+                    isExpanded: true,
+                    value: selectedProtocol,
+                    hint: const Text('No specific standard'),
+                    items: [
+                      const DropdownMenuItem<ProtocolSummary?>(
+                        value: null,
+                        child: Text('No specific standard'),
+                      ),
+                      for (final p in protocols)
+                        DropdownMenuItem<ProtocolSummary?>(
+                          value: p,
+                          child: Text(p.name),
+                        ),
+                    ],
+                    onChanged: (p) =>
+                        setDialogState(() => selectedProtocol = p),
+                  ),
+                  if (selectedProtocol != null)
+                    TextButton(
+                      onPressed: () =>
+                          _showProtocolInstructions(context, selectedProtocol!),
+                      child: const Text('View planting instructions'),
+                    ),
+                  if (mismatch) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        selectedProtocol == null
+                            ? "This plot's planting was confirmed against "
+                                  "${plot.committedProtocolName} — this batch "
+                                  "won't claim that standard."
+                            : "This plot's planting was confirmed against "
+                                  "${plot.committedProtocolName}, not "
+                                  "${selectedProtocol!.name}.",
+                        style: const TextStyle(
+                          color: Color(0xFF9A6B00),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Register'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  // Unlike a planting record, a batch code is issued by the server — it
+  // can't be queued offline the way events can, since there's nothing
+  // meaningful to show the farmer until the server hands back a real code.
+  final result = await FarmService.createBatch(
+    plotId: plot.id,
+    crop: cropController.text.trim(),
+    protocolId: selectedProtocol?.id,
+  );
+  if (!context.mounted) return;
+
+  if (!result.isOk || result.data == null) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
+    return;
+  }
+
+  onDone?.call();
+  final code = result.data!.code;
+  if (!context.mounted) return;
+  await showBatchQrDialog(
+    context,
+    code,
+    subtitle: result.data!.commitmentId != null
+        ? 'Matched to an open buyer order for this quality standard.'
+        : null,
+  );
+}

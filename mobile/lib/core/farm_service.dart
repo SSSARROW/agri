@@ -9,6 +9,7 @@ import '../models/batch.dart';
 import '../models/commitment.dart';
 import '../models/photo_schedule.dart';
 import '../models/plot.dart';
+import '../models/plot_photo.dart';
 import '../models/protocol.dart';
 import '../models/protocol_evaluation.dart';
 import '../models/user_profile.dart';
@@ -161,6 +162,26 @@ class FarmService {
           jsonDecode(res.body) as Map<String, dynamic>,
         ),
       );
+    } catch (e) {
+      return FarmResult.fail(e.toString());
+    }
+  }
+
+  // Every plot_photo/progress_photo taken of a plot, newest first — for the
+  // plot detail page's photo gallery.
+  static Future<FarmResult<List<PlotPhoto>>> plotPhotos(String plotId) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/photos?plot_id=$plotId'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+      }
+      final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+      return FarmResult.ok(list.map(PlotPhoto.fromJson).toList());
     } catch (e) {
       return FarmResult.fail(e.toString());
     }
