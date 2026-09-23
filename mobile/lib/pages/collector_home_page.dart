@@ -12,7 +12,15 @@ import '../widgets/batch_qr_dialog.dart';
 class _BasketItem {
   final Batch batch;
   final double weightKg;
-  _BasketItem(this.batch, this.weightKg);
+  final String condition;
+  _BasketItem(this.batch, this.weightKg, this.condition);
+}
+
+class _WeighAndCondition {
+  final double weightKg;
+  final String condition;
+  final String? note;
+  _WeighAndCondition(this.weightKg, this.condition, this.note);
 }
 
 /// The collector's field workflow (B-14): scan a farmer's own batch QR,
@@ -90,48 +98,115 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
       return;
     }
     setState(() => _scanning = false);
-    final weight = await _promptWeight(batch);
-    if (weight != null) {
+    final weighResult = await _promptWeightAndCondition(batch);
+    if (weighResult != null) {
       await EventQueue.add(
         eventType: 'weigh',
-        payload: {'weight_kg': weight},
+        payload: {'weight_kg': weighResult.weightKg},
+        userId: AuthService.instance.userId,
+        batchId: batch.id,
+      );
+      // A second, independently-sourced signal on this batch — the
+      // collector's own check, not the farmer's self-report — recorded
+      // separately from the weigh event so it shows up as its own line in
+      // the public provenance timeline.
+      await EventQueue.add(
+        eventType: 'collector_attestation',
+        payload: {
+          'condition': weighResult.condition,
+          if (weighResult.note != null && weighResult.note!.isNotEmpty)
+            'note': weighResult.note,
+        },
         userId: AuthService.instance.userId,
         batchId: batch.id,
       );
       SyncService.instance.syncNow();
-      setState(() => _basket.add(_BasketItem(batch, weight)));
+      setState(
+        () => _basket.add(
+          _BasketItem(batch, weighResult.weightKg, weighResult.condition),
+        ),
+      );
     }
     if (mounted) setState(() => _busy = false);
   }
 
-  Future<double?> _promptWeight(Batch batch) async {
-    final controller = TextEditingController();
-    return showDialog<double>(
+  Future<_WeighAndCondition?> _promptWeightAndCondition(Batch batch) async {
+    final weightController = TextEditingController();
+    final noteController = TextEditingController();
+    String condition = 'good';
+
+    return showDialog<_WeighAndCondition>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${batch.crop} — ${batch.code}'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('${batch.crop} — ${batch.code}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: weightController,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Weight taken (kg)',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Your own check of this batch's condition",
+                  style: TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final option in const ['good', 'fair', 'poor'])
+                      ChoiceChip(
+                        label: Text(
+                          option[0].toUpperCase() + option.substring(1),
+                        ),
+                        selected: condition == option,
+                        onSelected: (_) =>
+                            setDialogState(() => condition = option),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final weight = double.tryParse(weightController.text.trim());
+                if (weight == null) return;
+                Navigator.of(context).pop(
+                  _WeighAndCondition(
+                    weight,
+                    condition,
+                    noteController.text.trim(),
+                  ),
+                );
+              },
+              child: const Text('Add to round'),
+            ),
           ],
-          decoration: const InputDecoration(labelText: 'Weight taken (kg)'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text.trim());
-              Navigator.of(context).pop(value);
-            },
-            child: const Text('Add to round'),
-          ),
-        ],
       ),
     );
   }
@@ -263,11 +338,25 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                '${item.batch.code} · ${item.batch.crop}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${item.batch.code} · ${item.batch.crop}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Condition: ${item.condition}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: item.condition == 'poor'
+                                          ? const Color(0xFFB71C1C)
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                ],
                               ),
                               Text('${item.weightKg.toStringAsFixed(1)} kg'),
                             ],
