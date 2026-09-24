@@ -39,3 +39,7 @@ class ProvenanceOut(BaseModel):
     planted_at: datetime | None
     timeline: list[ProvenanceEvent]
     lineage: list[ProvenanceBatch]
+    # Set when this scan itself looks like duplicate-code abuse (B-22) — see
+    # provenance.py's _detect_scan_warning. None means nothing suspicious
+    # about this particular scan, not that the batch has never been flagged.
+    scan_warning: str | None = None

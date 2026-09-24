@@ -4,6 +4,13 @@
   <h1 class="code">{{ p.batch.code }}</h1>
   <p class="muted">{{ p.batch.crop }} · registered {{ p.batch.created_at.strftime('%d %b %Y') }}</p>
 
+  {% if p.scan_warning %}
+    <div class="badge badge-red">
+      ⚠ Unusual scan activity detected
+      <p>{{ p.scan_warning }}</p>
+    </div>
+  {% endif %}
+
   {% if p.protocol %}
     {% if p.protocol.tier_achieved %}
       <div class="badge badge-green">

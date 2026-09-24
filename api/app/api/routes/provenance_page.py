@@ -33,6 +33,6 @@ async def get_provenance_page(
             request, "provenance_not_found.html", {"code": batch_code}, status_code=404
         )
 
-    result = await build_provenance(db, batch)
-    await log_scan(db, batch_id=batch.id, request=request, lat=lat, lon=lon)
+    scan_warning = await log_scan(db, batch_id=batch.id, request=request, lat=lat, lon=lon)
+    result = await build_provenance(db, batch, scan_warning=scan_warning)
     return _templates.TemplateResponse(request, "provenance.html", {"p": result})

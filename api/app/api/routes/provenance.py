@@ -1,16 +1,27 @@
 import hashlib
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
+from app.core.geo import haversine_distance_m
 from app.core.tier_evaluation import evaluate_batch_protocol, get_planted_at
 from app.db.models import Batch, Event, Plot, Protocol, Scan
 from app.db.session import get_db
 from app.schemas.provenance import ProvenanceBatch, ProvenanceEvent, ProvenanceOut, ProvenancePlot
 
 router = APIRouter(prefix="/provenance", tags=["provenance"])
+
+# A single retail unit's QR code is expected to be scanned by roughly one
+# buyer from roughly one place. A code that's later scanned from somewhere
+# implausibly far away, or far more often than a single unit plausibly would
+# be, most likely means it's been copied onto more than one physical
+# product (B-22) — either is worth a warning even though neither proves it.
+_DISTANT_SCAN_KM = 100.0
+_HIGH_VOLUME_WINDOW = timedelta(hours=1)
+_HIGH_VOLUME_THRESHOLD = 30
 
 # Any per-event field that pins down where the farmer physically was — fine
 # for internal traceability, not fine to hand to an anonymous scanner.
@@ -47,12 +58,46 @@ async def resolve_batch_by_code(db: AsyncSession, batch_code: str) -> Batch | No
     return (await db.execute(select(Batch).where(Batch.code == normalized))).scalar_one_or_none()
 
 
-async def log_scan(db: AsyncSession, *, batch_id, request: Request, lat: float | None, lon: float | None) -> None:
+async def _detect_scan_warning(db: AsyncSession, *, batch_id, lat: float | None, lon: float | None) -> str | None:
+    """Checks this scan against every prior scan of the same code (see
+    _DISTANT_SCAN_KM / _HIGH_VOLUME_THRESHOLD above for what counts as
+    suspicious). Called before the new Scan row is inserted, so "prior"
+    here really does mean prior."""
+    prior_scans = (await db.execute(select(Scan).where(Scan.batch_id == batch_id))).scalars().all()
+
+    if lat is not None and lon is not None:
+        for prior in prior_scans:
+            if prior.coarse_lat is None or prior.coarse_lon is None:
+                continue
+            distance_km = haversine_distance_m(lat, lon, prior.coarse_lat, prior.coarse_lon) / 1000
+            if distance_km > _DISTANT_SCAN_KM:
+                return (
+                    "This code has been scanned from two very different locations. "
+                    "It may have been copied onto more than one product — buy with caution."
+                )
+
+    cutoff = datetime.now(timezone.utc) - _HIGH_VOLUME_WINDOW
+    recent_count = sum(1 for s in prior_scans if s.scanned_at >= cutoff)
+    if recent_count + 1 > _HIGH_VOLUME_THRESHOLD:
+        return (
+            "This code has been scanned an unusually high number of times recently. "
+            "It may have been copied onto more than one product — buy with caution."
+        )
+
+    return None
+
+
+async def log_scan(db: AsyncSession, *, batch_id, request: Request, lat: float | None, lon: float | None) -> str | None:
     """Best-effort scan log for abuse monitoring (Scan is separate from the
     append-only Event log on purpose — a public hit isn't provenance data).
     Never let logging failure break the actual provenance lookup. Shared by
-    the JSON API and the HTML page — both are "someone looked this batch up"."""
+    the JSON API and the HTML page — both are "someone looked this batch up".
+
+    Returns the B-22 warning message for this scan, if any, so the caller can
+    surface it in the response actually being returned to whoever just
+    triggered it."""
     try:
+        warning = await _detect_scan_warning(db, batch_id=batch_id, lat=lat, lon=lon)
         client_ip = request.client.host if request.client else "unknown"
         db.add(
             Scan(
@@ -61,14 +106,17 @@ async def log_scan(db: AsyncSession, *, batch_id, request: Request, lat: float |
                 coarse_lat=round(lat, 2) if lat is not None else None,
                 coarse_lon=round(lon, 2) if lon is not None else None,
                 user_agent=request.headers.get("user-agent"),
+                flagged=warning is not None,
             )
         )
         await db.commit()
+        return warning
     except Exception:
         await db.rollback()
+        return None
 
 
-async def build_provenance(db: AsyncSession, batch: Batch) -> ProvenanceOut:
+async def build_provenance(db: AsyncSession, batch: Batch, *, scan_warning: str | None = None) -> ProvenanceOut:
     """Everything about a batch a public viewer (JSON API or the HTML page)
     is allowed to see. Pulled out of the route so the page route can render
     the identical data instead of re-deriving it with its own queries."""
@@ -121,6 +169,7 @@ async def build_provenance(db: AsyncSession, batch: Batch) -> ProvenanceOut:
         planted_at=planted_at,
         timeline=timeline,
         lineage=[to_provenance_batch(a) for a in ancestors],
+        scan_warning=scan_warning,
     )
 
 
@@ -135,6 +184,5 @@ async def get_provenance(
     batch = await resolve_batch_by_code(db, batch_code)
     if batch is None:
         raise AppError(code="not_found", message="No batch found with that code.", status_code=status.HTTP_404_NOT_FOUND)
-    result = await build_provenance(db, batch)
-    await log_scan(db, batch_id=batch.id, request=request, lat=lat, lon=lon)
-    return result
+    scan_warning = await log_scan(db, batch_id=batch.id, request=request, lat=lat, lon=lon)
+    return await build_provenance(db, batch, scan_warning=scan_warning)
