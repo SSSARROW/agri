@@ -47,6 +47,13 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
     _loadBatches();
   }
 
+  // A stale session is the overwhelmingly common cause of a failed fetch
+  // here — say so plainly rather than surfacing "Invalid or expired token."
+  static String _loadErrorMessage(FarmResult<Object?> result) =>
+      result.statusCode == 401
+      ? 'Your session needs refreshing — log out and log back in to see this.'
+      : (result.error ?? 'Could not load.');
+
   Future<void> _loadSchedule() async {
     final result = await FarmService.plotPhotoSchedule(widget.plot.id);
     if (!mounted) return;
@@ -55,7 +62,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
         _schedule = result.data;
         _scheduleError = null;
       } else {
-        _scheduleError = result.error ?? 'Could not load.';
+        _scheduleError = _loadErrorMessage(result);
       }
     });
   }
@@ -68,7 +75,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
         _photos = result.data;
         _photosError = null;
       } else {
-        _photosError = result.error ?? 'Could not load.';
+        _photosError = _loadErrorMessage(result);
       }
     });
   }
@@ -83,7 +90,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
             .toList();
         _batchesError = null;
       } else {
-        _batchesError = result.error ?? 'Could not load.';
+        _batchesError = _loadErrorMessage(result);
       }
     });
   }
@@ -209,7 +216,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
               )
             else if (_schedule == null)
               Text(
-                'Could not load: $_scheduleError',
+                _scheduleError!,
                 style: const TextStyle(color: Colors.black54, fontSize: 13),
               )
             else
@@ -252,7 +259,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
               )
             else if (_photos == null)
               Text(
-                'Could not load: $_photosError',
+                _photosError!,
                 style: const TextStyle(color: Colors.black54, fontSize: 13),
               )
             else if (_photos!.isEmpty)
@@ -318,7 +325,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
               )
             else if (_batches == null)
               Text(
-                'Could not load: $_batchesError',
+                _batchesError!,
                 style: const TextStyle(color: Colors.black54, fontSize: 13),
               )
             else if (_batches!.isEmpty)

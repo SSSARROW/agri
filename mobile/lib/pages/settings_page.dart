@@ -44,7 +44,9 @@ class _SettingsPageState extends State<SettingsPage> {
       if (result.isOk) {
         _profile = result.data;
       } else {
-        _error = result.error;
+        _error = result.statusCode == 401
+            ? 'Your session needs refreshing — log out and log back in to see your account details.'
+            : result.error;
       }
     });
   }
@@ -113,8 +115,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Center(
                         child: _error != null
                             ? Text(
-                                'Could not load profile: $_error',
+                                _error!,
                                 style: const TextStyle(color: Colors.black54),
+                                textAlign: TextAlign.center,
                               )
                             : const CircularProgressIndicator(),
                       ),

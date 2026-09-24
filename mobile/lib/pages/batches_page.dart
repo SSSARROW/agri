@@ -32,7 +32,7 @@ class _BatchesPageState extends State<BatchesPage> {
         _error = null;
       } else {
         _batches = _batches ?? [];
-        _error = (result.error ?? '').startsWith('HTTP 401')
+        _error = result.statusCode == 401
             ? 'Your session needs refreshing — reconnect and log in again to sync new batches.'
             : result.error;
       }

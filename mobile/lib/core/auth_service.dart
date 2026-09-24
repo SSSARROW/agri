@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
@@ -91,7 +93,7 @@ class AuthService {
       await _storeSession(jsonDecode(res.body) as Map<String, dynamic>);
       return AuthResult(true);
     } catch (e) {
-      return AuthResult(false, e.toString());
+      return AuthResult(false, _friendlyException(e));
     }
   }
 
@@ -132,7 +134,7 @@ class AuthService {
       await _storeSession(jsonDecode(res.body) as Map<String, dynamic>);
       return AuthResult(true);
     } catch (e) {
-      return AuthResult(false, e.toString());
+      return AuthResult(false, _friendlyException(e));
     }
   }
 
@@ -169,7 +171,7 @@ class AuthService {
       await _storeSession(jsonDecode(res.body) as Map<String, dynamic>);
       return AuthResult(true);
     } catch (e) {
-      return AuthResult(false, e.toString());
+      return AuthResult(false, _friendlyException(e));
     }
   }
 
@@ -201,13 +203,25 @@ class AuthService {
     }
   }
 
+  String _friendlyException(Object e) {
+    if (e is TimeoutException) {
+      return 'This is taking longer than expected. Check your connection and try again.';
+    }
+    if (e is SocketException) {
+      return "Can't reach the server. Check your connection and try again.";
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
   String _extractError(String body) {
     try {
       final decoded = jsonDecode(body);
-      return (decoded['detail'] ?? body).toString();
+      final detail = decoded['detail'];
+      if (detail is String && detail.isNotEmpty) return detail;
     } catch (_) {
-      return body;
+      // Not JSON — fall through to the generic message below.
     }
+    return 'That didn\'t work. Please try again.';
   }
 
   Future<void> logout() async {

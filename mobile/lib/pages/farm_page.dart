@@ -49,7 +49,7 @@ class _FarmPageState extends State<FarmPage> {
         _error = null;
       } else {
         _plots = _plots ?? [];
-        _error = (result.error ?? '').startsWith('HTTP 401')
+        _error = result.statusCode == 401
             ? 'Your session needs refreshing — reconnect and log in again to sync new plots. Anything already recorded is safe.'
             : result.error;
       }

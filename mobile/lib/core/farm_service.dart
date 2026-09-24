@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -19,8 +20,12 @@ import 'auth_service.dart';
 class FarmResult<T> {
   final T? data;
   final String? error;
-  FarmResult.ok(this.data) : error = null;
-  FarmResult.fail(this.error) : data = null;
+  // The HTTP status that produced this failure, when there was one (a
+  // timeout or connection failure has none) — lets callers branch on the
+  // actual status instead of pattern-matching the human-readable message.
+  final int? statusCode;
+  FarmResult.ok(this.data) : error = null, statusCode = null;
+  FarmResult.fail(this.error, {this.statusCode}) : data = null;
   bool get isOk => error == null;
 }
 
@@ -38,6 +43,37 @@ class PhotoUploadResult {
 }
 
 class FarmService {
+  // The API always fails with {"error": {"code", "message", "details"}}
+  // (see api/app/core/errors.py) and "message" is already written for a
+  // human to read, so surface that instead of the raw HTTP body — only
+  // falling back to a generic line if the response isn't shaped that way
+  // (e.g. a proxy timeout page instead of a JSON response).
+  static String _friendlyError(http.Response res) {
+    try {
+      final body = jsonDecode(res.body);
+      if (body is Map && body['error'] is Map) {
+        final message = body['error']['message'];
+        if (message is String && message.isNotEmpty) return message;
+      }
+    } catch (_) {
+      // Not JSON — fall through to the generic message below.
+    }
+    if (res.statusCode >= 500) {
+      return "Something went wrong on our end. Please try again shortly.";
+    }
+    return "That didn't work (error ${res.statusCode}). Please try again.";
+  }
+
+  static String _friendlyException(Object e) {
+    if (e is TimeoutException) {
+      return 'This is taking longer than expected. Check your connection and try again.';
+    }
+    if (e is SocketException) {
+      return "Can't reach the server. Check your connection and try again.";
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
   static Map<String, String> get _authHeaders => {
     'Content-Type': 'application/json',
     if (AuthService.instance.token != null)
@@ -53,12 +89,12 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(Plot.fromJson).toList());
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -111,7 +147,7 @@ class FarmService {
       );
       final res = await http.Response.fromStream(streamed);
       if (res.statusCode != 201) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       final payload =
           (jsonDecode(res.body) as Map<String, dynamic>)['payload']
@@ -125,7 +161,7 @@ class FarmService {
         ),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -155,7 +191,7 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         PlotPhotoSchedule.fromJson(
@@ -163,7 +199,7 @@ class FarmService {
         ),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -178,12 +214,12 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(PlotPhoto.fromJson).toList());
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -238,13 +274,13 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 201) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         Plot.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -266,13 +302,13 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 201) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -289,12 +325,12 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(ProtocolSummary.fromJson).toList());
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -309,13 +345,13 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         ProtocolDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -328,13 +364,13 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -352,7 +388,7 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         ProtocolEvaluation.fromJson(
@@ -360,7 +396,7 @@ class FarmService {
         ),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -377,12 +413,12 @@ class FarmService {
           .get(uri, headers: _authHeaders)
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(Commitment.fromJson).toList());
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -407,13 +443,13 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 201) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         Batch.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -426,12 +462,12 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(Batch.fromJson).toList());
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 
@@ -445,13 +481,13 @@ class FarmService {
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
-        return FarmResult.fail('HTTP ${res.statusCode}: ${res.body}');
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
       }
       return FarmResult.ok(
         UserProfile.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
       );
     } catch (e) {
-      return FarmResult.fail(e.toString());
+      return FarmResult.fail(_friendlyException(e));
     }
   }
 }
