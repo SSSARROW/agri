@@ -154,8 +154,13 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
     }
   }
 
+  // Matches the server's minimum (api plots.py) — below this the pins can't
+  // really have been dropped at separate corners.
+  static const _minAreaHa = 0.005;
+  bool get _tooSmall => _pins.length >= 3 && _areaHa < _minAreaHa;
+
   Future<void> _finish() async {
-    if (_pins.length < 3) return;
+    if (_pins.length < 3 || _tooSmall) return;
     setState(() => _submitting = true);
     final result = await FarmService.registerPlotWalked(
       boundaryPoints: _pins.map((p) => {'lat': p.lat, 'lon': p.lon}).toList(),
@@ -324,11 +329,15 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF7EE),
+                    color: _tooSmall
+                        ? const Color(0xFFFFF3CD)
+                        : const Color(0xFFEFF7EE),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Estimated area: ${_areaHa.toStringAsFixed(3)} ha',
+                    _tooSmall
+                        ? 'These corners are almost on top of each other (${_areaHa.toStringAsFixed(3)} ha). Walk to each corner of the plot before dropping its pin.'
+                        : 'Estimated area: ${_areaHa.toStringAsFixed(3)} ha',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -379,7 +388,9 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: (_pins.length < 3 || _submitting) ? null : _finish,
+                onPressed: (_pins.length < 3 || _tooSmall || _submitting)
+                    ? null
+                    : _finish,
                 child: _submitting
                     ? const SizedBox(
                         height: 20,

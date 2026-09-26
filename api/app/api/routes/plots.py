@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import CurrentUser, get_current_user, require_role
+from app.core.errors import AppError
 from app.core.geo import make_polygon_from_points, make_square_polygon
 from app.db.models import Event, Plot
 from app.db.session import get_db
@@ -100,6 +101,9 @@ async def list_all_plots(
     ]
 
 
+_MIN_WALKED_AREA_HA = 0.005  # 50 m²
+
+
 @router.post("", response_model=PlotOut, status_code=201)
 async def create_plot(
     body: PlotCreate,
@@ -109,6 +113,15 @@ async def create_plot(
     if body.boundary_points is not None:
         geometry, area_ha = make_polygon_from_points([(p.lat, p.lon) for p in body.boundary_points])
         boundary_source = "walked"
+        # Corner pins dropped without actually walking between them (or a GPS
+        # stuck on one fix) collapse to a zero-area polygon that would
+        # otherwise be stored as a real 0.000 ha plot.
+        if area_ha < _MIN_WALKED_AREA_HA:
+            raise AppError(
+                code="boundary_too_small",
+                message="The walked boundary is too small to be a plot. Walk to each corner of the plot before dropping its pin.",
+                status_code=422,
+            )
     else:
         geometry, area_ha = make_square_polygon(body.center_lat, body.center_lon, body.side_m)
         boundary_source = "estimated_square"
