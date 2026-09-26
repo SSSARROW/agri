@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import CurrentUser, get_current_user, require_role
+from app.core.delivery import delivered_kg
 from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.db.models import Batch, Commitment, Event, Plot
@@ -159,16 +160,18 @@ async def create_event(
     if not created:
         logger.info("event_duplicate_ignored", event_id=str(body.id), event_type=body.event_type)
 
-    # Draws down the matched buyer commitment's remaining volume (B-50) as
-    # weight actually gets reported — only on first insert, so a re-synced
-    # duplicate never double-counts.
+    # Keeps the matched buyer commitment's remaining volume (B-50) in step with
+    # what has actually been delivered — recomputed from each batch's latest
+    # weight rather than decremented per event, so a re-weigh or a merge never
+    # counts the same leaf twice. Only on first insert, so a re-synced
+    # duplicate does nothing.
     if created and body.event_type == "weigh" and body.batch_id is not None:
         batch = await db.get(Batch, body.batch_id)
         if batch is not None and batch.commitment_id is not None:
             commitment = await db.get(Commitment, batch.commitment_id)
             if commitment is not None:
-                weight_kg = body.payload["weight_kg"]
-                commitment.remaining_kg = max(0, float(commitment.remaining_kg) - float(weight_kg))
+                delivered = await delivered_kg(db, commitment.id)
+                commitment.remaining_kg = max(0, float(commitment.volume_kg) - delivered)
                 await db.commit()
 
     response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
