@@ -56,6 +56,9 @@ class Plot(Base):
     # protocol requirements (e.g. organic's buffer-zone-from-neighbors rule)
     # don't cleanly apply to an enclosed structure.
     plot_type: Mapped[str] = mapped_column(String, nullable=False, server_default="open_field")
+    # Optional farmer-chosen label ("Lower field") — plots in the same GN
+    # division otherwise look identical in a list.
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
     district: Mapped[str | None] = mapped_column(String, nullable=True)
     dsd: Mapped[str | None] = mapped_column(String, nullable=True)
     gn_division: Mapped[str | None] = mapped_column(String, nullable=True)

@@ -228,6 +228,11 @@ class AuthService {
     _token = null;
     _userId = null;
     _role = null;
+    // deleteAll wipes the stored PIN too — the in-memory copy has to go with it,
+    // or the next login in this same session is asked for a PIN that no
+    // longer exists.
+    _pinHash = null;
+    _pinSalt = null;
     await _storage.deleteAll();
   }
 }

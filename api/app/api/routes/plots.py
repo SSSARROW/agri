@@ -10,7 +10,7 @@ from app.core.errors import AppError
 from app.core.geo import make_polygon_from_points, make_square_polygon
 from app.db.models import Event, Plot
 from app.db.session import get_db
-from app.schemas.plot import PlotCreate, PlotOut
+from app.schemas.plot import PlotCreate, PlotOut, PlotRename
 
 router = APIRouter(prefix="/plots", tags=["plots"])
 
@@ -30,6 +30,7 @@ def to_plot_out(
         area_ha=float(plot.area_ha) if plot.area_ha is not None else None,
         boundary_source=plot.boundary_source,
         plot_type=plot.plot_type,
+        name=plot.name,
         district=plot.district,
         dsd=plot.dsd,
         gn_division=plot.gn_division,
@@ -133,6 +134,7 @@ async def create_plot(
         area_ha=area_ha,
         boundary_source=boundary_source,
         plot_type=body.plot_type,
+        name=(body.name or "").strip() or None,
         district=body.district,
         dsd=body.dsd,
         gn_division=body.gn_division,
@@ -141,3 +143,23 @@ async def create_plot(
     await db.commit()
     await db.refresh(plot)
     return to_plot_out(plot)
+
+
+@router.patch("/{plot_id}", response_model=PlotOut)
+async def rename_plot(
+    plot_id: uuid.UUID,
+    body: PlotRename,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PlotOut:
+    """Only the label is editable — the boundary and area are evidence, so
+    changing them after the fact isn't something a rename endpoint should
+    allow. Someone else's plot reads as not found."""
+    plot = await db.get(Plot, plot_id)
+    if plot is None or plot.owner_user_id != current_user.id:
+        raise AppError(code="not_found", message="Plot not found.", status_code=404)
+    plot.name = (body.name or "").strip() or None
+    await db.commit()
+    await db.refresh(plot)
+    commitment = (await _latest_planting_commitments(db, [plot.id])).get(plot.id, (None, None))
+    return to_plot_out(plot, committed_protocol_id=commitment[0], committed_protocol_name=commitment[1])

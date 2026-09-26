@@ -10,6 +10,9 @@ class Plot {
   // separate metadata since it affects which protocol requirements apply
   // (e.g. organic's buffer-zone-from-neighbors rule doesn't fit a greenhouse).
   final String plotType;
+  // Optional farmer-chosen label — plots in one GN division otherwise all
+  // read the same in a list.
+  final String? name;
   final String? district;
   final String? dsd;
   final String? gnDivision;
@@ -29,6 +32,7 @@ class Plot {
     required this.areaHa,
     required this.boundarySource,
     required this.plotType,
+    required this.name,
     required this.district,
     required this.dsd,
     required this.gnDivision,
@@ -45,6 +49,7 @@ class Plot {
     areaHa: (json['area_ha'] as num?)?.toDouble(),
     boundarySource: json['boundary_source'] as String? ?? 'estimated_square',
     plotType: json['plot_type'] as String? ?? 'open_field',
+    name: json['name'] as String?,
     district: json['district'] as String?,
     dsd: json['dsd'] as String?,
     gnDivision: json['gn_division'] as String?,
@@ -52,4 +57,32 @@ class Plot {
     committedProtocolName: json['committed_protocol_name'] as String?,
     createdAt: DateTime.parse(json['created_at'] as String),
   );
+
+  static const _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  /// What to call this plot on screen: the farmer's own name if they gave
+  /// one, otherwise something that still tells two plots apart (size and
+  /// when it was added) rather than a location every plot shares.
+  String get title {
+    final n = name?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    final local = createdAt.toLocal();
+    return '${areaHa?.toStringAsFixed(2) ?? '?'} ha plot · added ${local.day} ${_months[local.month - 1]}';
+  }
+
+  String get location =>
+      [gnDivision, district].where((s) => s != null && s.isNotEmpty).join(', ');
 }

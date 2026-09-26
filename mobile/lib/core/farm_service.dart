@@ -234,8 +234,10 @@ class FarmService {
     String? dsd,
     String? gnDivision,
     String plotType = 'open_field',
+    String? name,
   }) async {
     return _createPlot({
+      'name': name,
       'center_lat': centerLat,
       'center_lon': centerLon,
       'side_m': sideM,
@@ -254,14 +256,39 @@ class FarmService {
     String? dsd,
     String? gnDivision,
     String plotType = 'open_field',
+    String? name,
   }) async {
     return _createPlot({
+      'name': name,
       'boundary_points': boundaryPoints,
       'plot_type': plotType,
       'district': district,
       'dsd': dsd,
       'gn_division': gnDivision,
     });
+  }
+
+  static Future<FarmResult<Plot>> renamePlot(
+    String plotId,
+    String? name,
+  ) async {
+    try {
+      final res = await http
+          .patch(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/plots/$plotId'),
+            headers: _authHeaders,
+            body: jsonEncode({'name': name}),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
+      }
+      return FarmResult.ok(
+        Plot.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
+    } catch (e) {
+      return FarmResult.fail(_friendlyException(e));
+    }
   }
 
   static Future<FarmResult<Plot>> _createPlot(Map<String, dynamic> body) async {

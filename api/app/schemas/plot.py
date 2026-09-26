@@ -28,6 +28,7 @@ class PlotCreate(BaseModel):
     center_lon: float | None = Field(default=None, ge=-180, le=180)
     side_m: float | None = Field(default=None, gt=0, le=2000)
     plot_type: PlotType = "open_field"
+    name: str | None = Field(default=None, max_length=60)
     district: str
     dsd: str | None = None
     gn_division: str | None = None
@@ -43,6 +44,10 @@ class PlotCreate(BaseModel):
         raise ValueError("Provide either boundary_points (>=3) or center_lat/center_lon/side_m.")
 
 
+class PlotRename(BaseModel):
+    name: str | None = Field(default=None, max_length=60)
+
+
 class PlotOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,6 +58,7 @@ class PlotOut(BaseModel):
     area_ha: float | None
     boundary_source: str
     plot_type: str
+    name: str | None
     district: str | None
     dsd: str | None
     gn_division: str | None

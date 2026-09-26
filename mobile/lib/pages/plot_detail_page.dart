@@ -30,6 +30,7 @@ class PlotDetailPage extends StatefulWidget {
 }
 
 class _PlotDetailPageState extends State<PlotDetailPage> {
+  late Plot _plot = widget.plot;
   PlotPhotoSchedule? _schedule;
   List<PlotPhoto>? _photos;
   List<Batch>? _batches;
@@ -125,17 +126,59 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
     );
   }
 
+  Future<void> _rename() async {
+    final controller = TextEditingController(text: _plot.name ?? '');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Name this plot'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 60,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(hintText: 'e.g. Lower field'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newName == null || !mounted) return;
+    final result = await FarmService.renamePlot(
+      _plot.id,
+      newName.isEmpty ? null : newName,
+    );
+    if (!mounted) return;
+    if (result.isOk) {
+      setState(() => _plot = result.data!);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Could not rename the plot.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final plot = widget.plot;
+    final plot = _plot;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          [
-            plot.gnDivision,
-            plot.district,
-          ].where((s) => s != null && s.isNotEmpty).join(', '),
-        ),
+        title: Text(plot.title, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Rename plot',
+            onPressed: _rename,
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
@@ -167,6 +210,10 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  if (plot.location.isNotEmpty) ...[
+                    Text(plot.location, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(height: 4),
+                  ],
                   Text(
                     '${plot.centerLat.toStringAsFixed(5)}, ${plot.centerLon.toStringAsFixed(5)}',
                     style: const TextStyle(color: Colors.black54, fontSize: 13),

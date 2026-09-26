@@ -115,6 +115,7 @@ class _FarmPageState extends State<FarmPage> {
     final dsdController = TextEditingController(text: 'Nuwara Eliya DSD');
     final gnController = TextEditingController(text: 'Kandapola');
     String plotType = 'open_field';
+    final nameController = TextEditingController();
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -141,6 +142,16 @@ class _FarmPageState extends State<FarmPage> {
                 style: TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                maxLength: 60,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Plot name (optional)',
+                  hintText: 'e.g. Lower field',
+                ),
+              ),
+              const SizedBox(height: 8),
               const Text(
                 'Growing environment',
                 style: TextStyle(color: Colors.black54, fontSize: 13),
@@ -198,6 +209,9 @@ class _FarmPageState extends State<FarmPage> {
           dsd: dsdController.text.trim(),
           gnDivision: gnController.text.trim(),
           plotType: plotType,
+          name: nameController.text.trim().isEmpty
+              ? null
+              : nameController.text.trim(),
         ),
       ),
     );
@@ -426,8 +440,7 @@ class _PlotCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '${plot.district ?? 'Unknown district'} · ${plot.gnDivision ?? ''}'
-                      '${plot.plotType != 'open_field' ? ' · ${plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}',
+                      plot.title,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -440,8 +453,9 @@ class _PlotCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha · '
-                '${plot.centerLat.toStringAsFixed(4)}, ${plot.centerLon.toStringAsFixed(4)}',
+                '${plot.location.isEmpty ? 'Unknown area' : plot.location}'
+                '${plot.plotType != 'open_field' ? ' · ${plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}'
+                ' · ${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha',
                 style: const TextStyle(color: Colors.black54, fontSize: 13),
               ),
               const SizedBox(height: 4),
