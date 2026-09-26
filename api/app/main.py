@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
+    audit,
     batches,
     commitments,
     events,
@@ -48,6 +49,7 @@ app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(protocols.router, prefix=settings.api_prefix)
 app.include_router(commitments.router, prefix=settings.api_prefix)
 app.include_router(photos.router, prefix=settings.api_prefix)
+app.include_router(audit.router, prefix=settings.api_prefix)
 app.include_router(provenance_page.router)
 
 
