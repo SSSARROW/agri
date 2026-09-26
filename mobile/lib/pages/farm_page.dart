@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/farm_service.dart';
+import '../core/plot_area.dart';
 import '../models/commitment.dart';
 import '../models/photo_schedule.dart';
 import '../models/plot.dart';
@@ -455,16 +456,14 @@ class _PlotCard extends StatelessWidget {
               Text(
                 '${plot.location.isEmpty ? 'Unknown area' : plot.location}'
                 '${plot.plotType != 'open_field' ? ' · ${plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}'
-                ' · ${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha',
+                ' · ${formatArea(plot.areaHa)}',
                 style: const TextStyle(color: Colors.black54, fontSize: 13),
               ),
               const SizedBox(height: 4),
               Text(
-                plot.boundarySource == 'walked'
-                    ? 'Boundary walked in the field'
-                    : 'Estimated square (no boundary walk)',
+                plot.boundaryLabel,
                 style: TextStyle(
-                  color: plot.boundarySource == 'walked'
+                  color: plot.boundaryMeasured
                       ? const Color(0xFF1B5E20)
                       : const Color(0xFF9A6B00),
                   fontSize: 12,

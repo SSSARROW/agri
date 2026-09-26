@@ -1,10 +1,11 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../core/farm_service.dart';
 import '../core/location_service.dart';
 import '../core/photo_capture.dart';
+import '../core/plot_area.dart';
+import 'plot_map_trace_page.dart';
 
 class _CornerPin {
   final double lat;
@@ -44,28 +45,21 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
   bool _dropping = false;
   bool _submitting = false;
 
-  // Same shoelace-on-equirectangular-projection formula the server uses
-  // (app/core/geo.py's make_polygon_from_points) — kept in sync deliberately
-  // so this preview never disagrees with what gets stored.
-  double get _areaHa {
-    if (_pins.length < 3) return 0;
-    final meanLat =
-        _pins.map((p) => p.lat).reduce((a, b) => a + b) / _pins.length;
-    const mPerDegLat = 111320.0;
-    final mPerDegLon = 111320.0 * cos(meanLat * pi / 180).abs();
-    final xy = _pins
-        .map((p) => (p.lon * mPerDegLon, p.lat * mPerDegLat))
-        .toList();
-    double area = 0;
-    for (var i = 0; i < xy.length; i++) {
-      final (x1, y1) = xy[i];
-      final (x2, y2) = xy[(i + 1) % xy.length];
-      area += x1 * y2 - x2 * y1;
-    }
-    return area.abs() / 2 / 10000;
-  }
+  // 'walked' = GPS pins dropped in the field; 'traced' = corners tapped on
+  // satellite imagery. Stored on the plot, since it's different evidence.
+  String _source = 'walked';
+
+  double get _areaHa =>
+      polygonAreaHa(_pins.map((p) => (p.lat, p.lon)).toList());
 
   Future<void> _dropPin() async {
+    if (_source == 'traced') {
+      // Walking corners after tracing starts over rather than mixing the two.
+      setState(() {
+        _pins.clear();
+        _source = 'walked';
+      });
+    }
     setState(() => _dropping = true);
     final result = await LocationService.getCurrentPosition();
     if (!mounted) return;
@@ -158,7 +152,7 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
 
   // Matches the server's minimum (api plots.py) — below this the pins can't
   // really have been dropped at separate corners.
-  static const _minAreaHa = 0.005;
+  double get _minAreaHa => _source == 'traced' ? kMinTracedAreaHa : 0.005;
   bool get _tooSmall => _pins.length >= 3 && _areaHa < _minAreaHa;
 
   Future<void> _finish() async {
@@ -171,6 +165,7 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
       gnDivision: widget.gnDivision,
       plotType: widget.plotType,
       name: widget.name,
+      boundarySource: _source,
     );
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -183,13 +178,27 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Plot registered — ${_areaHa.toStringAsFixed(3)} ha from a walked boundary.',
+          'Plot registered — ${formatArea(_areaHa)} from a ${_source == 'traced' ? 'traced' : 'walked'} boundary.',
         ),
       ),
     );
     await _requirePlotPhoto(result.data!.id);
     if (!mounted) return;
     Navigator.of(context).pop(true);
+  }
+
+  Future<void> _traceOnMap() async {
+    final corners = await Navigator.of(context).push<List<LatLng>>(
+      MaterialPageRoute(builder: (_) => const PlotMapTracePage()),
+    );
+    if (corners == null || !mounted) return;
+    setState(() {
+      _pins
+        ..clear()
+        ..addAll(corners.map((c) => _CornerPin(c.latitude, c.longitude, 0)));
+      _source = 'traced';
+    });
+    await _finish();
   }
 
   Future<void> _useQuickEstimateInstead() async {
@@ -340,8 +349,8 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
                   ),
                   child: Text(
                     _tooSmall
-                        ? 'These corners are almost on top of each other (${_areaHa.toStringAsFixed(3)} ha). Walk to each corner of the plot before dropping its pin.'
-                        : 'Estimated area: ${_areaHa.toStringAsFixed(3)} ha',
+                        ? 'These corners are almost on top of each other (${formatArea(_areaHa)}). Walk to each corner of the plot before dropping its pin.'
+                        : 'Estimated area: ${formatArea(_areaHa)}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -413,6 +422,13 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
                       ),
               ),
               const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: _submitting ? null : _traceOnMap,
+                  icon: const Icon(Icons.satellite_alt_outlined, size: 18),
+                  label: const Text('Trace it on a satellite map instead'),
+                ),
+              ),
               Center(
                 child: TextButton(
                   onPressed: _submitting ? null : _useQuickEstimateInstead,

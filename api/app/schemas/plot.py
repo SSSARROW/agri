@@ -24,6 +24,11 @@ class PlotCreate(BaseModel):
     # isn't practical; which one was used is kept honest via boundary_source
     # on the stored plot rather than silently treated as equally precise.
     boundary_points: list[BoundaryPoint] | None = None
+    # How boundary_points were captured: "walked" (GPS pins dropped in the
+    # field) or "traced" (corners tapped on satellite imagery). Different
+    # evidence, so it's recorded rather than assumed — see boundary_source on
+    # the stored plot.
+    boundary_source: Literal["walked", "traced"] = "walked"
     center_lat: float | None = Field(default=None, ge=-90, le=90)
     center_lon: float | None = Field(default=None, ge=-180, le=180)
     side_m: float | None = Field(default=None, gt=0, le=2000)

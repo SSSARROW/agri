@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/farm_service.dart';
+import '../core/plot_area.dart';
 import '../core/plot_actions.dart';
 import '../models/batch.dart';
 import '../models/photo_schedule.dart';
@@ -197,7 +198,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${plot.areaHa?.toStringAsFixed(3) ?? '?'} ha',
+                        formatArea(plot.areaHa),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -220,11 +221,9 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    plot.boundarySource == 'walked'
-                        ? 'Boundary walked in the field'
-                        : 'Estimated square (no boundary walk)',
+                    plot.boundaryLabel,
                     style: TextStyle(
-                      color: plot.boundarySource == 'walked'
+                      color: plot.boundaryMeasured
                           ? const Color(0xFF1B5E20)
                           : const Color(0xFF9A6B00),
                       fontSize: 13,

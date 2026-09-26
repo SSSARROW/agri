@@ -1,3 +1,5 @@
+import '../core/plot_area.dart';
+
 class Plot {
   final String id;
   final String? ownerUserId;
@@ -80,8 +82,19 @@ class Plot {
     final n = name?.trim();
     if (n != null && n.isNotEmpty) return n;
     final local = createdAt.toLocal();
-    return '${areaHa?.toStringAsFixed(2) ?? '?'} ha plot · added ${local.day} ${_months[local.month - 1]}';
+    return '${formatArea(areaHa)} plot · added ${local.day} ${_months[local.month - 1]}';
   }
+
+  /// How the boundary was captured — shown next to the plot so a measured
+  /// boundary is never confused with a rough estimate.
+  String get boundaryLabel => switch (boundarySource) {
+    'walked' => 'Boundary walked in the field',
+    'traced' => 'Boundary traced on satellite map',
+    _ => 'Estimated square (no boundary walk)',
+  };
+
+  bool get boundaryMeasured =>
+      boundarySource == 'walked' || boundarySource == 'traced';
 
   String get location =>
       [gnDivision, district].where((s) => s != null && s.isNotEmpty).join(', ');

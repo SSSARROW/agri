@@ -102,7 +102,11 @@ async def list_all_plots(
     ]
 
 
-_MIN_WALKED_AREA_HA = 0.005  # 50 m²
+# Smallest area a captured boundary can have. Walked pins carry GPS jitter of a
+# few metres, so anything under 50 m² is indistinguishable from standing still;
+# traced corners are deliberate taps on imagery with no jitter, so a small
+# space (a rooftop bed, a greenhouse) is legitimate down to 5 m².
+_MIN_AREA_HA = {"walked": 0.005, "traced": 0.0005}
 
 
 @router.post("", response_model=PlotOut, status_code=201)
@@ -113,11 +117,11 @@ async def create_plot(
 ) -> PlotOut:
     if body.boundary_points is not None:
         geometry, area_ha = make_polygon_from_points([(p.lat, p.lon) for p in body.boundary_points])
-        boundary_source = "walked"
+        boundary_source = body.boundary_source
         # Corner pins dropped without actually walking between them (or a GPS
         # stuck on one fix) collapse to a zero-area polygon that would
         # otherwise be stored as a real 0.000 ha plot.
-        if area_ha < _MIN_WALKED_AREA_HA:
+        if area_ha < _MIN_AREA_HA[boundary_source]:
             raise AppError(
                 code="boundary_too_small",
                 message="The walked boundary is too small to be a plot. Walk to each corner of the plot before dropping its pin.",

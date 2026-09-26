@@ -257,9 +257,11 @@ class FarmService {
     String? gnDivision,
     String plotType = 'open_field',
     String? name,
+    String boundarySource = 'walked',
   }) async {
     return _createPlot({
       'name': name,
+      'boundary_source': boundarySource,
       'boundary_points': boundaryPoints,
       'plot_type': plotType,
       'district': district,
