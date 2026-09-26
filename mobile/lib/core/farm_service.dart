@@ -223,31 +223,6 @@ class FarmService {
     }
   }
 
-  // Fallback for when walking the plot isn't practical — a single dropped
-  // pin plus an approximate side length. registerPlotWalked (below) is the
-  // preferred path; the server tags whichever was used via boundary_source.
-  static Future<FarmResult<Plot>> registerPlot({
-    required double centerLat,
-    required double centerLon,
-    required double sideM,
-    required String district,
-    String? dsd,
-    String? gnDivision,
-    String plotType = 'open_field',
-    String? name,
-  }) async {
-    return _createPlot({
-      'name': name,
-      'center_lat': centerLat,
-      'center_lon': centerLon,
-      'side_m': sideM,
-      'plot_type': plotType,
-      'district': district,
-      'dsd': dsd,
-      'gn_division': gnDivision,
-    });
-  }
-
   // A real surveyed boundary — the farmer walks the edge of the plot and
   // drops a pin at each corner (>=3 points).
   static Future<FarmResult<Plot>> registerPlotWalked({

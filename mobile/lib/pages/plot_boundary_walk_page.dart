@@ -15,12 +15,13 @@ class _CornerPin {
 }
 
 /// A real surveyed plot boundary: the farmer walks the edge of their
-/// plot and drops a pin at each corner, rather than us approximating a
-/// square around one dropped pin (see the "quick estimate" fallback below,
-/// for when walking genuinely isn't practical). Area shown here is a live
-/// client-side estimate for the farmer's own sanity check — the server
-/// computes the canonical figure with the same formula from the submitted
-/// points.
+/// plot and drops a pin at each corner — or, when walking isn't practical
+/// or the plot is too small for GPS to resolve, traces it on satellite
+/// imagery instead (see PlotMapTracePage). There's deliberately no "type
+/// an approximate size" option: an untouched default became the plot's
+/// recorded area. Area shown here is a live client-side estimate for the
+/// farmer's own sanity check — the server computes the canonical figure
+/// with the same formula from the submitted points.
 class PlotBoundaryWalkPage extends StatefulWidget {
   final String district;
   final String? dsd;
@@ -201,94 +202,6 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
     await _finish();
   }
 
-  Future<void> _useQuickEstimateInstead() async {
-    final result = await LocationService.getCurrentPosition();
-    if (!mounted) return;
-    if (result.position == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.error ?? 'Could not get a GPS fix.')),
-      );
-      return;
-    }
-    final position = result.position!;
-    final sideController = TextEditingController(text: '50');
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Quick estimate',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "This records a square around your current position instead of "
-              "a real boundary — less precise, and marked as an estimate.",
-              style: TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: sideController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Approximate plot size (side length, metres)',
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B5E20),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 48),
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Register estimate'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _submitting = true);
-    final result2 = await FarmService.registerPlot(
-      centerLat: position.latitude,
-      centerLon: position.longitude,
-      sideM: double.tryParse(sideController.text) ?? 50,
-      district: widget.district,
-      dsd: widget.dsd,
-      gnDivision: widget.gnDivision,
-      plotType: widget.plotType,
-      name: widget.name,
-    );
-    if (!mounted) return;
-    setState(() => _submitting = false);
-    if (!result2.isOk) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not register plot: ${result2.error}')),
-      );
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Plot registered as an estimate.')),
-    );
-    await _requirePlotPhoto(result2.data!.id);
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -427,14 +340,6 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
                   onPressed: _submitting ? null : _traceOnMap,
                   icon: const Icon(Icons.satellite_alt_outlined, size: 18),
                   label: const Text('Trace it on a satellite map instead'),
-                ),
-              ),
-              Center(
-                child: TextButton(
-                  onPressed: _submitting ? null : _useQuickEstimateInstead,
-                  child: const Text(
-                    "Can't walk the plot? Use a quick estimate",
-                  ),
                 ),
               ),
             ],
