@@ -230,6 +230,13 @@ class _FarmPageState extends State<FarmPage> {
   @override
   Widget build(BuildContext context) {
     final plots = _plots;
+    // A load failure means "we don't know how many plots this farmer has",
+    // not "they have none" — showing the big first-time CTA in that case
+    // (as opposed to the smaller "Add another plot" link) would wrongly
+    // suggest to a farmer who already has plots that they need to register
+    // one, right when we can't even confirm what they already recorded.
+    final showBigRegisterCta =
+        _error == null && (plots == null || plots.isEmpty);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -248,7 +255,7 @@ class _FarmPageState extends State<FarmPage> {
             // app — that CTA earns its size only when there's nothing yet.
             // Once there's at least one plot, adding another is a smaller,
             // secondary action instead of the first thing on the page.
-            if (plots != null && plots.isNotEmpty)
+            if (!showBigRegisterCta)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
