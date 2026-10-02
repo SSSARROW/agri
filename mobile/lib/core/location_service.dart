@@ -57,11 +57,24 @@ class LocationService {
     // (NmeaClient.stop -> LocationManager.removeNmeaListener) is a known
     // upstream ANR — a synchronous Binder call on the main thread that can
     // hang for several seconds. getLastKnownPosition never touches that path.
+    //
+    // But the cache is only ever refreshed by some other live fix request —
+    // it isn't invalidated by the phone moving. Trusting it unconditionally
+    // means every call after the first replays the same old fix regardless
+    // of where the phone actually is now, which is fatal for a boundary walk
+    // (every corner would land on the same coordinates) and for centering the
+    // satellite map (it can jump to wherever the phone last got a fix, e.g. a
+    // previous session at a different place). Only trust it when it's fresh
+    // enough that the OS effectively already has a live fix warmed up.
     try {
       final lastKnown = await Geolocator.getLastKnownPosition(
         forceAndroidLocationManager: true,
       ).timeout(const Duration(seconds: 5));
-      if (lastKnown != null) return LocationResult.ok(lastKnown);
+      if (lastKnown != null &&
+          DateTime.now().toUtc().difference(lastKnown.timestamp).abs() <=
+              const Duration(seconds: 15)) {
+        return LocationResult.ok(lastKnown);
+      }
     } catch (_) {
       // Fall through to a live fix below.
     }
