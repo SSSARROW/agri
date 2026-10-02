@@ -58,9 +58,9 @@ class LocationService {
     // upstream ANR — a synchronous Binder call on the main thread that can
     // hang for several seconds. getLastKnownPosition never touches that path.
     try {
-      final lastKnown = await Geolocator.getLastKnownPosition().timeout(
-        const Duration(seconds: 5),
-      );
+      final lastKnown = await Geolocator.getLastKnownPosition(
+        forceAndroidLocationManager: true,
+      ).timeout(const Duration(seconds: 5));
       if (lastKnown != null) return LocationResult.ok(lastKnown);
     } catch (_) {
       // Fall through to a live fix below.
@@ -70,9 +70,23 @@ class LocationService {
     // UI indefinitely: no fix at all (weak signal, indoors, this emulator's
     // GPS simulator) must fail loudly rather than leave the caller waiting
     // forever with no feedback.
+    //
+    // forceLocationManager routes this through the legacy Android
+    // LocationManager (raw GPS/network providers) instead of Play Services'
+    // FusedLocationProviderClient. Confirmed necessary, not just a testing
+    // nicety: on an AVD without certified Play Store services, fused location
+    // fails its own backend auth silently (GlsClientGrpc "Application
+    // credential header not valid" in logcat) and getCurrentPosition never
+    // resolves, timeout or not — the emulator's injected mock location
+    // (`adb emu geo fix`) never reaches the caller because fused never gets
+    // that far. The legacy provider reads GPS directly and isn't affected.
+    // The same failure mode can hit a real device with broken or absent
+    // Play Services, which this app — field use in areas that may not have
+    // a Google-certified ROM — can't assume won't happen.
     try {
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
+        locationSettings: AndroidSettings(
+          forceLocationManager: true,
           accuracy: LocationAccuracy.medium,
           timeLimit: Duration(seconds: 10),
         ),
