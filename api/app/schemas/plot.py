@@ -53,6 +53,23 @@ class PlotRename(BaseModel):
     name: str | None = Field(default=None, max_length=60)
 
 
+class PlotPlantingOut(BaseModel):
+    """One crop currently recorded as planted on a plot — a plot can carry
+    more than one of these at once (intercropping), so PlotOut holds a list
+    rather than a single committed protocol."""
+
+    crop: str
+    planted_at: datetime
+    # The area claimed for this crop specifically, if the farmer gave one at
+    # planting time — None means the whole plot (either intercropping wasn't
+    # a factor, or this planting predates area tracking).
+    area_ha: float | None
+    # Which protocol (if any) the farmer confirmed adherence to for this
+    # crop at planting time — self-reported, not independently verified.
+    protocol_id: uuid.UUID | None
+    protocol_name: str | None
+
+
 class PlotOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -67,8 +84,7 @@ class PlotOut(BaseModel):
     district: str | None
     dsd: str | None
     gn_division: str | None
-    # Which protocol (if any) the farmer confirmed adherence to at planting
-    # time (see farm_page.dart's checklist) — self-reported, not verified.
-    committed_protocol_id: uuid.UUID | None
-    committed_protocol_name: str | None
+    # Most recent planting per crop currently on this plot (intercropping
+    # means more than one can be live at a time).
+    plantings: list[PlotPlantingOut]
     created_at: datetime

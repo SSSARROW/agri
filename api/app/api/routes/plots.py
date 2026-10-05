@@ -1,4 +1,5 @@
 import uuid
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends
 from geoalchemy2.shape import to_shape
@@ -10,17 +11,12 @@ from app.core.errors import AppError
 from app.core.geo import make_polygon_from_points, make_square_polygon
 from app.db.models import Event, Plot
 from app.db.session import get_db
-from app.schemas.plot import PlotCreate, PlotOut, PlotRename
+from app.schemas.plot import PlotCreate, PlotOut, PlotPlantingOut, PlotRename
 
 router = APIRouter(prefix="/plots", tags=["plots"])
 
 
-def to_plot_out(
-    plot: Plot,
-    *,
-    committed_protocol_id: uuid.UUID | None = None,
-    committed_protocol_name: str | None = None,
-) -> PlotOut:
+def to_plot_out(plot: Plot, *, plantings: list[PlotPlantingOut] | None = None) -> PlotOut:
     point = to_shape(plot.geometry).centroid
     return PlotOut(
         id=plot.id,
@@ -34,33 +30,49 @@ def to_plot_out(
         district=plot.district,
         dsd=plot.dsd,
         gn_division=plot.gn_division,
-        committed_protocol_id=committed_protocol_id,
-        committed_protocol_name=committed_protocol_name,
+        plantings=plantings or [],
         created_at=plot.created_at,
     )
 
 
-async def _latest_planting_commitments(
+async def _latest_plantings(
     db: AsyncSession, plot_ids: list[uuid.UUID]
-) -> dict[uuid.UUID, tuple[uuid.UUID | None, str | None]]:
-    """Which protocol (if any) a farmer confirmed adherence to when they
-    recorded planting on each plot — self-reported at planting time (see
-    farm_page.dart's checklist), not independently verified. Used so batch
-    registration can warn if the farmer picks a different standard than the
-    one they committed to at planting."""
+) -> dict[uuid.UUID, list[PlotPlantingOut]]:
+    """Every crop currently recorded as planted on each plot — a plot can
+    grow more than one crop at once (intercropping), so this keeps the most
+    recent planting per (plot, crop) rather than collapsing to a single
+    value per plot. Used so the plot card can show every live commitment,
+    and so batch registration can warn if the farmer picks a different
+    standard than the one they committed to for that crop at planting."""
     if not plot_ids:
         return {}
     stmt = (
-        select(Event.plot_id, Event.payload)
+        select(Event.plot_id, Event.payload, Event.occurred_at)
         .where(Event.plot_id.in_(plot_ids), Event.event_type == "planted")
-        .distinct(Event.plot_id)
         .order_by(Event.plot_id, Event.occurred_at.desc())
     )
     rows = (await db.execute(stmt)).all()
-    result: dict[uuid.UUID, tuple[uuid.UUID | None, str | None]] = {}
+    seen: set[tuple[uuid.UUID, str]] = set()
+    result: dict[uuid.UUID, list[PlotPlantingOut]] = defaultdict(list)
     for row in rows:
-        raw_id = row.payload.get("protocol_id")
-        result[row.plot_id] = (uuid.UUID(raw_id) if raw_id else None, row.payload.get("protocol_name"))
+        crop = row.payload.get("crop")
+        if not crop:
+            continue
+        key = (row.plot_id, crop.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        raw_protocol_id = row.payload.get("protocol_id")
+        area = row.payload.get("area_ha")
+        result[row.plot_id].append(
+            PlotPlantingOut(
+                crop=crop,
+                planted_at=row.occurred_at,
+                area_ha=float(area) if isinstance(area, (int, float)) and area > 0 else None,
+                protocol_id=uuid.UUID(raw_protocol_id) if raw_protocol_id else None,
+                protocol_name=row.payload.get("protocol_name"),
+            )
+        )
     return result
 
 
@@ -71,15 +83,8 @@ async def list_my_plots(
 ) -> list[PlotOut]:
     result = await db.execute(select(Plot).where(Plot.owner_user_id == current_user.id))
     plots = result.scalars().all()
-    commitments = await _latest_planting_commitments(db, [p.id for p in plots])
-    return [
-        to_plot_out(
-            p,
-            committed_protocol_id=commitments.get(p.id, (None, None))[0],
-            committed_protocol_name=commitments.get(p.id, (None, None))[1],
-        )
-        for p in plots
-    ]
+    plantings = await _latest_plantings(db, [p.id for p in plots])
+    return [to_plot_out(p, plantings=plantings.get(p.id)) for p in plots]
 
 
 @router.get("", response_model=list[PlotOut])
@@ -91,15 +96,8 @@ async def list_all_plots(
     plot, not just the caller's own."""
     result = await db.execute(select(Plot))
     plots = result.scalars().all()
-    commitments = await _latest_planting_commitments(db, [p.id for p in plots])
-    return [
-        to_plot_out(
-            p,
-            committed_protocol_id=commitments.get(p.id, (None, None))[0],
-            committed_protocol_name=commitments.get(p.id, (None, None))[1],
-        )
-        for p in plots
-    ]
+    plantings = await _latest_plantings(db, [p.id for p in plots])
+    return [to_plot_out(p, plantings=plantings.get(p.id)) for p in plots]
 
 
 # Smallest area a captured boundary can have. Walked pins carry GPS jitter of a
@@ -165,5 +163,5 @@ async def rename_plot(
     plot.name = (body.name or "").strip() or None
     await db.commit()
     await db.refresh(plot)
-    commitment = (await _latest_planting_commitments(db, [plot.id])).get(plot.id, (None, None))
-    return to_plot_out(plot, committed_protocol_id=commitment[0], committed_protocol_name=commitment[1])
+    plantings = (await _latest_plantings(db, [plot.id])).get(plot.id)
+    return to_plot_out(plot, plantings=plantings)

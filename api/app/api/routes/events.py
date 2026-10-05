@@ -62,6 +62,16 @@ def validate_payload(event_type: str, payload: dict) -> None:
     if lon is not None and not (isinstance(lon, (int, float)) and -180 <= lon <= 180):
         raise AppError(code="invalid_payload", message="payload.lon must be between -180 and 180.", status_code=422)
 
+    # Optional on a "planted" event — how much of the plot this specific
+    # crop covers, for a farmer who intercrops rather than planting the
+    # whole plot with one crop. Absent means "the whole plot", same as
+    # before this existed (see get_planted_at and allocation_proposal).
+    if event_type == "planted" and (area_ha := payload.get("area_ha")) is not None:
+        if not (isinstance(area_ha, (int, float)) and area_ha > 0):
+            raise AppError(
+                code="invalid_payload", message="payload.area_ha must be a positive number.", status_code=422
+            )
+
 
 # Who's allowed to claim a given pipeline stage actually happened — closing
 # the gap where any logged-in (or, before this, any unauthenticated) client

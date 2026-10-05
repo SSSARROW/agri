@@ -8,6 +8,7 @@ import 'event_queue.dart';
 import 'farm_service.dart';
 import 'location_service.dart';
 import 'photo_capture.dart';
+import 'plot_area.dart';
 import 'sync_service.dart';
 
 /// The three things a farmer does to a specific plot — recording planting,
@@ -20,6 +21,18 @@ import 'sync_service.dart';
 // Above this accuracy (metres), warn the farmer rather than silently
 // recording a fix that's not trustworthy at plot scale (M-06).
 const _poorAccuracyMeters = 50.0;
+
+String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
+
+// A clean number to prefill the area field with (no trailing ".000", no
+// unit suffix — this feeds a parsed double, not a label like formatArea's).
+String _trimTrailingZeros(double v) {
+  var s = v.toStringAsFixed(3);
+  if (s.contains('.')) {
+    s = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+  }
+  return s;
+}
 
 // Crops with a real quality standard seeded (see api/app/seed_protocols.py)
 // — each entry here is a sourced, verifiable standard, not an invented one.
@@ -99,6 +112,15 @@ Future<void> recordPlanting(
   final positionFuture = LocationService.getCurrentPosition();
 
   String crop = 'Tea';
+  DateTime plantedDate = DateTime.now();
+  // Defaults to the whole plot — a farmer who intercrops lowers this to
+  // however much of the plot this particular crop actually covers, since
+  // buyer-allocation capacity and a replanted crop's protocol schedule both
+  // key off this rather than assuming one crop per plot (see
+  // tier_evaluation.get_planted_at and commitments.allocation_proposal).
+  final areaController = TextEditingController(
+    text: plot.areaHa != null ? _trimTrailingZeros(plot.areaHa!) : '',
+  );
 
   // Public endpoint, best-effort — planting still records with no quality
   // standard attached if this fails or nothing's seeded for the crop.
@@ -143,6 +165,43 @@ Future<void> recordPlanting(
                     final r = await FarmService.protocolsForCrop(newCrop);
                     if (r.isOk) setDialogState(() => protocols = r.data ?? []);
                   },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Planted on ${_formatDate(plantedDate)}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: plantedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => plantedDate = picked);
+                        }
+                      },
+                      child: const Text('Change'),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: areaController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Area planted with this crop (ha)',
+                    helperText: plot.areaHa != null
+                        ? 'Plot is ${formatArea(plot.areaHa)} total — lower this if intercropping.'
+                        : null,
+                  ),
                 ),
                 if (protocols.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -249,6 +308,13 @@ Future<void> recordPlanting(
   // denied, this emulator's flaky GPS simulator, etc).
   final position = (await positionFuture).position;
   final payload = <String, dynamic>{'crop': crop};
+  // Optional and best-effort, same spirit as GPS — an unparsable or blank
+  // area just means "the whole plot", same as before this field existed,
+  // rather than blocking the save over it.
+  final enteredArea = double.tryParse(areaController.text.trim());
+  if (enteredArea != null && enteredArea > 0) {
+    payload['area_ha'] = enteredArea;
+  }
   if (position != null) {
     payload['lat'] = position.latitude;
     payload['lon'] = position.longitude;
@@ -268,6 +334,7 @@ Future<void> recordPlanting(
     payload: payload,
     userId: AuthService.instance.userId,
     plotId: plot.id,
+    occurredAt: plantedDate,
   );
   SyncService.instance.syncNow();
   if (!context.mounted) return;
@@ -424,18 +491,21 @@ Future<void> registerBatchForPlot(
       : <ProtocolSummary>[];
   if (!context.mounted) return;
 
-  // Pre-select whatever the farmer confirmed adherence to at planting time
-  // (see recordPlanting's checklist) — if it's still in this crop's list.
+  // What the farmer confirmed adherence to at planting time for *this*
+  // crop specifically (see recordPlanting's checklist) — a plot can grow
+  // more than one crop at once (intercropping), so this must be looked up
+  // per crop, not once for the plot as a whole.
+  PlotPlanting? committedPlanting = plot.plantingFor(crop);
   ProtocolSummary? selectedProtocol = protocols
       .cast<ProtocolSummary?>()
-      .firstWhere((p) => p?.id == plot.committedProtocolId, orElse: () => null);
+      .firstWhere((p) => p?.id == committedPlanting?.protocolId, orElse: () => null);
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setDialogState) {
         final mismatch =
-            plot.committedProtocolId != null &&
-            selectedProtocol?.id != plot.committedProtocolId;
+            committedPlanting?.protocolId != null &&
+            selectedProtocol?.id != committedPlanting?.protocolId;
         return AlertDialog(
           title: const Text('Register a batch'),
           content: SingleChildScrollView(
@@ -448,12 +518,22 @@ Future<void> registerBatchForPlot(
                   onSelected: (newCrop) async {
                     setDialogState(() {
                       crop = newCrop;
+                      committedPlanting = plot.plantingFor(newCrop);
                       selectedProtocol = null;
                       protocols = [];
                     });
                     if (newCrop.isEmpty) return;
                     final r = await FarmService.protocolsForCrop(newCrop);
-                    if (r.isOk) setDialogState(() => protocols = r.data ?? []);
+                    if (!r.isOk) return;
+                    setDialogState(() {
+                      protocols = r.data ?? [];
+                      selectedProtocol = protocols
+                          .cast<ProtocolSummary?>()
+                          .firstWhere(
+                            (p) => p?.id == committedPlanting?.protocolId,
+                            orElse: () => null,
+                          );
+                    });
                   },
                 ),
                 if (protocols.isNotEmpty) ...[
@@ -496,11 +576,11 @@ Future<void> registerBatchForPlot(
                       ),
                       child: Text(
                         selectedProtocol == null
-                            ? "This plot's planting was confirmed against "
-                                  "${plot.committedProtocolName} — this batch "
-                                  "won't claim that standard."
-                            : "This plot's planting was confirmed against "
-                                  "${plot.committedProtocolName}, not "
+                            ? "This crop's planting was confirmed against "
+                                  "${committedPlanting?.protocolName} — this "
+                                  "batch won't claim that standard."
+                            : "This crop's planting was confirmed against "
+                                  "${committedPlanting?.protocolName}, not "
                                   "${selectedProtocol!.name}.",
                         style: const TextStyle(
                           color: Color(0xFF9A6B00),

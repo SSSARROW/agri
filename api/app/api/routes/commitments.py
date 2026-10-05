@@ -150,7 +150,9 @@ async def _reconcile(db: AsyncSession, commitment: Commitment) -> Reconciliation
             protocol = await db.get(Protocol, d.batch.protocol_id)
             if protocol is not None:
                 protocol_name = protocol.name
-                planted_at = await get_planted_at(db, plot_id=d.batch.plot_id, before=d.batch.created_at)
+                planted_at = await get_planted_at(
+                    db, plot_id=d.batch.plot_id, before=d.batch.created_at, crop=d.batch.crop
+                )
                 evaluation = await evaluate_batch_protocol(
                     db, protocol=protocol, batch_id=d.batch.id, planted_at=planted_at
                 )
@@ -265,24 +267,40 @@ async def allocation_proposal(
         await db.execute(
             select(Event.plot_id, Event.payload)
             .where(Event.event_type == "planted", Event.plot_id.is_not(None))
-            .distinct(Event.plot_id)
             .order_by(Event.plot_id, Event.occurred_at.desc())
         )
     ).all()
-    eligible: set[uuid.UUID] = set()
+    # Most recent planting per (plot, crop), not per plot — a plot can grow
+    # more than one crop at once (intercropping). Collapsing to one row per
+    # plot (the old `distinct(Event.plot_id)`) would silently drop a plot's
+    # eligibility for this commitment's crop whenever a different crop was
+    # planted on it more recently.
+    latest_by_plot_crop: dict[tuple[uuid.UUID, str], dict] = {}
     for plot_id, payload in latest_planted:
-        if str(payload.get("crop", "")).lower() != commitment.crop.lower():
+        key = (plot_id, str(payload.get("crop", "")).lower())
+        latest_by_plot_crop.setdefault(key, payload)
+
+    # Area actually claimed for this crop on each eligible plot, if the
+    # farmer gave one at planting time — None means fall back to the whole
+    # plot below (older plantings recorded before area tracking existed).
+    eligible: dict[uuid.UUID, float | None] = {}
+    for (plot_id, crop), payload in latest_by_plot_crop.items():
+        if crop != commitment.crop.lower():
             continue
         if commitment.protocol_id is not None and payload.get("protocol_id") != str(commitment.protocol_id):
             continue
-        eligible.add(plot_id)
+        area = payload.get("area_ha")
+        eligible[plot_id] = float(area) if isinstance(area, (int, float)) and area > 0 else None
 
     capacities: dict[uuid.UUID, float] = defaultdict(float)
     if eligible:
-        for plot in (await db.execute(select(Plot).where(Plot.id.in_(eligible)))).scalars().all():
-            if plot.owner_user_id is None or not plot.area_ha:
+        for plot in (await db.execute(select(Plot).where(Plot.id.in_(eligible.keys())))).scalars().all():
+            if plot.owner_user_id is None:
                 continue
-            volume = expected_volume_kg(commitment.crop, float(plot.area_ha), window_days)
+            area_ha = eligible[plot.id] or (float(plot.area_ha) if plot.area_ha else None)
+            if not area_ha:
+                continue
+            volume = expected_volume_kg(commitment.crop, area_ha, window_days)
             if volume is None:
                 raise AppError(
                     code="invalid_payload",

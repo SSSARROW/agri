@@ -144,7 +144,7 @@ async def build_provenance(db: AsyncSession, batch: Batch, *, scan_warning: str 
         else None
     )
 
-    planted_at = await get_planted_at(db, plot_id=batch.plot_id, before=batch.created_at)
+    planted_at = await get_planted_at(db, plot_id=batch.plot_id, before=batch.created_at, crop=batch.crop)
 
     protocol_out = None
     if batch.protocol_id is not None:

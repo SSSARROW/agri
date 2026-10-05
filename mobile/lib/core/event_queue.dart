@@ -22,6 +22,11 @@ class EventQueue {
     String? userId,
     String? plotId,
     String? batchId,
+    // When the thing actually happened, if different from right now (a
+    // backdated planting record, say) — defaults to now like before this
+    // param existed. createdAt (queue bookkeeping, for sync ordering) is
+    // always "now" regardless, since that's when it was captured locally.
+    DateTime? occurredAt,
   }) async {
     final now = DateTime.now().toIso8601String();
     final id = _uuid.v4();
@@ -32,7 +37,7 @@ class EventQueue {
       'userId': userId,
       'plotId': plotId,
       'batchId': batchId,
-      'occurredAt': now,
+      'occurredAt': (occurredAt ?? DateTime.now()).toIso8601String(),
       'status': 'pending',
       'createdAt': now,
       'attempts': 0,

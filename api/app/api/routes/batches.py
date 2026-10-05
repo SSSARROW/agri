@@ -170,7 +170,7 @@ async def get_batch_schedule(
     if protocol is None:
         raise AppError(code="not_found", message="Protocol not found.", status_code=status.HTTP_404_NOT_FOUND)
 
-    planted_at = await get_planted_at(db, plot_id=batch.plot_id, before=batch.created_at)
+    planted_at = await get_planted_at(db, plot_id=batch.plot_id, before=batch.created_at, crop=batch.crop)
     return await evaluate_batch_protocol(db, protocol=protocol, batch_id=batch.id, planted_at=planted_at)
 
 

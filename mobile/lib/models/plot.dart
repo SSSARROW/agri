@@ -1,5 +1,34 @@
 import '../core/plot_area.dart';
 
+/// One crop currently recorded as planted on a plot — a plot can carry more
+/// than one of these at once (intercropping), so [Plot.plantings] is a list
+/// rather than a single committed protocol.
+class PlotPlanting {
+  final String crop;
+  final DateTime plantedAt;
+  // The area claimed for this crop specifically, if the farmer gave one at
+  // planting time — null means the whole plot.
+  final double? areaHa;
+  final String? protocolId;
+  final String? protocolName;
+
+  PlotPlanting({
+    required this.crop,
+    required this.plantedAt,
+    required this.areaHa,
+    required this.protocolId,
+    required this.protocolName,
+  });
+
+  factory PlotPlanting.fromJson(Map<String, dynamic> json) => PlotPlanting(
+    crop: json['crop'] as String,
+    plantedAt: DateTime.parse(json['planted_at'] as String),
+    areaHa: (json['area_ha'] as num?)?.toDouble(),
+    protocolId: json['protocol_id'] as String?,
+    protocolName: json['protocol_name'] as String?,
+  );
+}
+
 class Plot {
   final String id;
   final String? ownerUserId;
@@ -18,12 +47,10 @@ class Plot {
   final String? district;
   final String? dsd;
   final String? gnDivision;
-  // Which protocol the farmer confirmed adherence to when recording planting
-  // (see farm_page.dart's checklist) — self-reported at that time, not
-  // independently verified. Null if no protocol was confirmed, or nothing's
-  // been planted on this plot yet.
-  final String? committedProtocolId;
-  final String? committedProtocolName;
+  // Most recent planting per crop currently on this plot — more than one
+  // entry means the farmer is intercropping. Empty if nothing's been
+  // planted on this plot yet.
+  final List<PlotPlanting> plantings;
   final DateTime createdAt;
 
   Plot({
@@ -38,8 +65,7 @@ class Plot {
     required this.district,
     required this.dsd,
     required this.gnDivision,
-    required this.committedProtocolId,
-    required this.committedProtocolName,
+    required this.plantings,
     required this.createdAt,
   });
 
@@ -55,8 +81,9 @@ class Plot {
     district: json['district'] as String?,
     dsd: json['dsd'] as String?,
     gnDivision: json['gn_division'] as String?,
-    committedProtocolId: json['committed_protocol_id'] as String?,
-    committedProtocolName: json['committed_protocol_name'] as String?,
+    plantings: (json['plantings'] as List<dynamic>? ?? [])
+        .map((p) => PlotPlanting.fromJson(p as Map<String, dynamic>))
+        .toList(),
     createdAt: DateTime.parse(json['created_at'] as String),
   );
 
@@ -98,4 +125,13 @@ class Plot {
 
   String get location =>
       [gnDivision, district].where((s) => s != null && s.isNotEmpty).join(', ');
+
+  /// This plot's planting record for [crop] specifically, if any — case
+  /// insensitive since the crop picker's "Other" free text isn't normalized.
+  PlotPlanting? plantingFor(String crop) {
+    for (final p in plantings) {
+      if (p.crop.toLowerCase() == crop.toLowerCase()) return p;
+    }
+    return null;
+  }
 }

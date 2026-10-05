@@ -13,20 +13,34 @@ from app.schemas.tier_evaluation import ProtocolEvaluationOut, StageEvaluationOu
 _PLOT_LEVEL_EVENT_TYPES = {"planted"}
 
 
-async def get_planted_at(db: AsyncSession, *, plot_id: uuid.UUID | None, before: datetime) -> datetime | None:
+async def get_planted_at(
+    db: AsyncSession, *, plot_id: uuid.UUID | None, before: datetime, crop: str | None = None
+) -> datetime | None:
     """Best-effort match: the plot's most recent 'planted' event at or before
     `before` (a batch's created_at, typically). A plot can be replanted, and
     a batch is presumed to come from whatever planting preceded it — there's
-    no direct planting-to-batch link in this build (see farm_page.dart)."""
+    no direct planting-to-batch link in this build (see farm_page.dart).
+
+    A plot can also grow more than one crop at once (intercropping), so this
+    filters on `crop` when given rather than just taking the plot's single
+    most recent planting — otherwise a cinnamon batch could get anchored to
+    a tea planting recorded later on the same plot. Pass crop=None only for
+    genuinely plot-level, crop-agnostic uses (the progress-photo schedule)."""
     if plot_id is None:
         return None
     stmt = (
-        select(Event.occurred_at)
+        select(Event.occurred_at, Event.payload)
         .where(Event.plot_id == plot_id, Event.event_type == "planted", Event.occurred_at <= before)
         .order_by(Event.occurred_at.desc())
-        .limit(1)
     )
-    return (await db.execute(stmt)).scalar_one_or_none()
+    rows = (await db.execute(stmt)).all()
+    if crop is None:
+        return rows[0].occurred_at if rows else None
+    crop_lower = crop.lower()
+    for row in rows:
+        if str(row.payload.get("crop", "")).lower() == crop_lower:
+            return row.occurred_at
+    return None
 
 
 async def evaluate_batch_protocol(

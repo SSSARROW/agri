@@ -230,20 +230,35 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (plot.committedProtocolName != null) ...[
+                  if (plot.plantings.isNotEmpty) ...[
                     const Divider(height: 24),
-                    Row(
-                      children: [
-                        const Icon(Icons.verified_outlined, size: 18),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Committed to ${plot.committedProtocolName} at planting',
-                            style: const TextStyle(fontSize: 13),
-                          ),
+                    // More than one entry means this plot is intercropped —
+                    // each crop gets its own line since they can be on
+                    // different quality standards (or none at all).
+                    for (final planting in plot.plantings)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.verified_outlined, size: 18),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                [
+                                  planting.areaHa != null
+                                      ? '${planting.crop} (${formatArea(planting.areaHa)})'
+                                      : planting.crop,
+                                  planting.protocolName != null
+                                      ? 'committed to ${planting.protocolName}'
+                                      : 'no specific standard',
+                                ].join(' — '),
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
                   ],
                 ],
               ),
