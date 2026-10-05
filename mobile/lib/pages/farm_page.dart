@@ -437,56 +437,121 @@ class _PlotCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.grass, size: 18, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      plot.title,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Colors.black38,
-                    size: 20,
-                  ),
-                ],
+              // A visual anchor for the card — every row used to open with
+              // the same small inline icon, which gave the list nothing to
+              // tell cards apart by at a glance besides their text.
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.grass,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                '${plot.location.isEmpty ? 'Unknown area' : plot.location}'
-                '${plot.plotType != 'open_field' ? ' · ${plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}'
-                ' · ${formatArea(plot.areaHa)}',
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  StatusPill(
-                    plot.boundaryLabel,
-                    level: plot.boundaryMeasured
-                        ? StatusLevel.success
-                        : StatusLevel.warning,
-                  ),
-                  if (statusText != null)
-                    StatusPill(
-                      statusText!,
-                      level: statusIsUrgent
-                          ? StatusLevel.danger
-                          : StatusLevel.neutral,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            plot.title,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Colors.black38,
+                          size: 20,
+                        ),
+                      ],
                     ),
-                ],
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.place_outlined,
+                          size: 14,
+                          color: Colors.black45,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${plot.location.isEmpty ? 'Unknown area' : plot.location}'
+                            '${plot.plotType != 'open_field' ? ' · ${plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}',
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.straighten,
+                          size: 14,
+                          color: Colors.black45,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatArea(plot.areaHa),
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // What's actually growing here — previously invisible
+                    // until you opened the plot, even though it's usually
+                    // the first thing a farmer wants to know scanning a
+                    // list of their own plots.
+                    if (plot.plantings.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final p in plot.plantings) StatusPill(p.crop),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        StatusPill(
+                          plot.boundaryLabel,
+                          level: plot.boundaryMeasured
+                              ? StatusLevel.success
+                              : StatusLevel.warning,
+                        ),
+                        if (statusText != null)
+                          StatusPill(
+                            statusText!,
+                            level: statusIsUrgent
+                                ? StatusLevel.danger
+                                : StatusLevel.neutral,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
