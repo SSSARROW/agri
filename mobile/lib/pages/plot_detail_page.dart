@@ -7,7 +7,9 @@ import '../models/batch.dart';
 import '../models/photo_schedule.dart';
 import '../models/plot.dart';
 import '../models/plot_photo.dart';
+import '../theme/app_colors.dart';
 import '../widgets/batch_qr_dialog.dart';
+import '../widgets/ui_kit.dart';
 import 'batch_schedule_page.dart';
 
 const _plotTypeLabels = {
@@ -182,8 +184,9 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
         ],
       ),
       body: SafeArea(
+        bottom: false,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           children: [
             _SectionCard(
               child: Column(
@@ -194,58 +197,59 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                       const Icon(
                         Icons.grass,
                         size: 20,
-                        color: Color(0xFF1B5E20),
+                        color: AppColors.primary,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         formatArea(plot.areaHa),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(width: 8),
-                      _Badge(
-                        text: _plotTypeLabels[plot.plotType] ?? plot.plotType,
+                      StatusPill(
+                        _plotTypeLabels[plot.plotType] ?? plot.plotType,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   if (plot.location.isNotEmpty) ...[
-                    Text(plot.location, style: const TextStyle(fontSize: 14)),
+                    Text(
+                      plot.location,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 4),
                   ],
                   Text(
                     '${plot.centerLat.toStringAsFixed(5)}, ${plot.centerLon.toStringAsFixed(5)}',
-                    style: const TextStyle(color: Colors.black54, fontSize: 13),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 10),
+                  StatusPill(
                     plot.boundaryLabel,
-                    style: TextStyle(
-                      color: plot.boundaryMeasured
-                          ? const Color(0xFF1B5E20)
-                          : const Color(0xFF9A6B00),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    level: plot.boundaryMeasured
+                        ? StatusLevel.success
+                        : StatusLevel.warning,
                   ),
                   if (plot.plantings.isNotEmpty) ...[
-                    const Divider(height: 24),
+                    const Divider(height: 28),
                     // More than one entry means this plot is intercropped —
                     // each crop gets its own line since they can be on
                     // different quality standards (or none at all).
                     for (final planting in plot.plantings)
                       InkWell(
+                        borderRadius: BorderRadius.circular(10),
                         onTap: () =>
                             showPlantingDetails(context, plot, planting),
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.verified_outlined, size: 18),
-                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.verified_outlined,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   [
@@ -256,12 +260,12 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                                         ? 'committed to ${planting.protocolName}'
                                         : 'no specific standard',
                                   ].join(' — '),
-                                  style: const TextStyle(fontSize: 13),
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
                               const Icon(
                                 Icons.chevron_right,
-                                size: 16,
+                                size: 18,
                                 color: Colors.black38,
                               ),
                             ],
@@ -272,13 +276,8 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Photo evidence',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontSize: 15),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            const SectionHeader('Photo evidence'),
             if (_schedule == null && _scheduleError == null)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
@@ -287,55 +286,52 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
             else if (_schedule == null)
               Text(
                 _scheduleError!,
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
+                style: Theme.of(context).textTheme.bodySmall,
               )
             else
               _SectionCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StatusLine(
-                      ok: _schedule!.hasRegistrationPhoto,
-                      text: _schedule!.hasRegistrationPhoto
+                    StatusRow(
+                      _schedule!.hasRegistrationPhoto
                           ? 'Registration photo on file'
                           : 'No registration photo on file',
+                      level: _schedule!.hasRegistrationPhoto
+                          ? StatusLevel.success
+                          : StatusLevel.danger,
                     ),
                     for (final c in _schedule!.checkpoints) ...[
-                      const SizedBox(height: 6),
-                      _StatusLine(
-                        ok: c.status == 'done',
-                        warn: c.status == 'overdue',
-                        text: c.status == 'done'
+                      const SizedBox(height: 8),
+                      StatusRow(
+                        c.status == 'done'
                             ? 'Progress check ${c.sequence} done'
                             : c.status == 'overdue'
                             ? 'Progress check ${c.sequence} overdue since ${_formatDate(c.dueDate)}'
                             : 'Progress check ${c.sequence} due ${_formatDate(c.dueDate)}',
+                        level: c.status == 'done'
+                            ? StatusLevel.success
+                            : c.status == 'overdue'
+                            ? StatusLevel.danger
+                            : StatusLevel.neutral,
                       ),
                     ],
                   ],
                 ),
               ),
-            const SizedBox(height: 20),
-            Text(
-              'Photos',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontSize: 15),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            const SectionHeader('Photos'),
             if (_photos == null && _photosError == null)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_photos == null)
-              Text(
-                _photosError!,
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
-              )
+              Text(_photosError!, style: Theme.of(context).textTheme.bodySmall)
             else if (_photos!.isEmpty)
-              const Text(
+              Text(
                 'No photos yet.',
-                style: TextStyle(color: Colors.black54),
+                style: Theme.of(context).textTheme.bodySmall,
               )
             else
               GridView.builder(
@@ -355,7 +351,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                       fit: StackFit.expand,
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                           child: Image.network(
                             photo.photoUrl,
                             fit: BoxFit.cover,
@@ -381,27 +377,19 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                   );
                 },
               ),
-            const SizedBox(height: 20),
-            Text(
-              'Batches from this plot',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontSize: 15),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            const SectionHeader('Batches from this plot'),
             if (_batches == null && _batchesError == null)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_batches == null)
-              Text(
-                _batchesError!,
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
-              )
+              Text(_batchesError!, style: Theme.of(context).textTheme.bodySmall)
             else if (_batches!.isEmpty)
-              const Text(
+              Text(
                 'No batches registered from this plot yet.',
-                style: TextStyle(color: Colors.black54),
+                style: Theme.of(context).textTheme.bodySmall,
               )
             else
               Column(
@@ -446,36 +434,88 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                   ],
                 ],
               ),
-            const SizedBox(height: 24),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
+          ],
+        ),
+      ),
+      // A persistent bar rather than buttons at the end of the scroll —
+      // these three actions are the entire reason a farmer opens a plot,
+      // so they should never be a scroll away (Fitts's law: keep the most-
+      // used controls reachable in a fixed place, not buried in content).
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant
+                    .withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _PlotActionButton(
+                  icon: Icons.eco_outlined,
+                  label: 'Plant',
+                  tooltip: 'Record planting',
                   onPressed: () =>
                       recordPlanting(context, plot, onDone: _onActionDone),
-                  icon: const Icon(Icons.eco_outlined, size: 18),
-                  label: const Text('Record planting'),
                 ),
-                OutlinedButton.icon(
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PlotActionButton(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Batch',
+                  tooltip: 'Register batch',
                   onPressed: () => registerBatchForPlot(
                     context,
                     plot,
                     onDone: _onActionDone,
                   ),
-                  icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                  label: const Text('Register batch'),
                 ),
-                OutlinedButton.icon(
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PlotActionButton(
+                  icon: Icons.camera_alt_outlined,
+                  label: 'Photo',
+                  tooltip: 'Add photo',
                   onPressed: () =>
                       addProgressPhoto(context, plot, onDone: _onActionDone),
-                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                  label: const Text('Add photo'),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlotActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String tooltip;
+  final VoidCallback onPressed;
+  const _PlotActionButton({
+    required this.icon,
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: FilledButton.tonalIcon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
       ),
     );
   }
@@ -488,58 +528,7 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(padding: const EdgeInsets.all(14), child: child),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String text;
-  const _Badge({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF7EE),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-class _StatusLine extends StatelessWidget {
-  final bool ok;
-  final bool warn;
-  final String text;
-  const _StatusLine({required this.ok, this.warn = false, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = ok
-        ? const Color(0xFF1B5E20)
-        : warn
-        ? const Color(0xFFB71C1C)
-        : Colors.black54;
-    final icon = ok
-        ? Icons.check_circle
-        : warn
-        ? Icons.error_outline
-        : Icons.schedule;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(text, style: TextStyle(color: color, fontSize: 13)),
-        ),
-      ],
+      child: Padding(padding: const EdgeInsets.all(16), child: child),
     );
   }
 }

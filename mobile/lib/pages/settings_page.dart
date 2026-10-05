@@ -6,6 +6,8 @@ import '../core/auth_service.dart';
 import '../core/event_queue.dart';
 import '../core/farm_service.dart';
 import '../models/user_profile.dart';
+import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 import 'pin_setup_page.dart';
 import 'queue_page.dart';
 
@@ -86,9 +88,7 @@ class _SettingsPageState extends State<SettingsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFB71C1C),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Log out'),
           ),
@@ -132,7 +132,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           children: [
                             CircleAvatar(
                               radius: 26,
-                              backgroundColor: const Color(0xFF1B5E20),
+                              backgroundColor: AppColors.primary,
                               child: Text(
                                 (_profile!.name?.isNotEmpty == true
                                         ? _profile!.name![0]
@@ -189,12 +189,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Security',
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontSize: 15),
-          ),
-          const SizedBox(height: 8),
+          const SectionHeader('Security'),
           Card(
             child: Column(
               children: [
@@ -213,12 +208,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Sync',
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontSize: 15),
-          ),
-          const SizedBox(height: 8),
+          const SectionHeader('Sync'),
           Card(
             child: ValueListenableBuilder<Box<Map>>(
               valueListenable: EventQueue.listenable(),
@@ -246,12 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           if (role != null) ...[
             const SizedBox(height: 24),
-            Text(
-              'Account type',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontSize: 15),
-            ),
-            const SizedBox(height: 8),
+            const SectionHeader('Account type'),
             Card(
               child: ListTile(
                 leading: const Icon(Icons.badge_outlined),
@@ -265,8 +250,8 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 32),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFB71C1C),
-              side: const BorderSide(color: Color(0xFFB71C1C)),
+              foregroundColor: AppColors.danger,
+              side: const BorderSide(color: AppColors.danger),
               minimumSize: const Size(double.infinity, 50),
             ),
             onPressed: _confirmLogout,

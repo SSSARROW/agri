@@ -5,6 +5,8 @@ import '../core/plot_area.dart';
 import '../models/commitment.dart';
 import '../models/photo_schedule.dart';
 import '../models/plot.dart';
+import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 import 'plot_boundary_walk_page.dart';
 import 'plot_detail_page.dart';
 
@@ -193,7 +195,7 @@ class _FarmPageState extends State<FarmPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 48),
                 ),
@@ -272,7 +274,7 @@ class _FarmPageState extends State<FarmPage> {
             else
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 48),
                   shape: RoundedRectangleBorder(
@@ -287,79 +289,74 @@ class _FarmPageState extends State<FarmPage> {
                 ),
               ),
             if (_commitments != null && _commitments!.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              const Text(
-                'Buyers looking right now',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 24),
+              const SectionHeader('Buyers looking right now'),
               SizedBox(
-                height: 108,
+                height: 112,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: _commitments!.length,
                   separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, i) {
                     final c = _commitments![i];
-                    return Container(
+                    return SizedBox(
                       width: 220,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF1B5E20).withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                      child: Card(
+                        color: AppColors.successBg,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
-                                Icons.storefront_outlined,
-                                size: 15,
-                                color: Color(0xFF1B5E20),
-                              ),
-                              const SizedBox(width: 5),
-                              Expanded(
-                                child: Text(
-                                  c.protocolName ?? '${c.crop} — any standard',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.storefront_outlined,
+                                    size: 15,
+                                    color: AppColors.primary,
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                  const SizedBox(width: 5),
+                                  Expanded(
+                                    child: Text(
+                                      c.protocolName ??
+                                          '${c.crop} — any standard',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${c.remainingKg.toStringAsFixed(0)} kg wanted',
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (c.indicativePriceLkrPerKg != null)
+                                Text(
+                                  'LKR ${c.indicativePriceLkrPerKg!.toStringAsFixed(0)}/kg',
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              const Spacer(),
+                              Text(
+                                'By ${_formatDate(c.deliveryWindowEnd)}',
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${c.remainingKg.toStringAsFixed(0)} kg wanted',
-                            style: const TextStyle(
-                              color: Colors.black87,
-                              fontSize: 12,
-                            ),
-                          ),
-                          if (c.indicativePriceLkrPerKg != null)
-                            Text(
-                              'LKR ${c.indicativePriceLkrPerKg!.toStringAsFixed(0)}/kg',
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          const Spacer(),
-                          Text(
-                            'By ${_formatDate(c.deliveryWindowEnd)}',
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     );
                   },
@@ -368,7 +365,7 @@ class _FarmPageState extends State<FarmPage> {
             ],
             const SizedBox(height: 16),
             if (_error != null)
-              Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),
+              Text(_error!, style: const TextStyle(color: AppColors.danger)),
             Expanded(
               child: plots == null
                   ? const Center(child: CircularProgressIndicator())
@@ -449,7 +446,7 @@ class _PlotCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.grass, size: 18, color: Color(0xFF1B5E20)),
+                  const Icon(Icons.grass, size: 18, color: AppColors.primary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -464,49 +461,33 @@ class _PlotCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 '${plot.location.isEmpty ? 'Unknown area' : plot.location}'
                 '${plot.plotType != 'open_field' ? ' · ${plotTypeLabels[plot.plotType] ?? plot.plotType}' : ''}'
                 ' · ${formatArea(plot.areaHa)}',
                 style: const TextStyle(color: Colors.black54, fontSize: 13),
               ),
-              const SizedBox(height: 4),
-              Text(
-                plot.boundaryLabel,
-                style: TextStyle(
-                  color: plot.boundaryMeasured
-                      ? const Color(0xFF1B5E20)
-                      : const Color(0xFF9A6B00),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (statusText != null) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  StatusPill(
+                    plot.boundaryLabel,
+                    level: plot.boundaryMeasured
+                        ? StatusLevel.success
+                        : StatusLevel.warning,
                   ),
-                  decoration: BoxDecoration(
-                    color: statusIsUrgent
-                        ? const Color(0xFFFDECEA)
-                        : const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    statusText!,
-                    style: TextStyle(
-                      color: statusIsUrgent
-                          ? const Color(0xFFB71C1C)
-                          : Colors.black54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  if (statusText != null)
+                    StatusPill(
+                      statusText!,
+                      level: statusIsUrgent
+                          ? StatusLevel.danger
+                          : StatusLevel.neutral,
                     ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ],
           ),
         ),

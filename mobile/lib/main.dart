@@ -11,10 +11,11 @@ import 'pages/pin_setup_page.dart';
 import 'pages/pin_unlock_page.dart';
 import 'pages/scan_page.dart';
 import 'pages/settings_page.dart';
+import 'theme/app_colors.dart';
 
 // One seed color drives the whole app's palette (kept — it was already
 // "fine," per feedback; what needed work was consistency, not the hue).
-const _seedColor = Color(0xFF1B5E20);
+const _seedColor = AppColors.primary;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +41,17 @@ class AgriFieldApp extends StatelessWidget {
         textTheme: const TextTheme(
           headlineMedium: TextStyle(fontWeight: FontWeight.bold, fontSize: 26),
           titleLarge: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+          titleMedium: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+          // SectionHeader's style — one consistent "small heading above a
+          // group of cards" everywhere, instead of each page dimming
+          // titleLarge down by a different amount.
+          titleSmall: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            color: Colors.black87,
+          ),
+          bodyMedium: TextStyle(fontSize: 14, color: Colors.black87),
+          bodySmall: TextStyle(fontSize: 13, color: Colors.black54),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFFAFAF7),
@@ -48,15 +60,17 @@ class AgriFieldApp extends StatelessWidget {
           centerTitle: false,
           surfaceTintColor: Colors.transparent,
         ),
+        // Flat, tonal, borderless — a soft fill tells a card apart from the
+        // page background without the "outlined box" look a line-drawn
+        // border gives it. No shadow either: on a field app read in bright
+        // sunlight, a hairline border was often invisible anyway, so the
+        // tonal fill is also the more reliable signal.
         cardTheme: CardThemeData(
           elevation: 0,
           color: const Color(0xFFF3F4F0),
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-            ),
+            borderRadius: BorderRadius.circular(18),
           ),
         ),
         chipTheme: ChipThemeData(

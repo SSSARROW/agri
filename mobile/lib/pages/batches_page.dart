@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../core/farm_service.dart';
 import '../models/batch.dart';
+import '../theme/app_colors.dart';
 import '../widgets/batch_qr_dialog.dart';
+import '../widgets/ui_kit.dart';
 import 'batch_schedule_page.dart';
 
 class BatchesPage extends StatefulWidget {
@@ -62,21 +64,21 @@ class _BatchesPageState extends State<BatchesPage> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Batches from your plots and where each one is in the pipeline.',
-              style: TextStyle(color: Colors.black54),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
             if (_error != null)
-              Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),
+              Text(_error!, style: const TextStyle(color: AppColors.danger)),
             Expanded(
               child: _batches == null
                   ? const Center(child: CircularProgressIndicator())
                   : _batches!.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'No batches yet.',
-                        style: TextStyle(color: Colors.black54),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     )
                   : RefreshIndicator(
@@ -86,82 +88,71 @@ class _BatchesPageState extends State<BatchesPage> {
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, i) {
                           final batch = _batches![i];
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () => showBatchQrDialog(
-                              context,
-                              batch.code,
-                              subtitle: batch.protocolName != null
-                                  ? '${batch.crop} · ${batch.protocolName}'
-                                  : batch.crop,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF5F5F5),
-                                borderRadius: BorderRadius.circular(12),
+                          return Card(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(18),
+                              onTap: () => showBatchQrDialog(
+                                context,
+                                batch.code,
+                                subtitle: batch.protocolName != null
+                                    ? '${batch.crop} · ${batch.protocolName}'
+                                    : batch.crop,
                               ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          batch.code,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          batch.protocolName != null
-                                              ? '${batch.crop} · ${batch.protocolName}'
-                                              : batch.crop,
-                                          style: const TextStyle(
-                                            color: Colors.black54,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (batch.protocolId != null)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.checklist_outlined,
-                                        size: 20,
-                                      ),
-                                      tooltip: 'View quality standard progress',
-                                      onPressed: () =>
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (_) => BatchSchedulePage(
-                                                batchId: batch.id,
-                                                batchCode: batch.code,
-                                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            batch.code,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                    ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _statusColor(batch.latestStatus),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: Text(
-                                      batch.latestStatus.toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            batch.protocolName != null
+                                                ? '${batch.crop} · ${batch.protocolName}'
+                                                : batch.crop,
+                                            style: const TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    if (batch.protocolId != null)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.checklist_outlined,
+                                          size: 20,
+                                        ),
+                                        tooltip:
+                                            'View quality standard progress',
+                                        onPressed: () =>
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    BatchSchedulePage(
+                                                      batchId: batch.id,
+                                                      batchCode: batch.code,
+                                                    ),
+                                              ),
+                                            ),
+                                      ),
+                                    StatusPill(
+                                      batch.latestStatus.toUpperCase(),
+                                      background: _statusColor(
+                                        batch.latestStatus,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
