@@ -102,7 +102,8 @@ class FarmService {
   // gallery, see the camera-only picker call sites) so it's at least harder
   // to fake than a checkbox, even though it's still self-reported rather
   // than independently verified. event_type is "plot_photo" (at
-  // registration) or "progress_photo" (during the growing cycle).
+  // registration), "planting_photo" (attached to a planting record), or
+  // "progress_photo" (during the growing cycle).
   static Future<FarmResult<PhotoUploadResult>> uploadPlotPhoto({
     required String plotId,
     required String eventType,

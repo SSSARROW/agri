@@ -22,9 +22,10 @@ router = APIRouter(prefix="/photos", tags=["photos"])
 # A geotagged, timestamped field photo — the closest thing to independently
 # checkable evidence this build has for "did this actually happen here"
 # without a human inspector. Still self-reported (a photo can be staged),
-# but harder to fake than a checkbox. Two contexts: proof of the plot itself
-# at registration, and periodic growing-cycle updates afterward.
-ALLOWED_EVENT_TYPES = {"plot_photo", "progress_photo"}
+# but harder to fake than a checkbox. Three contexts: proof of the plot
+# itself at registration, evidence attached to a planting record, and
+# periodic growing-cycle updates afterward.
+ALLOWED_EVENT_TYPES = {"plot_photo", "planting_photo", "progress_photo"}
 ALLOWED_CONTENT_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 

@@ -270,14 +270,35 @@ Future<void> recordPlanting(
     plotId: plot.id,
   );
   SyncService.instance.syncNow();
+  if (!context.mounted) return;
+
+  // Photo evidence is prompted but not required — the planting record
+  // above is already safely queued offline, and unlike that record a
+  // photo upload needs connectivity right now (there's no offline queue
+  // for binary files), so skipping the camera or a failed upload must
+  // never look like the planting itself didn't save.
+  final photoFile = await PhotoCapture.takePhoto();
+  var photoNote = '';
+  if (photoFile != null) {
+    final photoResult = await FarmService.uploadPlotPhoto(
+      plotId: plot.id,
+      eventType: 'planting_photo',
+      imageFile: photoFile,
+      lat: position?.latitude,
+      lon: position?.longitude,
+    );
+    photoNote = photoResult.isOk
+        ? ' Photo attached.'
+        : ' Photo could not be uploaded: ${photoResult.error}';
+  }
   onDone?.call();
   if (!context.mounted) return;
 
   final message = position == null
-      ? 'Planting recorded (no GPS fix) — queued for sync.'
+      ? 'Planting recorded (no GPS fix) — queued for sync.$photoNote'
       : position.accuracy > _poorAccuracyMeters
-      ? 'Planting recorded — queued for sync. GPS accuracy was low (±${position.accuracy.round()}m).'
-      : 'Planting recorded — queued for sync.';
+      ? 'Planting recorded — queued for sync. GPS accuracy was low (±${position.accuracy.round()}m).$photoNote'
+      : 'Planting recorded — queued for sync.$photoNote';
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
