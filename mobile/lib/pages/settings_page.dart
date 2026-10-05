@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/auth_service.dart';
+import '../core/event_queue.dart';
 import '../core/farm_service.dart';
 import '../models/user_profile.dart';
 import 'pin_setup_page.dart';
+import 'queue_page.dart';
 
 const _roleLabels = {
   'farmer': 'Farmer',
@@ -207,6 +210,38 @@ class _SettingsPageState extends State<SettingsPage> {
                   onTap: _changePin,
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Sync',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ValueListenableBuilder<Box<Map>>(
+              valueListenable: EventQueue.listenable(),
+              builder: (context, box, _) {
+                final pending = EventQueue.pendingCount();
+                return ListTile(
+                  leading: Icon(
+                    pending == 0
+                        ? Icons.cloud_done_outlined
+                        : Icons.cloud_sync_outlined,
+                  ),
+                  title: Text(
+                    pending == 0 ? 'All synced' : '$pending pending sync',
+                  ),
+                  subtitle: const Text(
+                    'What you record is saved on this device first, then sent when there\'s a connection',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const QueuePage())),
+                );
+              },
             ),
           ),
           if (role != null) ...[

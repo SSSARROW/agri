@@ -9,7 +9,6 @@ import 'pages/farm_page.dart';
 import 'pages/login_page.dart';
 import 'pages/pin_setup_page.dart';
 import 'pages/pin_unlock_page.dart';
-import 'pages/queue_page.dart';
 import 'pages/scan_page.dart';
 import 'pages/settings_page.dart';
 
@@ -233,18 +232,27 @@ class _RootShellState extends State<RootShell> {
       );
     }
 
-    // Built on demand (not an IndexedStack) so the Scan tab's camera only
-    // initializes once the user actually opens it, and releases it on leaving.
+    // Three tabs, not five: Scan and Queue aren't destinations a farmer
+    // navigates to as a task in their own right — Scan is an action taken
+    // from Batches (where its result shows up), and Queue is sync status,
+    // surfaced as a small indicator on Settings instead. Fewer tabs to scan
+    // on a phone screen in a field.
     final page = switch (_index) {
       0 => const FarmPage(),
       1 => const BatchesPage(),
-      2 => const ScanPage(),
-      3 => const QueuePage(),
       _ => SettingsPage(onLoggedOut: widget.onLoggedOut),
     };
 
     return Scaffold(
       body: page,
+      floatingActionButton: _index == 1
+          ? FloatingActionButton.extended(
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const ScanPage())),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Scan'),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -259,16 +267,6 @@ class _RootShellState extends State<RootShell> {
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2),
             label: 'Batches',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner_outlined),
-            selectedIcon: Icon(Icons.qr_code_scanner),
-            label: 'Scan',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.inbox_outlined),
-            selectedIcon: Icon(Icons.inbox),
-            label: 'Queue',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

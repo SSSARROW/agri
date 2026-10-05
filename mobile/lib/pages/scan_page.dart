@@ -210,14 +210,18 @@ class _ScanPageState extends State<ScanPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
+    // A Scaffold of its own, not just a SafeArea: this page used to be a
+    // tab body, which got its Scaffold (and its height bound) for free from
+    // RootShell. Now it's only ever reached by pushing it from the Batches
+    // FAB, so without this it had no back button and the recent-scans list
+    // overflowed — nothing above was giving it a bounded height.
+    return Scaffold(
+      appBar: AppBar(title: const Text('Scan')),
+      body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Scan', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 4),
             const Text(
               'Point the camera at a batch QR label to record the next stage — collect, weigh, process, grade or pack.',
               style: TextStyle(color: Colors.black54),
