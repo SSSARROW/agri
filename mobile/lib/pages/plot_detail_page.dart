@@ -236,27 +236,36 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                     // each crop gets its own line since they can be on
                     // different quality standards (or none at all).
                     for (final planting in plot.plantings)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.verified_outlined, size: 18),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                [
-                                  planting.areaHa != null
-                                      ? '${planting.crop} (${formatArea(planting.areaHa)})'
-                                      : planting.crop,
-                                  planting.protocolName != null
-                                      ? 'committed to ${planting.protocolName}'
-                                      : 'no specific standard',
-                                ].join(' — '),
-                                style: const TextStyle(fontSize: 13),
+                      InkWell(
+                        onTap: () =>
+                            showPlantingDetails(context, plot, planting),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.verified_outlined, size: 18),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  [
+                                    planting.areaHa != null
+                                        ? '${planting.crop} (${formatArea(planting.areaHa)})'
+                                        : planting.crop,
+                                    planting.protocolName != null
+                                        ? 'committed to ${planting.protocolName}'
+                                        : 'no specific standard',
+                                  ].join(' — '),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               ),
-                            ),
-                          ],
+                              const Icon(
+                                Icons.chevron_right,
+                                size: 16,
+                                color: Colors.black38,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                   ],

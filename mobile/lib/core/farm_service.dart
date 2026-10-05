@@ -10,6 +10,7 @@ import '../models/batch.dart';
 import '../models/commitment.dart';
 import '../models/photo_schedule.dart';
 import '../models/plot.dart';
+import '../models/plot_event.dart';
 import '../models/plot_photo.dart';
 import '../models/protocol.dart';
 import '../models/protocol_evaluation.dart';
@@ -93,6 +94,27 @@ class FarmService {
       }
       final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
       return FarmResult.ok(list.map(Plot.fromJson).toList());
+    } catch (e) {
+      return FarmResult.fail(_friendlyException(e));
+    }
+  }
+
+  // Full event history for a plot the caller owns — what's behind a summary
+  // line like PlotPlanting (the date, area, GPS fix, confirmed stages), not
+  // just what PlotOut.plantings surfaces.
+  static Future<FarmResult<List<PlotEvent>>> plotEvents(String plotId) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/events?plot_id=$plotId'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
+      }
+      final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+      return FarmResult.ok(list.map(PlotEvent.fromJson).toList());
     } catch (e) {
       return FarmResult.fail(_friendlyException(e));
     }

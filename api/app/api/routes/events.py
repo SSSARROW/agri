@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import CurrentUser, get_current_user, require_role
+from app.core.auth import CurrentUser, get_current_user
 from app.core.delivery import delivered_kg
 from app.core.errors import AppError
 from app.core.logging import get_logger
@@ -190,13 +190,38 @@ async def create_event(
 
 @router.get("", response_model=list[EventOut])
 async def list_events(
-    batch_id: uuid.UUID = Query(...),
-    _: CurrentUser = Depends(require_role("admin", "exporter")),
+    batch_id: uuid.UUID | None = Query(None),
+    plot_id: uuid.UUID | None = Query(None),
+    current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Event]:
-    """Full event history for one batch — the admin/exporter batch detail
-    view (dev2). The public equivalent is GET /provenance/{batch_code},
-    which also walks lineage and strips location fields."""
+    """Full event history for one batch (the admin/exporter batch detail
+    view, dev2 — the public equivalent is GET /provenance/{batch_code},
+    which also walks lineage and strips location fields) or one plot (a
+    farmer looking back at what they recorded — e.g. a planting's date,
+    area, GPS fix and confirmed protocol stages, not just the one-line
+    summary PlotOut.plantings shows)."""
+    if plot_id is not None:
+        plot = await db.get(Plot, plot_id)
+        if plot is None:
+            raise AppError(code="not_found", message="Plot not found.", status_code=status.HTTP_404_NOT_FOUND)
+        if plot.owner_user_id != current_user.id and current_user.role not in ("admin", "exporter"):
+            raise AppError(
+                code="forbidden", message="You do not own this plot.", status_code=status.HTTP_403_FORBIDDEN
+            )
+        result = await db.execute(select(Event).where(Event.plot_id == plot_id).order_by(Event.occurred_at))
+        return list(result.scalars().all())
+
+    if batch_id is None:
+        raise AppError(
+            code="invalid_payload", message="Provide batch_id or plot_id.", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+    if current_user.role not in ("admin", "exporter"):
+        raise AppError(
+            code="forbidden",
+            message="Only an admin or exporter can view a batch's full event history.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
     result = await db.execute(select(Event).where(Event.batch_id == batch_id).order_by(Event.occurred_at))
     return list(result.scalars().all())
 

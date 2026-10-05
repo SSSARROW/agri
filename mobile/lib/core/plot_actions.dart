@@ -369,6 +369,122 @@ Future<void> recordPlanting(
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
+// What's behind a plot's one-line planting summary ("Tea — committed to
+// X") once it's no longer the thing on screen — the actual recorded date,
+// area, GPS fix and (if a protocol was picked) which stages were confirmed.
+// Without this there's no way to look back at a planting after the dialog
+// that recorded it closes.
+Future<void> showPlantingDetails(
+  BuildContext context,
+  Plot plot,
+  PlotPlanting planting,
+) async {
+  final eventsResult = await FarmService.plotEvents(plot.id);
+  if (!context.mounted) return;
+  if (!eventsResult.isOk) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Could not load details: ${eventsResult.error}')),
+    );
+    return;
+  }
+
+  // The specific "planted" event this summary line was built from — picking
+  // the latest matching crop rather than an exact occurred_at match, since
+  // that's exactly how PlotPlanting itself was derived server-side.
+  final matches =
+      (eventsResult.data ?? [])
+          .where(
+            (e) =>
+                e.eventType == 'planted' &&
+                (e.payload['crop'] as String?)?.toLowerCase() ==
+                    planting.crop.toLowerCase(),
+          )
+          .toList()
+        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  if (matches.isEmpty) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('No details found.')));
+    return;
+  }
+  final event = matches.first;
+  final payload = event.payload;
+
+  ProtocolDetail? protocolDetail;
+  final protocolId = payload['protocol_id'] as String?;
+  if (protocolId != null) {
+    final detailResult = await FarmService.protocolDetail(protocolId);
+    if (!context.mounted) return;
+    if (detailResult.isOk) protocolDetail = detailResult.data;
+  }
+  if (!context.mounted) return;
+
+  final confirmedSequences =
+      (payload['confirmed_stages'] as List?)?.cast<int>().toSet() ?? {};
+  final lat = (payload['lat'] as num?)?.toDouble();
+  final lon = (payload['lon'] as num?)?.toDouble();
+  final accuracy = (payload['accuracy_m'] as num?)?.toDouble();
+
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('${planting.crop} planting'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Planted on ${_formatDate(event.occurredAt.toLocal())}'),
+            const SizedBox(height: 4),
+            Text(
+              planting.areaHa != null
+                  ? 'Area: ${formatArea(planting.areaHa)}'
+                  : 'Area: whole plot',
+            ),
+            const SizedBox(height: 4),
+            Text(
+              lat != null && lon != null
+                  ? 'GPS: ${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)}'
+                        '${accuracy != null ? ' (±${accuracy.round()}m)' : ''}'
+                  : 'GPS: no fix recorded',
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Quality standard: ${planting.protocolName ?? 'No specific standard'}',
+            ),
+            if (protocolDetail != null) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Confirmed at planting time:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              for (final stage in protocolDetail.stages)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      confirmedSequences.contains(stage.sequence)
+                          ? Icons.check_box_outlined
+                          : Icons.check_box_outline_blank,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(stage.title)),
+                  ],
+                ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
 // A periodic photo during the growing cycle (unlike the one-time photo
 // offered right after registering the plot) — evidence of progress and
 // condition over time, not just a single point-in-time snapshot.
@@ -498,7 +614,10 @@ Future<void> registerBatchForPlot(
   PlotPlanting? committedPlanting = plot.plantingFor(crop);
   ProtocolSummary? selectedProtocol = protocols
       .cast<ProtocolSummary?>()
-      .firstWhere((p) => p?.id == committedPlanting?.protocolId, orElse: () => null);
+      .firstWhere(
+        (p) => p?.id == committedPlanting?.protocolId,
+        orElse: () => null,
+      );
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => StatefulBuilder(
