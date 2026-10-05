@@ -31,8 +31,13 @@ class _FarmPageState extends State<FarmPage> {
   // Best-effort and silent on failure — this is informational (what buyers
   // want right now), not core farm data, so it should never show an error
   // banner or block the rest of the page from loading.
+  //
+  // No crop filter: this used to always ask for Tea specifically, so a
+  // cinnamon (or any non-Tea) farmer never saw a buyer order relevant to
+  // them. Each card already shows its own crop, so showing every open
+  // commitment here is correct, not just a Tea-shaped stopgap.
   Future<void> _loadCommitments() async {
-    final result = await FarmService.openCommitments(crop: 'Tea');
+    final result = await FarmService.openCommitments();
     if (!mounted || !result.isOk) return;
     setState(() => _commitments = result.data);
   }
@@ -284,7 +289,7 @@ class _FarmPageState extends State<FarmPage> {
             if (_commitments != null && _commitments!.isNotEmpty) ...[
               const SizedBox(height: 20),
               const Text(
-                'Buyers looking for Tea right now',
+                'Buyers looking right now',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),

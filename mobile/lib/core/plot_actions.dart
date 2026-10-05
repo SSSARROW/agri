@@ -21,6 +21,73 @@ import 'sync_service.dart';
 // recording a fix that's not trustworthy at plot scale (M-06).
 const _poorAccuracyMeters = 50.0;
 
+// Crops with a real quality standard seeded (see api/app/seed_protocols.py)
+// — each entry here is a sourced, verifiable standard, not an invented one.
+// "Other" stays free text rather than a long guessed-at crop list, since a
+// crop with no seeded protocol just shows no quality-standard section below,
+// same as today.
+const kCropOptions = ['Tea', 'Cinnamon'];
+const _otherCropLabel = 'Other';
+
+/// A crop dropdown (plus a free-text field when "Other" is picked) shared by
+/// recordPlanting and registerBatchForPlot. Only fires [onSelected] for the
+/// three dropdown choices, not per keystroke in the "Other" field — nothing
+/// is seeded for an arbitrary typed crop, so there's no protocol list to
+/// fetch for it anyway.
+class _CropField extends StatefulWidget {
+  final String initialCrop;
+  final ValueChanged<String> onSelected;
+  const _CropField({required this.initialCrop, required this.onSelected});
+
+  @override
+  State<_CropField> createState() => _CropFieldState();
+}
+
+class _CropFieldState extends State<_CropField> {
+  late String _choice = kCropOptions.contains(widget.initialCrop)
+      ? widget.initialCrop
+      : _otherCropLabel;
+  late final _otherController = TextEditingController(
+    text: _choice == _otherCropLabel ? widget.initialCrop : '',
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _choice,
+          decoration: const InputDecoration(labelText: 'Crop'),
+          items: [
+            for (final c in kCropOptions)
+              DropdownMenuItem(value: c, child: Text(c)),
+            const DropdownMenuItem(
+              value: _otherCropLabel,
+              child: Text(_otherCropLabel),
+            ),
+          ],
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() => _choice = v);
+            widget.onSelected(
+              v == _otherCropLabel ? _otherController.text.trim() : v,
+            );
+          },
+        ),
+        if (_choice == _otherCropLabel) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _otherController,
+            decoration: const InputDecoration(labelText: 'Crop name'),
+            onChanged: widget.onSelected,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 Future<void> recordPlanting(
   BuildContext context,
   Plot plot, {
@@ -31,14 +98,12 @@ Future<void> recordPlanting(
   // they hit Save instead of adding its own visible wait afterward.
   final positionFuture = LocationService.getCurrentPosition();
 
-  final cropController = TextEditingController(text: 'Tea');
+  String crop = 'Tea';
 
   // Public endpoint, best-effort — planting still records with no quality
   // standard attached if this fails or nothing's seeded for the crop.
-  final protocolsResult = await FarmService.protocolsForCrop(
-    cropController.text.trim(),
-  );
-  final protocols = protocolsResult.isOk
+  var protocolsResult = await FarmService.protocolsForCrop(crop);
+  var protocols = protocolsResult.isOk
       ? (protocolsResult.data ?? [])
       : <ProtocolSummary>[];
   if (!context.mounted) return;
@@ -64,10 +129,20 @@ Future<void> recordPlanting(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: cropController,
-                  decoration: const InputDecoration(labelText: 'Crop'),
-                  autofocus: true,
+                _CropField(
+                  initialCrop: crop,
+                  onSelected: (newCrop) async {
+                    setDialogState(() {
+                      crop = newCrop;
+                      selectedProtocol = null;
+                      selectedProtocolDetail = null;
+                      confirmedSequences.clear();
+                      protocols = [];
+                    });
+                    if (newCrop.isEmpty) return;
+                    final r = await FarmService.protocolsForCrop(newCrop);
+                    if (r.isOk) setDialogState(() => protocols = r.data ?? []);
+                  },
                 ),
                 if (protocols.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -173,7 +248,7 @@ Future<void> recordPlanting(
   // planting record must still save even with no fix (indoors, permission
   // denied, this emulator's flaky GPS simulator, etc).
   final position = (await positionFuture).position;
-  final payload = <String, dynamic>{'crop': cropController.text.trim()};
+  final payload = <String, dynamic>{'crop': crop};
   if (position != null) {
     payload['lat'] = position.latitude;
     payload['lon'] = position.longitude;
@@ -318,14 +393,12 @@ Future<void> registerBatchForPlot(
   Plot plot, {
   VoidCallback? onDone,
 }) async {
-  final cropController = TextEditingController(text: 'Tea');
+  String crop = 'Tea';
 
   // Public endpoint, best-effort — a farmer can still register a batch with
   // no quality standard attached if this fails or nothing's seeded.
-  final protocolsResult = await FarmService.protocolsForCrop(
-    cropController.text.trim(),
-  );
-  final protocols = protocolsResult.isOk
+  var protocolsResult = await FarmService.protocolsForCrop(crop);
+  var protocols = protocolsResult.isOk
       ? (protocolsResult.data ?? [])
       : <ProtocolSummary>[];
   if (!context.mounted) return;
@@ -349,10 +422,18 @@ Future<void> registerBatchForPlot(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: cropController,
-                  decoration: const InputDecoration(labelText: 'Crop'),
-                  autofocus: true,
+                _CropField(
+                  initialCrop: crop,
+                  onSelected: (newCrop) async {
+                    setDialogState(() {
+                      crop = newCrop;
+                      selectedProtocol = null;
+                      protocols = [];
+                    });
+                    if (newCrop.isEmpty) return;
+                    final r = await FarmService.protocolsForCrop(newCrop);
+                    if (r.isOk) setDialogState(() => protocols = r.data ?? []);
+                  },
                 ),
                 if (protocols.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -432,7 +513,7 @@ Future<void> registerBatchForPlot(
   // meaningful to show the farmer until the server hands back a real code.
   final result = await FarmService.createBatch(
     plotId: plot.id,
-    crop: cropController.text.trim(),
+    crop: crop,
     protocolId: selectedProtocol?.id,
   );
   if (!context.mounted) return;
