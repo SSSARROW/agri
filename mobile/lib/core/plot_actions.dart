@@ -39,7 +39,7 @@ String _trimTrailingZeros(double v) {
 // "Other" stays free text rather than a long guessed-at crop list, since a
 // crop with no seeded protocol just shows no quality-standard section below,
 // same as today.
-const kCropOptions = ['Tea', 'Cinnamon'];
+const kCropOptions = ['Tea', 'Cinnamon', 'Pepper'];
 const _otherCropLabel = 'Other';
 
 /// A crop dropdown (plus a free-text field when "Other" is picked) shared by
