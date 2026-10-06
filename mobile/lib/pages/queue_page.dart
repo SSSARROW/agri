@@ -3,22 +3,17 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../core/event_queue.dart';
 import '../core/sync_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 
 class QueuePage extends StatelessWidget {
   const QueuePage({super.key});
 
-  Color _badgeColor(String status) => switch (status) {
-    'pending' => const Color(0xFFFFF3CD),
-    'synced' => const Color(0xFFD4EDDA),
-    'failed' => const Color(0xFFF8D7DA),
-    _ => Colors.grey.shade200,
-  };
-
-  Color _badgeText(String status) => switch (status) {
-    'pending' => const Color(0xFF7C5C00),
-    'synced' => const Color(0xFF1B5E20),
-    'failed' => const Color(0xFFB71C1C),
-    _ => Colors.black87,
+  StatusLevel _level(String status) => switch (status) {
+    'pending' => StatusLevel.warning,
+    'synced' => StatusLevel.success,
+    'failed' => StatusLevel.danger,
+    _ => StatusLevel.neutral,
   };
 
   @override
@@ -35,42 +30,41 @@ class QueuePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Events captured here are written to local storage immediately and synced '
               'when connectivity returns.',
-              style: TextStyle(color: Colors.black54),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
             ValueListenableBuilder<Box<Map>>(
               valueListenable: EventQueue.listenable(),
               builder: (context, box, _) {
                 final pending = EventQueue.pendingCount();
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: pending == 0
-                        ? const Color(0xFFE8F5E9)
-                        : const Color(0xFFFFF8E1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        pending == 0
-                            ? 'All events synced'
-                            : '$pending pending sync',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      TextButton(
-                        onPressed: () => SyncService.instance.retryFailedNow(),
-                        child: const Text('Sync now'),
-                      ),
-                    ],
+                return Card(
+                  color: pending == 0
+                      ? AppColors.successBg
+                      : AppColors.warningBg,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          pending == 0
+                              ? 'All events synced'
+                              : '$pending pending sync',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              SyncService.instance.retryFailedNow(),
+                          child: const Text('Sync now'),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -82,9 +76,9 @@ class QueuePage extends StatelessWidget {
                 builder: (context, box, _) {
                   final events = EventQueue.allByRecency();
                   if (events.isEmpty) {
-                    return const Text(
+                    return Text(
                       'No queued events yet.',
-                      style: TextStyle(color: Colors.black54),
+                      style: Theme.of(context).textTheme.bodySmall,
                     );
                   }
                   return ListView.separated(
@@ -99,62 +93,48 @@ class QueuePage extends StatelessWidget {
                       final timeLabel =
                           '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}:${createdAt.second.toString().padLeft(2, '0')}';
                       final lastError = e['lastError'] as String?;
-                      return Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _badgeColor(status),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  StatusPill(
                                     status.toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 11,
+                                    level: _level(status),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    e['eventType'] as String,
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: _badgeText(status),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    timeLabel,
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (status == 'failed' && lastError != null) ...[
+                                const SizedBox(height: 6),
                                 Text(
-                                  e['eventType'] as String,
+                                  lastError,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.danger,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  timeLabel,
-                                  style: const TextStyle(color: Colors.black54),
-                                ),
                               ],
-                            ),
-                            if (status == 'failed' && lastError != null) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                lastError,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFFB71C1C),
-                                  fontSize: 12,
-                                ),
-                              ),
                             ],
-                          ],
+                          ),
                         ),
                       );
                     },

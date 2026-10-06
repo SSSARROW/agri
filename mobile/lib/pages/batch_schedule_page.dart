@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/farm_service.dart';
 import '../models/protocol_evaluation.dart';
+import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 
 /// The farmer's own staged view of a batch's quality standard (B-32/B-33):
 /// which requirements are already met, which are due or overdue, and
@@ -42,11 +44,11 @@ class _BatchSchedulePageState extends State<BatchSchedulePage> {
     });
   }
 
-  Color _statusColor(String status) => switch (status) {
-    'done' => const Color(0xFF1B5E20),
-    'overdue' => const Color(0xFFB71C1C),
-    'upcoming' || 'pending' => const Color(0xFF7C5C00),
-    _ => Colors.black54,
+  StatusLevel _statusLevel(String status) => switch (status) {
+    'done' => StatusLevel.success,
+    'overdue' => StatusLevel.danger,
+    'upcoming' || 'pending' => StatusLevel.warning,
+    _ => StatusLevel.neutral,
   };
 
   String _statusLabel(String status) => switch (status) {
@@ -67,7 +69,7 @@ class _BatchSchedulePageState extends State<BatchSchedulePage> {
                 padding: const EdgeInsets.all(20),
                 child: Text(
                   _error!,
-                  style: const TextStyle(color: Color(0xFFB71C1C)),
+                  style: const TextStyle(color: AppColors.danger),
                 ),
               )
             : _evaluation == null
@@ -75,93 +77,85 @@ class _BatchSchedulePageState extends State<BatchSchedulePage> {
             : ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: _evaluation!.tierAchieved
-                          ? const Color(0xFFE8F5E9)
-                          : const Color(0xFFFFF3CD),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _evaluation!.tierAchieved
-                              ? '✓ Verified — meets ${_evaluation!.protocolName}'
-                              : '${_evaluation!.requiredSatisfied}/${_evaluation!.requiredTotal} required steps done',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _evaluation!.tierAchieved
-                                ? const Color(0xFF1B5E20)
-                                : const Color(0xFF7C5C00),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _evaluation!.protocolName,
-                          style: const TextStyle(
-                            color: Colors.black54,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Stages',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  for (final stage in _evaluation!.stages)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  Card(
+                    color: _evaluation!.tierAchieved
+                        ? AppColors.successBg
+                        : AppColors.warningBg,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Text(
+                            _evaluation!.tierAchieved
+                                ? '✓ Verified — meets ${_evaluation!.protocolName}'
+                                : '${_evaluation!.requiredSatisfied}/${_evaluation!.requiredTotal} required steps done',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _evaluation!.tierAchieved
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _evaluation!.protocolName,
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const SectionHeader('Stages'),
+                  for (final stage in _evaluation!.stages)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  stage.title,
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      stage.title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  StatusPill(
+                                    _statusLabel(stage.status),
+                                    level: _statusLevel(stage.status),
+                                  ),
+                                ],
+                              ),
+                              if (stage.dueDate != null) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Due ${stage.dueDate!.day}/${stage.dueDate!.month}/${stage.dueDate!.year}',
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black54,
+                                    fontSize: 12,
                                   ),
                                 ),
-                              ),
+                              ],
+                              const SizedBox(height: 6),
                               Text(
-                                _statusLabel(stage.status),
-                                style: TextStyle(
-                                  color: _statusColor(stage.status),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
+                                stage.instructions,
+                                style: const TextStyle(fontSize: 13),
                               ),
                             ],
                           ),
-                          if (stage.dueDate != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              'Due ${stage.dueDate!.day}/${stage.dueDate!.month}/${stage.dueDate!.year}',
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 6),
-                          Text(
-                            stage.instructions,
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   const SizedBox(height: 8),

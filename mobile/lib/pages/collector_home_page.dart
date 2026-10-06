@@ -7,6 +7,7 @@ import '../core/event_queue.dart';
 import '../core/farm_service.dart';
 import '../core/sync_service.dart';
 import '../models/batch.dart';
+import '../theme/app_colors.dart';
 import '../widgets/batch_qr_dialog.dart';
 
 class _BasketItem {
@@ -264,14 +265,14 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Scan each farmer\'s batch QR, record the weight taken, then combine the round into one outgoing batch.',
-              style: TextStyle(color: Colors.black54),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
             if (_scanning)
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(18),
                 child: SizedBox(
                   height: 300,
                   child: MobileScanner(
@@ -305,10 +306,10 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
             const SizedBox(height: 8),
             Expanded(
               child: _basket.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'No batches scanned yet this round.',
-                        style: TextStyle(color: Colors.black54),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     )
                   : ListView.separated(
@@ -316,37 +317,35 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
                         final item = _basket[i];
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F5F5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${item.batch.code} · ${item.batch.crop}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
+                        return Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${item.batch.code} · ${item.batch.crop}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    'Condition: ${item.condition}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: item.condition == 'poor'
-                                          ? const Color(0xFFB71C1C)
-                                          : Colors.black54,
+                                    Text(
+                                      'Condition: ${item.condition}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: item.condition == 'poor'
+                                            ? AppColors.danger
+                                            : Colors.black54,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              Text('${item.weightKg.toStringAsFixed(1)} kg'),
-                            ],
+                                  ],
+                                ),
+                                Text('${item.weightKg.toStringAsFixed(1)} kg'),
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -355,11 +354,11 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
             const SizedBox(height: 12),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B5E20),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 52),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               onPressed: (_busy || _basket.length < 2)

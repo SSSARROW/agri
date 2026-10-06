@@ -5,6 +5,7 @@ import '../core/farm_service.dart';
 import '../core/location_service.dart';
 import '../core/photo_capture.dart';
 import '../core/plot_area.dart';
+import '../theme/app_colors.dart';
 import 'plot_map_trace_page.dart';
 
 class _CornerPin {
@@ -212,11 +213,11 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Stand at each corner of the plot in turn and drop a pin there. '
                 'At least 3 corners are needed; more corners means a more '
                 'accurate shape.',
-                style: TextStyle(color: Colors.black54),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 16),
               Row(
@@ -224,7 +225,7 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
                   Expanded(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1B5E20),
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(0, 48),
                       ),
@@ -252,28 +253,25 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
               ),
               const SizedBox(height: 16),
               if (_pins.length >= 3)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _tooSmall
-                        ? const Color(0xFFFFF3CD)
-                        : const Color(0xFFEFF7EE),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    _tooSmall
-                        ? 'These corners are almost on top of each other (${formatArea(_areaHa)}). Walk to each corner of the plot before dropping its pin.'
-                        : 'Estimated area: ${formatArea(_areaHa)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                Card(
+                  color: _tooSmall ? AppColors.warningBg : AppColors.successBg,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Text(
+                      _tooSmall
+                          ? 'These corners are almost on top of each other (${formatArea(_areaHa)}). Walk to each corner of the plot before dropping its pin.'
+                          : 'Estimated area: ${formatArea(_areaHa)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               const SizedBox(height: 12),
               Expanded(
                 child: _pins.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No corners dropped yet.',
-                          style: TextStyle(color: Colors.black54),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       )
                     : ListView.separated(
@@ -281,24 +279,23 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
                         separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (context, i) {
                           final pin = _pins[i];
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF5F5F5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Corner ${i + 1}'),
-                                Text(
-                                  '${pin.lat.toStringAsFixed(5)}, ${pin.lon.toStringAsFixed(5)} (±${pin.accuracy.round()}m)',
-                                  style: const TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 12,
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Corner ${i + 1}'),
+                                  Text(
+                                    '${pin.lat.toStringAsFixed(5)}, ${pin.lon.toStringAsFixed(5)} (±${pin.accuracy.round()}m)',
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: 12,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           );
                         },
@@ -307,11 +304,11 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
               const SizedBox(height: 12),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 52),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 onPressed: (_pins.length < 3 || _tooSmall || _submitting)

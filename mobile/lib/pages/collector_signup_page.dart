@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/auth_service.dart';
+import '../theme/app_colors.dart';
 
 class CollectorSignupPage extends StatefulWidget {
   final VoidCallback onSignedUp;
@@ -24,8 +25,7 @@ class _CollectorSignupPageState extends State<CollectorSignupPage> {
   bool _loading = false;
   String? _error;
 
-  InputDecoration _dec(String label) =>
-      InputDecoration(labelText: label, border: const OutlineInputBorder());
+  InputDecoration _dec(String label) => InputDecoration(labelText: label);
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -66,9 +66,9 @@ class _CollectorSignupPageState extends State<CollectorSignupPage> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              const Text(
+              Text(
                 'For collectors who buy leaf from multiple farmers and combine it into batches at a collection point.',
-                style: TextStyle(color: Colors.black54, fontSize: 13),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -123,16 +123,16 @@ class _CollectorSignupPageState extends State<CollectorSignupPage> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),
+                Text(_error!, style: const TextStyle(color: AppColors.danger)),
               ],
               const SizedBox(height: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 52),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 onPressed: _loading ? null : _submit,

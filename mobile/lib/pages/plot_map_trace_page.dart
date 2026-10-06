@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../core/location_service.dart';
 import '../core/plot_area.dart';
+import '../theme/app_colors.dart';
 
 /// Smallest area a traced boundary may have (5 m²) — matches the server's
 /// minimum for "traced" plots (api plots.py).
@@ -152,7 +153,7 @@ class _PlotMapTracePageState extends State<PlotMapTracePage> {
                             child: Container(
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1B5E20),
+                                color: AppColors.primary,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.white,
@@ -199,9 +200,7 @@ class _PlotMapTracePageState extends State<PlotMapTracePage> {
                   Text(
                     _hint,
                     style: TextStyle(
-                      color: _tooSmall
-                          ? const Color(0xFF9A6B00)
-                          : Colors.black87,
+                      color: _tooSmall ? AppColors.warning : Colors.black87,
                       fontWeight: _tooSmall
                           ? FontWeight.bold
                           : FontWeight.normal,

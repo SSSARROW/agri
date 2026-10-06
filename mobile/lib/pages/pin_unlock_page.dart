@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/auth_service.dart';
+import '../theme/app_colors.dart';
 
 /// The daily unlock screen (M-07) — no network involved. This is what makes
 /// the app usable for a farmer with no signal for days: the stored token
@@ -11,7 +12,11 @@ import '../core/auth_service.dart';
 class PinUnlockPage extends StatefulWidget {
   final VoidCallback onUnlocked;
   final VoidCallback onUseEmailInstead;
-  const PinUnlockPage({super.key, required this.onUnlocked, required this.onUseEmailInstead});
+  const PinUnlockPage({
+    super.key,
+    required this.onUnlocked,
+    required this.onUseEmailInstead,
+  });
 
   @override
   State<PinUnlockPage> createState() => _PinUnlockPageState();
@@ -45,9 +50,15 @@ class _PinUnlockPageState extends State<PinUnlockPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Welcome back', style: Theme.of(context).textTheme.headlineMedium),
+              Text(
+                'Welcome back',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
               const SizedBox(height: 4),
-              const Text('Enter your PIN to continue.', style: TextStyle(color: Colors.black54)),
+              Text(
+                'Enter your PIN to continue.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               const SizedBox(height: 32),
               TextField(
                 controller: _pinController,
@@ -58,23 +69,35 @@ class _PinUnlockPageState extends State<PinUnlockPage> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 28, letterSpacing: 12),
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(counterText: '', labelText: 'PIN'),
+                decoration: const InputDecoration(
+                  counterText: '',
+                  labelText: 'PIN',
+                ),
                 onSubmitted: (_) => _submit(),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C)), textAlign: TextAlign.center),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: AppColors.danger),
+                  textAlign: TextAlign.center,
+                ),
               ],
               const SizedBox(height: 24),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _submit,
-                child: const Text('Unlock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                child: const Text(
+                  'Unlock',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
               const SizedBox(height: 12),
               TextButton(

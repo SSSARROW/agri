@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/auth_service.dart';
+import '../theme/app_colors.dart';
 import 'collector_signup_page.dart';
 import 'farmer_signup_page.dart';
 
@@ -51,40 +52,34 @@ class _LoginPageState extends State<LoginPage> {
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Sign in to record your farm activity.',
-                style: TextStyle(color: Colors.black54),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 32),
               TextField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Email'),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _password,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Password'),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),
+                Text(_error!, style: const TextStyle(color: AppColors.danger)),
               ],
               const SizedBox(height: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 52),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 onPressed: _loading ? null : _submit,

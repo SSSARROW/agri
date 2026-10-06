@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/auth_service.dart';
+import '../theme/app_colors.dart';
 
 class FarmerSignupPage extends StatefulWidget {
   final VoidCallback onSignedUp;
@@ -26,7 +27,7 @@ class _FarmerSignupPageState extends State<FarmerSignupPage> {
   bool _loading = false;
   String? _error;
 
-  InputDecoration _dec(String label) => InputDecoration(labelText: label, border: const OutlineInputBorder());
+  InputDecoration _dec(String label) => InputDecoration(labelText: label);
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -56,7 +57,8 @@ class _FarmerSignupPageState extends State<FarmerSignupPage> {
     }
   }
 
-  String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : null;
+  String? _required(String? v) =>
+      (v == null || v.trim().isEmpty) ? 'Required' : null;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +70,11 @@ class _FarmerSignupPageState extends State<FarmerSignupPage> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              TextFormField(controller: _name, decoration: _dec('Full name'), validator: _required),
+              TextFormField(
+                controller: _name,
+                decoration: _dec('Full name'),
+                validator: _required,
+              ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _email,
@@ -77,42 +83,89 @@ class _FarmerSignupPageState extends State<FarmerSignupPage> {
                 validator: _required,
               ),
               const SizedBox(height: 12),
-              TextFormField(controller: _password, decoration: _dec('Password'), obscureText: true, validator: _required),
+              TextFormField(
+                controller: _password,
+                decoration: _dec('Password'),
+                obscureText: true,
+                validator: _required,
+              ),
               const SizedBox(height: 12),
-              TextFormField(controller: _phone, decoration: _dec('Phone'), keyboardType: TextInputType.phone, validator: _required),
+              TextFormField(
+                controller: _phone,
+                decoration: _dec('Phone'),
+                keyboardType: TextInputType.phone,
+                validator: _required,
+              ),
               const SizedBox(height: 12),
-              TextFormField(controller: _nic, decoration: _dec('NIC'), validator: _required),
+              TextFormField(
+                controller: _nic,
+                decoration: _dec('NIC'),
+                validator: _required,
+              ),
               const SizedBox(height: 12),
-              TextFormField(controller: _district, decoration: _dec('District'), validator: _required),
+              TextFormField(
+                controller: _district,
+                decoration: _dec('District'),
+                validator: _required,
+              ),
               const SizedBox(height: 12),
-              TextFormField(controller: _dsd, decoration: _dec('DSD'), validator: _required),
+              TextFormField(
+                controller: _dsd,
+                decoration: _dec('DSD'),
+                validator: _required,
+              ),
               const SizedBox(height: 12),
-              TextFormField(controller: _gnDivision, decoration: _dec('GN Division'), validator: _required),
+              TextFormField(
+                controller: _gnDivision,
+                decoration: _dec('GN Division'),
+                validator: _required,
+              ),
               const SizedBox(height: 12),
-              TextFormField(controller: _farmAddress, decoration: _dec('Farm address'), validator: _required),
+              TextFormField(
+                controller: _farmAddress,
+                decoration: _dec('Farm address'),
+                validator: _required,
+              ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _farmSizeHa,
                 decoration: _dec('Farm size (hectares)'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 validator: _required,
               ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(_error!, style: const TextStyle(color: Color(0xFFB71C1C))),
+                Text(_error!, style: const TextStyle(color: AppColors.danger)),
               ],
               const SizedBox(height: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _loading ? null : _submit,
                 child: _loading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Create account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Create account',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
               ),
             ],
           ),

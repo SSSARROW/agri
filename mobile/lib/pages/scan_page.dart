@@ -91,12 +91,12 @@ class _ScanPageState extends State<ScanPage> {
               batch.protocolName != null
                   ? '${batch.crop} · ${batch.protocolName}'
                   : batch.crop,
-              style: const TextStyle(color: Colors.black54),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
             Text(
               'Currently: ${batch.latestStatus}',
-              style: const TextStyle(color: Colors.black54, fontSize: 13),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
             const Text(
@@ -222,13 +222,13 @@ class _ScanPageState extends State<ScanPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Point the camera at a batch QR label to record the next stage — collect, weigh, process, grade or pack.',
-              style: TextStyle(color: Colors.black54),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 20),
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: 360,
                 child: MobileScanner(
@@ -240,22 +240,20 @@ class _ScanPageState extends State<ScanPage> {
             const SizedBox(height: 12),
             Text(
               '${_recent.length} scanned this session',
-              style: const TextStyle(color: Colors.black54, fontSize: 13),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
             Expanded(
               child: ListView.separated(
                 itemCount: _recent.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, i) => Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    _recent[i],
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                itemBuilder: (context, i) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Text(
+                      _recent[i],
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
