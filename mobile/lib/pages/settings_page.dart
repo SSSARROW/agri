@@ -194,7 +194,7 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.pin_outlined),
+                  leading: const IconCircle(Icons.pin_outlined, size: 40),
                   title: Text(
                     AuthService.instance.hasPin ? 'Change PIN' : 'Set up a PIN',
                   ),
@@ -215,10 +215,12 @@ class _SettingsPageState extends State<SettingsPage> {
               builder: (context, box, _) {
                 final pending = EventQueue.pendingCount();
                 return ListTile(
-                  leading: Icon(
+                  leading: IconCircle(
                     pending == 0
                         ? Icons.cloud_done_outlined
                         : Icons.cloud_sync_outlined,
+                    size: 40,
+                    color: pending == 0 ? AppColors.success : AppColors.warning,
                   ),
                   title: Text(
                     pending == 0 ? 'All synced' : '$pending pending sync',
@@ -239,7 +241,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SectionHeader('Account type'),
             Card(
               child: ListTile(
-                leading: const Icon(Icons.badge_outlined),
+                leading: const IconCircle(Icons.badge_outlined, size: 40),
                 title: Text(_roleLabels[role] ?? role),
                 subtitle: const Text(
                   'Set at signup — contact support to change roles',

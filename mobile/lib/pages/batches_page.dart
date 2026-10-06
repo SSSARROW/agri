@@ -130,11 +130,10 @@ class _BatchesPageState extends State<BatchesPage> {
               child: batches == null
                   ? const Center(child: CircularProgressIndicator())
                   : batches.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No batches yet.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                  ? const EmptyState(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'No batches yet',
+                      subtitle: 'Register a batch from one of your plots to see it here.',
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
@@ -194,16 +193,41 @@ class _BatchCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const IconCircle(Icons.inventory_2, size: 40),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      batch.code,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            batch.code,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        if (batch.protocolId != null)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.checklist_outlined,
+                              size: 20,
+                            ),
+                            tooltip: 'View quality standard progress',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BatchSchedulePage(
+                                  batchId: batch.id,
+                                  batchCode: batch.code,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
                     Text(
                       batch.protocolName != null
                           ? '${batch.crop} · ${batch.protocolName}'
@@ -213,7 +237,7 @@ class _BatchCard extends StatelessWidget {
                         fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         const Icon(
@@ -235,32 +259,30 @@ class _BatchCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      ageText,
-                      style: const TextStyle(
-                        color: Colors.black45,
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule,
+                          size: 13,
+                          color: Colors.black45,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          ageText,
+                          style: const TextStyle(
+                            color: Colors.black45,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    StatusPill(
+                      batch.latestStatus.toUpperCase(),
+                      background: statusColor,
                     ),
                   ],
                 ),
-              ),
-              if (batch.protocolId != null)
-                IconButton(
-                  icon: const Icon(Icons.checklist_outlined, size: 20),
-                  tooltip: 'View quality standard progress',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BatchSchedulePage(
-                        batchId: batch.id,
-                        batchCode: batch.code,
-                      ),
-                    ),
-                  ),
-                ),
-              StatusPill(
-                batch.latestStatus.toUpperCase(),
-                background: statusColor,
               ),
             ],
           ),

@@ -107,3 +107,73 @@ class StatusRow extends StatelessWidget {
     );
   }
 }
+
+/// A big icon in a soft tonal circle — the same icon-with-visual-weight look
+/// everywhere a card or empty state needs an anchor, instead of a small
+/// inline glyph. Built for a farmer scanning a list to recognize something
+/// by shape and color before reading a word.
+class IconCircle extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color? color;
+  const IconCircle(this.icon, {super.key, this.size = 44, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: c, size: size * 0.5),
+    );
+  }
+}
+
+/// A big-icon, friendly empty state — replaces a plain grey line of text
+/// ("No plots yet.") with something recognizable at a glance before reading
+/// a word, and gives an empty screen visual weight instead of just blank
+/// space under the header.
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconCircle(icon, size: 72),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

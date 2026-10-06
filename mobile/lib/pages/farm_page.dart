@@ -278,11 +278,10 @@ class _FarmPageState extends State<FarmPage> {
               child: plots == null
                   ? const Center(child: CircularProgressIndicator())
                   : plots.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No plots yet.',
-                        style: TextStyle(color: Colors.black54),
-                      ),
+                  ? const EmptyState(
+                      icon: Icons.grass,
+                      title: 'No plots yet',
+                      subtitle: 'Register your first plot to get started.',
                     )
                   // A single plot doesn't need list chrome (scroll physics,
                   // separators) — it's just shown directly. Multiple plots
@@ -352,22 +351,7 @@ class _PlotCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // A visual anchor for the card — every row used to open with
-              // the same small inline icon, which gave the list nothing to
-              // tell cards apart by at a glance besides their text.
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.grass,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-              ),
+              const IconCircle(Icons.grass),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

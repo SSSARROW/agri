@@ -67,11 +67,11 @@ class _MarketPageState extends State<MarketPage> {
               child: commitments == null
                   ? const Center(child: CircularProgressIndicator())
                   : commitments.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No open buyer orders right now.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                  ? const EmptyState(
+                      icon: Icons.storefront_outlined,
+                      title: 'No open buyer orders right now',
+                      subtitle:
+                          'Check back soon — buyers post new orders regularly.',
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
@@ -84,48 +84,80 @@ class _MarketPageState extends State<MarketPage> {
                             color: AppColors.successBg,
                             child: Padding(
                               padding: const EdgeInsets.all(16),
-                              child: Column(
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.storefront_outlined,
-                                        size: 18,
-                                        color: AppColors.primary,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          c.crop,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                      if (c.indicativePriceLkrPerKg != null)
-                                        Text(
-                                          'LKR ${c.indicativePriceLkrPerKg!.toStringAsFixed(0)}/kg',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                    ],
+                                  const IconCircle(
+                                    Icons.storefront,
+                                    color: AppColors.primary,
                                   ),
-                                  const SizedBox(height: 8),
-                                  StatusPill(c.protocolName ?? 'Any standard'),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    '${c.remainingKg.toStringAsFixed(0)} kg wanted',
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Delivery ${_formatDate(c.deliveryWindowStart)} – ${_formatDate(c.deliveryWindowEnd)}',
-                                    style: const TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: 12,
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                c.crop,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 17,
+                                                ),
+                                              ),
+                                            ),
+                                            if (c.indicativePriceLkrPerKg !=
+                                                null)
+                                              Text(
+                                                'LKR ${c.indicativePriceLkrPerKg!.toStringAsFixed(0)}/kg',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        StatusPill(
+                                          c.protocolName ?? 'Any standard',
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.scale_outlined,
+                                              size: 15,
+                                              color: Colors.black54,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              '${c.remainingKg.toStringAsFixed(0)} kg wanted',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.event_outlined,
+                                              size: 15,
+                                              color: Colors.black54,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              '${_formatDate(c.deliveryWindowStart)} – ${_formatDate(c.deliveryWindowEnd)}',
+                                              style: const TextStyle(
+                                                color: Colors.black54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
