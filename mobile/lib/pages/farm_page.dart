@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../core/farm_service.dart';
 import '../core/plot_area.dart';
-import '../models/commitment.dart';
 import '../models/photo_schedule.dart';
 import '../models/plot.dart';
 import '../theme/app_colors.dart';
@@ -20,28 +19,12 @@ class FarmPage extends StatefulWidget {
 class _FarmPageState extends State<FarmPage> {
   List<Plot>? _plots;
   String? _error;
-  List<Commitment>? _commitments;
   final Map<String, PlotPhotoSchedule> _photoSchedules = {};
 
   @override
   void initState() {
     super.initState();
     _load();
-    _loadCommitments();
-  }
-
-  // Best-effort and silent on failure — this is informational (what buyers
-  // want right now), not core farm data, so it should never show an error
-  // banner or block the rest of the page from loading.
-  //
-  // No crop filter: this used to always ask for Tea specifically, so a
-  // cinnamon (or any non-Tea) farmer never saw a buyer order relevant to
-  // them. Each card already shows its own crop, so showing every open
-  // commitment here is correct, not just a Tea-shaped stopgap.
-  Future<void> _loadCommitments() async {
-    final result = await FarmService.openCommitments();
-    if (!mounted || !result.isOk) return;
-    setState(() => _commitments = result.data);
   }
 
   Future<void> _load() async {
@@ -288,81 +271,6 @@ class _FarmPageState extends State<FarmPage> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
-            if (_commitments != null && _commitments!.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              const SectionHeader('Buyers looking right now'),
-              SizedBox(
-                height: 112,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _commitments!.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, i) {
-                    final c = _commitments![i];
-                    return SizedBox(
-                      width: 220,
-                      child: Card(
-                        color: AppColors.successBg,
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.storefront_outlined,
-                                    size: 15,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Expanded(
-                                    child: Text(
-                                      c.protocolName ??
-                                          '${c.crop} — any standard',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${c.remainingKg.toStringAsFixed(0)} kg wanted',
-                                style: const TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              if (c.indicativePriceLkrPerKg != null)
-                                Text(
-                                  'LKR ${c.indicativePriceLkrPerKg!.toStringAsFixed(0)}/kg',
-                                  style: const TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              const Spacer(),
-                              Text(
-                                'By ${_formatDate(c.deliveryWindowEnd)}',
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
             const SizedBox(height: 16),
             if (_error != null)
               Text(_error!, style: const TextStyle(color: AppColors.danger)),

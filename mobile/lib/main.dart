@@ -7,6 +7,7 @@ import 'pages/batches_page.dart';
 import 'pages/collector_home_page.dart';
 import 'pages/farm_page.dart';
 import 'pages/login_page.dart';
+import 'pages/market_page.dart';
 import 'pages/pin_setup_page.dart';
 import 'pages/pin_unlock_page.dart';
 import 'pages/scan_page.dart';
@@ -246,20 +247,24 @@ class _RootShellState extends State<RootShell> {
       );
     }
 
-    // Three tabs, not five: Scan and Queue aren't destinations a farmer
+    // Four tabs, not five: Scan and Queue aren't destinations a farmer
     // navigates to as a task in their own right — Scan is an action taken
     // from Batches (where its result shows up), and Queue is sync status,
-    // surfaced as a small indicator on Settings instead. Fewer tabs to scan
-    // on a phone screen in a field.
+    // surfaced as a small indicator on Settings instead. Market is its own
+    // tab rather than a carousel bolted onto Farm — "what buyers want" and
+    // "what I have" are different questions, and Market needs room to show
+    // a full delivery window and standard, not just what fits in a
+    // 220px-wide card.
     final page = switch (_index) {
       0 => const FarmPage(),
-      1 => const BatchesPage(),
+      1 => const MarketPage(),
+      2 => const BatchesPage(),
       _ => SettingsPage(onLoggedOut: widget.onLoggedOut),
     };
 
     return Scaffold(
       body: page,
-      floatingActionButton: _index == 1
+      floatingActionButton: _index == 2
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const ScanPage())),
@@ -276,6 +281,11 @@ class _RootShellState extends State<RootShell> {
             icon: Icon(Icons.grass_outlined),
             selectedIcon: Icon(Icons.grass),
             label: 'Farm',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.storefront_outlined),
+            selectedIcon: Icon(Icons.storefront),
+            label: 'Market',
           ),
           NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
