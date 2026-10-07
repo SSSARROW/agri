@@ -189,6 +189,7 @@ class _BatchCard extends StatelessWidget {
           subtitle: batch.protocolName != null
               ? '${batch.crop} · ${batch.protocolName}'
               : batch.crop,
+          matchedCommitment: batch.commitment,
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),

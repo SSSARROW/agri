@@ -137,6 +137,34 @@ async def build_provenance(db: AsyncSession, batch: Batch, *, scan_warning: str 
         for e in events_result.scalars().all()
     ]
 
+    # Fold in the plot's own origin photos — the registration photo (proof
+    # the plot itself exists) and whichever planting photo matches this
+    # batch's crop — so a scan tells the full story back to before any
+    # batch existed, not just what happened after. Left out on purpose:
+    # progress_photo, since those are an ongoing plot-level log (every crop,
+    # every checkpoint) rather than evidence specific to this one harvest.
+    if batch.plot_id is not None:
+        origin_photos_result = await db.execute(
+            select(Event)
+            .where(
+                Event.plot_id == batch.plot_id,
+                Event.event_type.in_(["plot_photo", "planting_photo"]),
+            )
+            .order_by(Event.occurred_at)
+        )
+        for e in origin_photos_result.scalars().all():
+            if e.event_type == "planting_photo" and str(e.payload.get("crop", "")).lower() != batch.crop.lower():
+                continue
+            timeline.append(
+                ProvenanceEvent(
+                    batch_code=None,
+                    event_type=e.event_type,
+                    occurred_at=e.occurred_at,
+                    payload=_sanitize_payload(e.payload),
+                )
+            )
+        timeline.sort(key=lambda e: e.occurred_at)
+
     plot = await db.get(Plot, batch.plot_id) if batch.plot_id else None
     plot_out = (
         ProvenancePlot(district=plot.district, dsd=plot.dsd, gn_division=plot.gn_division, area_ha=float(plot.area_ha) if plot.area_ha is not None else None)

@@ -12,7 +12,7 @@ from app.core.errors import AppError
 from app.core.tier_evaluation import evaluate_batch_protocol, get_planted_at
 from app.db.models import Batch, Commitment, Event, Plot, Protocol
 from app.db.session import get_db
-from app.schemas.batch import BatchCreate, BatchMergeCreate, BatchOut
+from app.schemas.batch import BatchCreate, BatchMergeCreate, BatchOut, MatchedCommitmentOut
 from app.schemas.tier_evaluation import ProtocolEvaluationOut
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -23,6 +23,24 @@ async def _to_batch_out(db: AsyncSession, batch: Batch) -> BatchOut:
     if batch.protocol_id is not None:
         protocol = await db.get(Protocol, batch.protocol_id)
         protocol_name = protocol.name if protocol is not None else None
+
+    commitment_out = None
+    if batch.commitment_id is not None:
+        commitment = await db.get(Commitment, batch.commitment_id)
+        if commitment is not None:
+            commitment_out = MatchedCommitmentOut(
+                id=commitment.id,
+                crop=commitment.crop,
+                volume_kg=float(commitment.volume_kg),
+                remaining_kg=float(commitment.remaining_kg),
+                delivery_window_start=commitment.delivery_window_start,
+                delivery_window_end=commitment.delivery_window_end,
+                indicative_price_lkr_per_kg=(
+                    float(commitment.indicative_price_lkr_per_kg)
+                    if commitment.indicative_price_lkr_per_kg is not None
+                    else None
+                ),
+            )
 
     latest_stmt = (
         select(Event.event_type, Event.occurred_at)
@@ -40,6 +58,7 @@ async def _to_batch_out(db: AsyncSession, batch: Batch) -> BatchOut:
         protocol_id=batch.protocol_id,
         protocol_name=protocol_name,
         commitment_id=batch.commitment_id,
+        commitment=commitment_out,
         created_at=batch.created_at,
         latest_status=latest.event_type if latest else "registered",
         latest_occurred_at=latest.occurred_at if latest else None,

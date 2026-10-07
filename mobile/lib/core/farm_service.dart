@@ -124,8 +124,9 @@ class FarmService {
   // gallery, see the camera-only picker call sites) so it's at least harder
   // to fake than a checkbox, even though it's still self-reported rather
   // than independently verified. event_type is "plot_photo" (at
-  // registration), "planting_photo" (attached to a planting record), or
-  // "progress_photo" (during the growing cycle).
+  // registration), "planting_photo" (attached to a planting record),
+  // "progress_photo" (during the growing cycle), or "batch_photo" (attached
+  // to a newly registered batch).
   static Future<FarmResult<PhotoUploadResult>> uploadPlotPhoto({
     required String plotId,
     required String eventType,
@@ -133,6 +134,12 @@ class FarmService {
     String? caption,
     double? lat,
     double? lon,
+    // "batch_photo" only — ties the photo to that batch's own provenance
+    // timeline, not just this plot's photo list.
+    String? batchId,
+    // "planting_photo" only — which crop this is the planting photo for, so
+    // an intercropped plot's batch provenance page can show the right one.
+    String? crop,
   }) async {
     try {
       final request = http.MultipartRequest(
@@ -148,6 +155,12 @@ class FarmService {
       request.fields['event_id'] = const Uuid().v4();
       if (caption != null && caption.isNotEmpty) {
         request.fields['caption'] = caption;
+      }
+      if (batchId != null) {
+        request.fields['batch_id'] = batchId;
+      }
+      if (crop != null && crop.isNotEmpty) {
+        request.fields['crop'] = crop;
       }
       // Lets the server flag a photo taken somewhere other than the plot it
       // claims to document — GPS is best-effort, so this is sent when

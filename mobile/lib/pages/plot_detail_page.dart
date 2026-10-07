@@ -427,6 +427,7 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                           subtitle: batch.protocolName != null
                               ? '${batch.crop} · ${batch.protocolName}'
                               : batch.crop,
+                          matchedCommitment: batch.commitment,
                         ),
                       ),
                     ),
