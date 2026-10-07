@@ -74,9 +74,9 @@
       {% for e in p.timeline %}
       <div class="timeline-item">
         <span class="timeline-type">{{ e.event_type.replace('_', ' ') }}</span>
-        {% if e.batch_code != p.batch.code %}<span class="muted">(batch {{ e.batch_code }})</span>{% endif %}
+        {% if e.batch_code and e.batch_code != p.batch.code %}<span class="muted">(batch {{ e.batch_code }})</span>{% endif %}
         <div class="timeline-meta">{{ e.occurred_at.strftime('%d %b %Y, %H:%M') }}
-          {%- for k, v in e.payload.items() if k not in hidden_keys -%}
+          {%- for k, v in e.payload.items() if k not in hidden_keys %}
             · {{ k.replace('_', ' ') }}: {{ v }}
           {%- endfor -%}
         </div>
