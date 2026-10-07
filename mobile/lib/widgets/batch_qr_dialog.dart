@@ -6,7 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/api_client.dart';
 import '../models/batch.dart';
-import '../theme/app_colors.dart';
+import 'matched_commitment_card.dart';
 
 /// Shared by farm_page.dart (right after registering a batch) and
 /// batches_page.dart (viewing an existing one) so there's one QR rendering
@@ -33,8 +33,6 @@ Future<Uint8List> _renderQrPng(String data, int size) async {
   return bytes!.buffer.asUint8List();
 }
 
-String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
-
 Future<void> showBatchQrDialog(
   BuildContext context,
   String code, {
@@ -57,52 +55,7 @@ Future<void> showBatchQrDialog(
             const SizedBox(height: 16),
           ],
           if (matchedCommitment != null) ...[
-            Card(
-              color: AppColors.successBg,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.storefront,
-                          size: 16,
-                          color: AppColors.primary,
-                        ),
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Matched to an open buyer order',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      [
-                        '${matchedCommitment.remainingKg.toStringAsFixed(0)} kg wanted',
-                        if (matchedCommitment.indicativePriceLkrPerKg != null)
-                          'LKR ${matchedCommitment.indicativePriceLkrPerKg!.toStringAsFixed(0)}/kg',
-                      ].join(' · '),
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                    Text(
-                      'Deliver by ${_formatDate(matchedCommitment.deliveryWindowEnd)}',
-                      style: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            MatchedCommitmentCard(matchedCommitment),
             const SizedBox(height: 16),
           ],
           Container(

@@ -120,6 +120,28 @@ class FarmService {
     }
   }
 
+  // Full harvest/pipeline history for a batch the caller's plot produced
+  // (collect, weigh, process, grade, pack, photos) — what's behind the QR
+  // dialog's one-line status, for a farmer who wants to look back at a
+  // batch rather than just hand it off.
+  static Future<FarmResult<List<PlotEvent>>> batchEvents(String batchId) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${ApiClient.baseUrl}/api/v1/events?batch_id=$batchId'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) {
+        return FarmResult.fail(_friendlyError(res), statusCode: res.statusCode);
+      }
+      final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+      return FarmResult.ok(list.map(PlotEvent.fromJson).toList());
+    } catch (e) {
+      return FarmResult.fail(_friendlyException(e));
+    }
+  }
+
   // A geotagged, timestamped field photo — captured live (never from the
   // gallery, see the camera-only picker call sites) so it's at least harder
   // to fake than a checkbox, even though it's still self-reported rather

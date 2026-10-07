@@ -8,8 +8,8 @@ import '../models/photo_schedule.dart';
 import '../models/plot.dart';
 import '../models/plot_photo.dart';
 import '../theme/app_colors.dart';
-import '../widgets/batch_qr_dialog.dart';
 import '../widgets/ui_kit.dart';
+import 'batch_detail_page.dart';
 import 'batch_schedule_page.dart';
 
 const _plotTypeLabels = {
@@ -421,13 +421,13 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                                 ),
                               )
                             : null,
-                        onTap: () => showBatchQrDialog(
-                          context,
-                          batch.code,
-                          subtitle: batch.protocolName != null
-                              ? '${batch.crop} · ${batch.protocolName}'
-                              : batch.crop,
-                          matchedCommitment: batch.commitment,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => BatchDetailPage(
+                              batch: batch,
+                              plotName: _plot.title,
+                            ),
+                          ),
                         ),
                       ),
                     ),

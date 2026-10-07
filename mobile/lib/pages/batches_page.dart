@@ -4,8 +4,8 @@ import '../core/farm_service.dart';
 import '../models/batch.dart';
 import '../models/plot.dart';
 import '../theme/app_colors.dart';
-import '../widgets/batch_qr_dialog.dart';
 import '../widgets/ui_kit.dart';
+import 'batch_detail_page.dart';
 import 'batch_schedule_page.dart';
 
 // Buckets a batch's latest pipeline event into where it actually sits in
@@ -183,13 +183,11 @@ class _BatchCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => showBatchQrDialog(
-          context,
-          batch.code,
-          subtitle: batch.protocolName != null
-              ? '${batch.crop} · ${batch.protocolName}'
-              : batch.crop,
-          matchedCommitment: batch.commitment,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                BatchDetailPage(batch: batch, plotName: plot?.title),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
