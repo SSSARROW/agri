@@ -42,6 +42,27 @@
     padding: 16px;
     margin-top: 16px;
   }
+  details.card { padding: 0; }
+  details.card summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  details.card summary::-webkit-details-marker { display: none; }
+  .summary-title { font-weight: 700; font-size: 1.05rem; }
+  .summary-sub { font-size: 0.82rem; white-space: nowrap; }
+  details.card summary::after {
+    content: '▾';
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+  details.card[open] summary::after { transform: rotate(180deg); }
+  .details-body { padding: 0 16px 16px; }
   .badge {
     display: block;
     border-radius: 14px;

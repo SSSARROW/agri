@@ -46,25 +46,30 @@
   {% endif %}
 
   {% if p.protocol %}
-  <div class="card">
-    <h2>Quality standard: {{ p.protocol.protocol_name }}</h2>
-    {% for stage in p.protocol.stages %}
-    <div class="stage">
-      <div class="stage-title">{{ stage.title }}
-        <span class="stage-status status-{{ stage.status }}">
-          {%- if stage.status == "done" -%} ✓ Done
-          {%- elif stage.status == "overdue" -%} ⚠ Overdue
-          {%- elif stage.status == "upcoming" -%} Upcoming
-          {%- elif stage.status == "pending" -%} Pending
-          {%- else -%} Standing rule
-          {%- endif -%}
-        </span>
+  <details class="card">
+    <summary>
+      <span class="summary-title">Quality standard: {{ p.protocol.protocol_name }}</span>
+      <span class="muted summary-sub">{{ p.protocol.required_satisfied }}/{{ p.protocol.required_total }} verified</span>
+    </summary>
+    <div class="details-body">
+      {% for stage in p.protocol.stages %}
+      <div class="stage">
+        <div class="stage-title">{{ stage.title }}
+          <span class="stage-status status-{{ stage.status }}">
+            {%- if stage.status == "done" -%} ✓ Done
+            {%- elif stage.status == "overdue" -%} ⚠ Overdue
+            {%- elif stage.status == "upcoming" -%} Upcoming
+            {%- elif stage.status == "pending" -%} Pending
+            {%- else -%} Standing rule
+            {%- endif -%}
+          </span>
+        </div>
+        <div class="stage-instructions">{{ stage.instructions }}</div>
       </div>
-      <div class="stage-instructions">{{ stage.instructions }}</div>
+      {% endfor %}
+      <p class="source-cite">Source: {{ p.protocol.protocol_source }}</p>
     </div>
-    {% endfor %}
-    <p class="source-cite">Source: {{ p.protocol.protocol_source }}</p>
-  </div>
+  </details>
   {% endif %}
 
   <div class="card">
