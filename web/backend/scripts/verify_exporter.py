@@ -68,6 +68,7 @@ def approve(email: str) -> None:
             sys.exit(1)
         profile = insert_res.data[0]
 
+    prev_status = profile.get("status", "pending") if profile else "pending"
     res = (
         supabase.table("exporter_profiles")
         .update({"status": "verified", "rejection_reason": None})
@@ -75,6 +76,19 @@ def approve(email: str) -> None:
         .execute()
     )
     if res.data:
+        profile_id = res.data[0]["id"]
+        try:
+            supabase.table("exporter_verification_log").insert({
+                "exporter_profile_id": profile_id,
+                "admin_user_id": None,
+                "action": "approved",
+                "reason": "CLI script execution",
+                "previous_status": prev_status,
+                "new_status": "verified",
+            }).execute()
+        except Exception as e:
+            print(f"[WARN] Failed to write log entry: {e}")
+
         company = res.data[0].get("company_name") or "(unnamed)"
         print(f"[OK] Exporter '{email}' ({company}) → status: verified")
     else:
@@ -92,13 +106,16 @@ def reject(email: str, reason: str) -> None:
 
     if not profile:
         print(f"[WARN] No exporter_profiles row for '{email}'. Creating a minimal one first.")
-        supabase.table("exporter_profiles").insert({
+        insert_res = supabase.table("exporter_profiles").insert({
             "user_id": user["id"],
             "company_name": "",
             "business_reg_no": "",
             "status": "pending",
         }).execute()
+        if insert_res.data:
+            profile = insert_res.data[0]
 
+    prev_status = profile.get("status", "pending") if profile else "pending"
     res = (
         supabase.table("exporter_profiles")
         .update({"status": "rejected", "rejection_reason": reason.strip()})
@@ -106,12 +123,26 @@ def reject(email: str, reason: str) -> None:
         .execute()
     )
     if res.data:
+        profile_id = res.data[0]["id"]
+        try:
+            supabase.table("exporter_verification_log").insert({
+                "exporter_profile_id": profile_id,
+                "admin_user_id": None,
+                "action": "rejected",
+                "reason": reason.strip(),
+                "previous_status": prev_status,
+                "new_status": "rejected",
+            }).execute()
+        except Exception as e:
+            print(f"[WARN] Failed to write log entry: {e}")
+
         company = res.data[0].get("company_name") or "(unnamed)"
         print(f"[OK] Exporter '{email}' ({company}) → status: rejected")
         print(f"     Reason: {reason.strip()}")
     else:
         print("[ERROR] Update failed — check Supabase logs.")
         sys.exit(1)
+
 
 
 def main() -> None:

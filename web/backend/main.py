@@ -35,6 +35,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+import os
+from admin.exporter_verification import router as admin_exporter_router
+
 app.include_router(auth_router)
 app.include_router(actors_router)
 app.include_router(plots_router)
@@ -42,7 +45,12 @@ app.include_router(batches_router)
 app.include_router(events_router)
 app.include_router(exporter_router)
 
+ENABLE_ADMIN_EXPORTER_VERIFICATION = os.getenv("ENABLE_ADMIN_EXPORTER_VERIFICATION", "true").lower() == "true"
+if ENABLE_ADMIN_EXPORTER_VERIFICATION:
+    app.include_router(admin_exporter_router)
+
 @app.get("/")
 def root():
     return {"status": "ok"}
+
 
