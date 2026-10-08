@@ -7,8 +7,10 @@ from plots.router import router as plots_router
 from batches.router import router as batches_router
 from events.router import router as events_router
 from exporter.router import router as exporter_router
+from exporter.standards.router import router as standards_router
 
 app = FastAPI(title="Paramparā API")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,6 +46,7 @@ app.include_router(plots_router)
 app.include_router(batches_router)
 app.include_router(events_router)
 app.include_router(exporter_router)
+app.include_router(standards_router)
 
 ENABLE_ADMIN_EXPORTER_VERIFICATION = os.getenv("ENABLE_ADMIN_EXPORTER_VERIFICATION", "true").lower() == "true"
 if ENABLE_ADMIN_EXPORTER_VERIFICATION:
