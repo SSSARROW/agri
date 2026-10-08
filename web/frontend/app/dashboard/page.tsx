@@ -15,6 +15,11 @@ export default function DashboardPage() {
     async function loadUser() {
       try {
         const profile = await fetchUserProfile();
+        // Exporters have their own dashboard — redirect them there
+        if (profile.role === "exporter") {
+          router.replace("/exporter/dashboard");
+          return;
+        }
         setUser(profile);
       } catch (err: any) {
         clearAuthToken();
