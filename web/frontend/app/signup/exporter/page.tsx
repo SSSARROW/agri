@@ -32,7 +32,7 @@ export default function ExporterSignupPage() {
 
     try {
       await signupExporter(formData);
-      router.push("/dashboard");
+      router.push("/exporter/dashboard");
     } catch (err: any) {
       const msg = err?.response?.data?.detail || "Registration failed. Please check your inputs.";
       setError(typeof msg === "string" ? msg : "Exporter Registration Error");
