@@ -170,7 +170,7 @@ def get_standard_full(standard_id: str, exporter_profile_id: str) -> dict:
 def get_version_detail(standard_id: str, version_number: int, exporter_profile_id: str) -> dict:
     """Get details of version N including stages."""
     get_standard_by_id_and_owner(standard_id, exporter_profile_id)
-    version = get_version_number(standard_id, version_number)
+    version = get_version_by_number(standard_id, version_number)
 
     stages_res = (
         supabase.table("quality_standard_stages")

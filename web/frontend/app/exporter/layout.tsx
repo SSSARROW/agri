@@ -17,7 +17,7 @@ import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
 const NAV_ITEMS = [
   { label: "Dashboard", icon: "🏠", href: "/exporter/dashboard", active: true },
   { label: "Company Profile", icon: "🏢", href: "/exporter/profile", active: true },
-  { label: "Quality Standards", icon: "📋", href: "#", active: false, soon: true },
+  { label: "Quality Standards", icon: "📋", href: "/exporter/standards", active: true },
   { label: "Advertisements", icon: "📢", href: "#", active: false, soon: true },
   { label: "My Farmers", icon: "🌾", href: "#", active: false, soon: true },
   { label: "Planting Notices", icon: "🌱", href: "#", active: false, soon: true },
