@@ -111,7 +111,7 @@ export async function approveExporter(id: string) {
   });
 }
 
-export async function rejectExporter(id: string, reason: str) {
+export async function rejectExporter(id: string, reason: string) {
   return authFetch(`/api/admin/exporters/${id}/reject`, {
     method: "POST",
     body: JSON.stringify({ reason }),
