@@ -184,11 +184,16 @@ export default function ExporterDashboardPage() {
             title="Advertisements"
             description="Post buying advertisements to notify farmers of your current crop requirements and prices."
           />
-          <ComingSoonCard
-            icon="🌾"
-            title="My Farmers"
-            description="Browse and connect with verified farmers in your districts who grow your required crops."
-          />
+          <Link
+            href="/exporter/farmers"
+            className="bg-zinc-900/60 border border-zinc-800 hover:border-teal-500/50 rounded-2xl p-5 flex flex-col gap-2 transition-all hover:shadow-xl group"
+          >
+            <div className="text-2xl">🌾</div>
+            <p className="font-bold text-white text-sm group-hover:text-teal-300 transition-colors">My Farmers</p>
+            <p className="text-zinc-500 text-xs leading-relaxed">
+              Browse and connect with verified farmers in your districts who grow your required crops.
+            </p>
+          </Link>
           <ComingSoonCard
             icon="🌱"
             title="Planting Notices"
