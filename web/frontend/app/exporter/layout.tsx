@@ -14,12 +14,20 @@ import Link from "next/link";
 import { clearAuthToken } from "@/lib/api";
 import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
 
+const ENABLE_EXPORTER_FARMERS = process.env.NEXT_PUBLIC_ENABLE_EXPORTER_FARMERS !== "false";
+
 const NAV_ITEMS = [
   { label: "Dashboard", icon: "🏠", href: "/exporter/dashboard", active: true },
   { label: "Company Profile", icon: "🏢", href: "/exporter/profile", active: true },
   { label: "Quality Standards", icon: "📋", href: "/exporter/standards", active: true },
   { label: "Advertisements", icon: "📢", href: "#", active: false, soon: true },
-  { label: "My Farmers", icon: "🌾", href: "#", active: false, soon: true },
+  {
+    label: "My Farmers",
+    icon: "🌾",
+    href: ENABLE_EXPORTER_FARMERS ? "/exporter/farmers" : "#",
+    active: ENABLE_EXPORTER_FARMERS,
+    soon: !ENABLE_EXPORTER_FARMERS,
+  },
   { label: "Planting Notices", icon: "🌱", href: "#", active: false, soon: true },
 ];
 
