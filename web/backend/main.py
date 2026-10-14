@@ -42,6 +42,8 @@ from admin.exporter_verification import router as admin_exporter_router
 from exporter.farmers.router import router as exporter_farmers_router
 from farmer.router import router as farmer_exporter_link_router
 from exporter.ads.router import router as exporter_ads_router
+from farmer.ads.router import router as farmer_ads_router
+from exporter.ads.applicants.router import router as exporter_applicants_router
 
 app.include_router(auth_router)
 app.include_router(actors_router)
@@ -63,6 +65,11 @@ if ENABLE_EXPORTER_FARMERS:
 ENABLE_EXPORTER_ADS = os.getenv("ENABLE_EXPORTER_ADS", "true").lower() == "true"
 if ENABLE_EXPORTER_ADS:
     app.include_router(exporter_ads_router)
+
+ENABLE_AD_ACCEPTANCE = os.getenv("ENABLE_AD_ACCEPTANCE", "true").lower() == "true"
+if ENABLE_AD_ACCEPTANCE:
+    app.include_router(farmer_ads_router)
+    app.include_router(exporter_applicants_router)
 
 @app.get("/")
 def root():

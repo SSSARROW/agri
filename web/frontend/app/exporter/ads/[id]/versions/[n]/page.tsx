@@ -19,6 +19,8 @@ import {
 import { fetchStandards, StandardData, VersionSummary } from "@/lib/standardsApi";
 import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
 
+const ENABLE_AD_ACCEPTANCE = process.env.NEXT_PUBLIC_ENABLE_AD_ACCEPTANCE !== "false";
+
 interface PageProps {
   params: Promise<{
     id: string;
@@ -324,6 +326,15 @@ export default function AdVersionEditorPage({ params }: PageProps) {
           </Link>
 
           <div className="flex items-center gap-2">
+            {ENABLE_AD_ACCEPTANCE && (
+              <Link
+                href={`/exporter/ads/${adId}/applicants`}
+                className="px-3.5 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
+              >
+                <span>Applicants</span>
+                <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-teal-500/20 text-teal-300">👥</span>
+              </Link>
+            )}
             <button
               onClick={handleDuplicate}
               className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"

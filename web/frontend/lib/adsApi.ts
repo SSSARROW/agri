@@ -219,6 +219,80 @@ export async function duplicateAd(id: string): Promise<AdDetail> {
   });
 }
 
+export interface ApplicantPlotSummary {
+  id: string;
+  name: string;
+  area_ha?: number | null;
+  district?: string | null;
+  crops: string[];
+}
+
+export interface ApplicantItem {
+  acceptance_id: string;
+  farmer_id: string;
+  farmer_name: string;
+  farmer_district?: string | null;
+  dsd?: string | null;
+  gn_division?: string | null;
+  farm_size_ha?: number | null;
+  plots: ApplicantPlotSummary[];
+  supply_quantity_kg: number;
+  accepted_at: string;
+  withdrawn_at?: string | null;
+  derived_status: "pending" | "approved" | "declined" | "removed" | "withdrawn";
+  link_status: string;
+  ad_version_number: number;
+  terms_hash: string;
+  phone?: string | null;
+}
+
+export interface AdApplicantsResponse {
+  ad_id: string;
+  crop: string;
+  ad_title: MultilingualText;
+  target_quantity_kg: number;
+  approved_quantity_kg: number;
+  pending_quantity_kg: number;
+  remaining_quantity_kg: number;
+  is_filled: boolean;
+  items: ApplicantItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export async function fetchApplicants(
+  adId: string,
+  params: {
+    status?: string;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  } = {}
+): Promise<AdApplicantsResponse> {
+  const q = new URLSearchParams();
+  if (params.status) q.set("status", params.status);
+  if (params.search) q.set("search", params.search);
+  if (params.page) q.set("page", String(params.page));
+  if (params.page_size) q.set("page_size", String(params.page_size));
+
+  return authFetch(`/api/exporter/ads/${adId}/applicants?${q.toString()}`);
+}
+
+export async function approveApplicant(adId: string, acceptanceId: string): Promise<any> {
+  return authFetch(`/api/exporter/ads/${adId}/applicants/${acceptanceId}/approve`, {
+    method: "POST",
+  });
+}
+
+export async function declineApplicant(adId: string, acceptanceId: string, reason?: string): Promise<any> {
+  return authFetch(`/api/exporter/ads/${adId}/applicants/${acceptanceId}/decline`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || undefined }),
+  });
+}
+
 export const SRI_LANKA_DISTRICTS = [
   "Ampara", "Anuradhapura", "Badulla", "Batticaloa", "Colombo",
   "Galle", "Gampaha", "Hambantota", "Jaffna", "Kalutara",
