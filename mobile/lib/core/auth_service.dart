@@ -176,8 +176,11 @@ class AuthService {
   }
 
   Future<void> _storeSession(Map<String, dynamic> body) async {
-    final token = body['access_token'] as String;
-    final role = body['role'] as String;
+    final token = body['access_token'];
+    final role = body['role'];
+    if (token is! String || token.isEmpty || role is! String || role.isEmpty) {
+      throw FormatException('The server returned an invalid login response.');
+    }
     final userId = _userIdFromJwt(token);
     _token = token;
     _role = role;
@@ -210,6 +213,9 @@ class AuthService {
     if (e is SocketException) {
       return "Can't reach the server. Check your connection and try again.";
     }
+    if (e is FormatException) {
+      return e.message;
+    }
     return 'Something went wrong. Please try again.';
   }
 
@@ -218,6 +224,15 @@ class AuthService {
       final decoded = jsonDecode(body);
       final detail = decoded['detail'];
       if (detail is String && detail.isNotEmpty) return detail;
+      if (detail is List && detail.isNotEmpty) {
+        final messages = detail
+            .whereType<Map<String, dynamic>>()
+            .map((item) => item['msg'])
+            .whereType<String>()
+            .where((message) => message.isNotEmpty)
+            .toList();
+        if (messages.isNotEmpty) return messages.join(' ');
+      }
     } catch (_) {
       // Not JSON — fall through to the generic message below.
     }

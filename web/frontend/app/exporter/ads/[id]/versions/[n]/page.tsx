@@ -91,6 +91,14 @@ export default function AdVersionEditorPage({ params }: PageProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      if (isNaN(versionNum)) {
+        const adData = await fetchAd(adId);
+        const sorted = [...(adData.versions || [])].sort((a, b) => b.version_number - a.version_number);
+        const target = sorted[0]?.version_number || 1;
+        router.replace(`/exporter/ads/${adId}/versions/${target}`);
+        return;
+      }
+
       const [adData, verData, profData] = await Promise.all([
         fetchAd(adId),
         fetchAdVersion(adId, versionNum),

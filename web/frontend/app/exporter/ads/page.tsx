@@ -282,6 +282,10 @@ export default function ExporterAdsListPage() {
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {ads.map((ad) => {
+            const versionNum = ad.latest_version_number || (ad as any).current_version_number || 1;
+            const titleText = ad.latest_title?.en || (ad as any).title?.en || "Untitled Buy Request";
+            const targetQty = ad.latest_quantity_kg ?? (ad as any).quantity_kg ?? 0;
+
             const priceDisplay =
               ad.latest_price_type === "fixed"
                 ? `LKR ${Number(ad.latest_price_fixed || 0).toLocaleString()} / kg`
@@ -310,7 +314,7 @@ export default function ExporterAdsListPage() {
                         {ad.crop}
                       </span>
                       <span className="text-xs font-mono text-zinc-500">
-                        v{ad.latest_version_number}
+                        v{versionNum}
                       </span>
                     </div>
                     {getStatusBadge(ad.computed_status)}
@@ -318,11 +322,11 @@ export default function ExporterAdsListPage() {
 
                   {/* Title */}
                   <Link
-                    href={`/exporter/ads/${ad.id}/versions/${ad.latest_version_number}`}
+                    href={`/exporter/ads/${ad.id}/versions/${versionNum}`}
                     className="block group-hover:text-teal-400 transition-colors"
                   >
                     <h3 className="text-base font-semibold text-zinc-100 line-clamp-1">
-                      {ad.latest_title?.en || "Untitled Buy Request"}
+                      {titleText}
                     </h3>
                   </Link>
 
@@ -339,7 +343,7 @@ export default function ExporterAdsListPage() {
                     <div>
                       <span className="text-zinc-500 block">Target Qty</span>
                       <span className="font-semibold text-zinc-200">
-                        {Number(ad.latest_quantity_kg).toLocaleString()} kg
+                        {Number(targetQty).toLocaleString()} kg
                       </span>
                     </div>
                     <div>
@@ -357,15 +361,19 @@ export default function ExporterAdsListPage() {
                     <div>
                       <span className="text-zinc-500 block">Window</span>
                       <span className="font-medium text-zinc-300">
-                        {new Date(ad.latest_collection_start).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
+                        {ad.latest_collection_start
+                          ? new Date(ad.latest_collection_start).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "TBD"}{" "}
                         –{" "}
-                        {new Date(ad.latest_collection_end).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {ad.latest_collection_end
+                          ? new Date(ad.latest_collection_end).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "TBD"}
                       </span>
                     </div>
                   </div>
@@ -380,7 +388,7 @@ export default function ExporterAdsListPage() {
                 {/* Card Actions */}
                 <div className="mt-5 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2">
                   <Link
-                    href={`/exporter/ads/${ad.id}/versions/${ad.latest_version_number}`}
+                    href={`/exporter/ads/${ad.id}/versions/${versionNum}`}
                     className="flex-1 py-1.5 px-3 text-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-all"
                   >
                     View / Edit
