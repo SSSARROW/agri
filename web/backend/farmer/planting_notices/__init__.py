@@ -1,0 +1,1 @@
+"""Farmer planting notices package."""
