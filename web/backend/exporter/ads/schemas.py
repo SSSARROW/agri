@@ -87,15 +87,15 @@ class AdListItem(BaseModel):
     closed_reason: Optional[str] = None
     created_at: str
     updated_at: str
-    current_version_number: int
-    latest_version_number: Optional[int] = None
-    title: MultilingualText
-    latest_title: Optional[MultilingualText] = None
-    grade_tier: str
-    quantity_kg: float
-    latest_quantity_kg: Optional[float] = None
-    price_type: str
-    latest_price_type: Optional[str] = None
+    current_version_number: int = 1
+    latest_version_number: int = 1
+    title: MultilingualText = Field(default_factory=lambda: MultilingualText(en=""))
+    latest_title: MultilingualText = Field(default_factory=lambda: MultilingualText(en=""))
+    grade_tier: str = ""
+    quantity_kg: float = 0.0
+    latest_quantity_kg: float = 0.0
+    price_type: str = "fixed"
+    latest_price_type: str = "fixed"
     price_fixed: Optional[float] = None
     latest_price_fixed: Optional[float] = None
     price_min: Optional[float] = None

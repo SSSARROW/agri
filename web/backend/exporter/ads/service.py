@@ -233,6 +233,17 @@ def list_ads(
         std_vid = top_v.get("standard_version_id")
         std_name = std_map.get(std_vid) if std_vid else None
 
+        ver_num = top_v.get("version_number", 1)
+        title_obj = top_v.get("title") or {"en": ""}
+        qty = float(top_v.get("quantity_kg", 0))
+        p_type = top_v.get("price_type", "fixed")
+        p_fixed = float(top_v["price_fixed"]) if top_v.get("price_fixed") is not None else None
+        p_min = float(top_v["price_min"]) if top_v.get("price_min") is not None else None
+        p_max = float(top_v["price_max"]) if top_v.get("price_max") is not None else None
+        c_start = top_v.get("collection_window_start")
+        c_end = top_v.get("collection_window_end")
+        exp_at = top_v.get("expires_at")
+
         enriched_items.append({
             "id": ad["id"],
             "exporter_profile_id": ad["exporter_profile_id"],
@@ -243,29 +254,29 @@ def list_ads(
             "closed_reason": ad.get("closed_reason"),
             "created_at": ad["created_at"],
             "updated_at": ad["updated_at"],
-            "current_version_number": v_num,
-            "latest_version_number": v_num,
+            "current_version_number": ver_num,
+            "latest_version_number": ver_num,
             "title": title_obj,
             "latest_title": title_obj,
             "grade_tier": top_v.get("grade_tier", ""),
             "quantity_kg": qty,
             "latest_quantity_kg": qty,
-            "price_type": ptype,
-            "latest_price_type": ptype,
-            "price_fixed": pfixed,
-            "latest_price_fixed": pfixed,
-            "price_min": pmin,
-            "latest_price_min": pmin,
-            "price_max": pmax,
-            "latest_price_max": pmax,
-            "expires_at": exp,
-            "latest_expires_at": exp,
-            "collection_window_start": cstart,
-            "latest_collection_start": cstart,
-            "collection_window_end": cend,
-            "latest_collection_end": cend,
-            "standard_version_id": std_vid,
-            "latest_standard_name": std_name,
+            "price_type": p_type,
+            "latest_price_type": p_type,
+            "price_fixed": p_fixed,
+            "latest_price_fixed": p_fixed,
+            "price_min": p_min,
+            "latest_price_min": p_min,
+            "price_max": p_max,
+            "latest_price_max": p_max,
+            "expires_at": exp_at,
+            "latest_expires_at": exp_at,
+            "collection_window_start": c_start,
+            "latest_collection_start": c_start,
+            "collection_window_end": c_end,
+            "latest_collection_end": c_end,
+            "standard_version_id": top_v.get("standard_version_id"),
+            "latest_standard_name": top_v.get("standard_name"),
         })
 
     total = len(enriched_items)

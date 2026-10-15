@@ -195,12 +195,12 @@ async def list_events(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Event]:
-    """Full event history for one batch (the admin/exporter batch detail
-    view, dev2 — the public equivalent is GET /provenance/{batch_code},
-    which also walks lineage and strips location fields) or one plot (a
-    farmer looking back at what they recorded — e.g. a planting's date,
-    area, GPS fix and confirmed protocol stages, not just the one-line
-    summary PlotOut.plantings shows)."""
+    """Full event history for one batch (the farmer who grew it looking back
+    at its harvest/pipeline timeline, or an admin/exporter — the public
+    equivalent is GET /provenance/{batch_code}, which also walks lineage and
+    strips location fields) or one plot (a farmer looking back at what they
+    recorded — e.g. a planting's date, area, GPS fix and confirmed protocol
+    stages, not just the one-line summary PlotOut.plantings shows)."""
     if plot_id is not None:
         plot = await db.get(Plot, plot_id)
         if plot is None:
@@ -216,10 +216,17 @@ async def list_events(
         raise AppError(
             code="invalid_payload", message="Provide batch_id or plot_id.", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
         )
-    if current_user.role not in ("admin", "exporter"):
+    batch = await db.get(Batch, batch_id)
+    if batch is None:
+        raise AppError(code="not_found", message="Batch not found.", status_code=status.HTTP_404_NOT_FOUND)
+    is_owner = False
+    if batch.plot_id is not None:
+        plot = await db.get(Plot, batch.plot_id)
+        is_owner = plot is not None and plot.owner_user_id == current_user.id
+    if not is_owner and current_user.role not in ("admin", "exporter"):
         raise AppError(
             code="forbidden",
-            message="Only an admin or exporter can view a batch's full event history.",
+            message="You are not authorized to view this batch's event history.",
             status_code=status.HTTP_403_FORBIDDEN,
         )
     result = await db.execute(select(Event).where(Event.batch_id == batch_id).order_by(Event.occurred_at))

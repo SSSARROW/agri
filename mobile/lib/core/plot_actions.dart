@@ -353,6 +353,7 @@ Future<void> recordPlanting(
       imageFile: photoFile,
       lat: position?.latitude,
       lon: position?.longitude,
+      crop: crop,
     );
     photoNote = photoResult.isOk
         ? ' Photo attached.'
@@ -728,6 +729,10 @@ Future<void> registerBatchForPlot(
   );
   if (confirmed != true || !context.mounted) return;
 
+  // Kicked off now rather than awaited inline — by the time the photo
+  // prompt below needs it, it's usually already resolved.
+  final positionFuture = LocationService.getCurrentPosition();
+
   // Unlike a planting record, a batch code is issued by the server — it
   // can't be queued offline the way events can, since there's nothing
   // meaningful to show the farmer until the server hands back a real code.
@@ -743,15 +748,32 @@ Future<void> registerBatchForPlot(
         .showSnackBar(SnackBar(content: Text('Failed: ${result.error}')));
     return;
   }
+  final batch = result.data!;
+
+  // Photo evidence is prompted but not required — the batch is already
+  // safely created on the server before this runs, so skipping the camera
+  // or a failed upload must never look like registration itself failed.
+  final photoFile = await PhotoCapture.takePhoto();
+  if (photoFile != null && context.mounted) {
+    final position = (await positionFuture).position;
+    await FarmService.uploadPlotPhoto(
+      plotId: plot.id,
+      eventType: 'batch_photo',
+      imageFile: photoFile,
+      batchId: batch.id,
+      lat: position?.latitude,
+      lon: position?.longitude,
+    );
+  }
 
   onDone?.call();
-  final code = result.data!.code;
   if (!context.mounted) return;
   await showBatchQrDialog(
     context,
-    code,
-    subtitle: result.data!.commitmentId != null
-        ? 'Matched to an open buyer order for this quality standard.'
-        : null,
+    batch.code,
+    subtitle: batch.protocolName != null
+        ? '${batch.crop} · ${batch.protocolName}'
+        : batch.crop,
+    matchedCommitment: batch.commitment,
   );
 }

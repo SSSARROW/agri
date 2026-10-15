@@ -12,7 +12,7 @@ from app.core.errors import AppError
 from app.core.tier_evaluation import evaluate_batch_protocol, get_planted_at
 from app.db.models import Batch, Commitment, Event, Plot, Protocol
 from app.db.session import get_db
-from app.schemas.batch import BatchCreate, BatchMergeCreate, BatchOut
+from app.schemas.batch import BatchCreate, BatchMergeCreate, BatchOut, MatchedCommitmentOut
 from app.schemas.tier_evaluation import ProtocolEvaluationOut
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -23,6 +23,24 @@ async def _to_batch_out(db: AsyncSession, batch: Batch) -> BatchOut:
     if batch.protocol_id is not None:
         protocol = await db.get(Protocol, batch.protocol_id)
         protocol_name = protocol.name if protocol is not None else None
+
+    commitment_out = None
+    if batch.commitment_id is not None:
+        commitment = await db.get(Commitment, batch.commitment_id)
+        if commitment is not None:
+            commitment_out = MatchedCommitmentOut(
+                id=commitment.id,
+                crop=commitment.crop,
+                volume_kg=float(commitment.volume_kg),
+                remaining_kg=float(commitment.remaining_kg),
+                delivery_window_start=commitment.delivery_window_start,
+                delivery_window_end=commitment.delivery_window_end,
+                indicative_price_lkr_per_kg=(
+                    float(commitment.indicative_price_lkr_per_kg)
+                    if commitment.indicative_price_lkr_per_kg is not None
+                    else None
+                ),
+            )
 
     latest_stmt = (
         select(Event.event_type, Event.occurred_at)
@@ -40,6 +58,7 @@ async def _to_batch_out(db: AsyncSession, batch: Batch) -> BatchOut:
         protocol_id=batch.protocol_id,
         protocol_name=protocol_name,
         commitment_id=batch.commitment_id,
+        commitment=commitment_out,
         created_at=batch.created_at,
         latest_status=latest.event_type if latest else "registered",
         latest_occurred_at=latest.occurred_at if latest else None,
@@ -108,9 +127,38 @@ async def list_my_batches(
         protocol_rows = (await db.execute(select(Protocol.id, Protocol.name).where(Protocol.id.in_(protocol_ids)))).all()
         protocol_names = {row.id: row.name for row in protocol_rows}
 
+    # Same matched-commitment detail _to_batch_out builds one at a time
+    # (B-50) — batched here instead since this route already lists many
+    # batches at once.
+    commitment_ids = {b.commitment_id for b in batches if b.commitment_id is not None}
+    commitments_by_id = {}
+    if commitment_ids:
+        commitment_rows = (
+            await db.execute(select(Commitment).where(Commitment.id.in_(commitment_ids)))
+        ).scalars().all()
+        commitments_by_id = {c.id: c for c in commitment_rows}
+
     out = []
     for b in batches:
         latest = latest_by_batch.get(b.id)
+        commitment = commitments_by_id.get(b.commitment_id) if b.commitment_id is not None else None
+        commitment_out = (
+            MatchedCommitmentOut(
+                id=commitment.id,
+                crop=commitment.crop,
+                volume_kg=float(commitment.volume_kg),
+                remaining_kg=float(commitment.remaining_kg),
+                delivery_window_start=commitment.delivery_window_start,
+                delivery_window_end=commitment.delivery_window_end,
+                indicative_price_lkr_per_kg=(
+                    float(commitment.indicative_price_lkr_per_kg)
+                    if commitment.indicative_price_lkr_per_kg is not None
+                    else None
+                ),
+            )
+            if commitment is not None
+            else None
+        )
         out.append(
             BatchOut(
                 id=b.id,
@@ -120,6 +168,7 @@ async def list_my_batches(
                 protocol_id=b.protocol_id,
                 protocol_name=protocol_names.get(b.protocol_id),
                 commitment_id=b.commitment_id,
+                commitment=commitment_out,
                 created_at=b.created_at,
                 latest_status=latest.event_type if latest else "registered",
                 latest_occurred_at=latest.occurred_at if latest else None,

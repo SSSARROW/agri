@@ -70,15 +70,25 @@
   <div class="card">
     <h2>Timeline</h2>
     {% if p.timeline %}
+      {% set hidden_keys = ['photo_url', 'caption', 'location_flagged', 'distance_from_plot_m'] %}
       {% for e in p.timeline %}
       <div class="timeline-item">
         <span class="timeline-type">{{ e.event_type.replace('_', ' ') }}</span>
-        {% if e.batch_code != p.batch.code %}<span class="muted">(batch {{ e.batch_code }})</span>{% endif %}
+        {% if e.batch_code and e.batch_code != p.batch.code %}<span class="muted">(batch {{ e.batch_code }})</span>{% endif %}
         <div class="timeline-meta">{{ e.occurred_at.strftime('%d %b %Y, %H:%M') }}
-          {%- if e.payload -%}
-            {% for k, v in e.payload.items() %} · {{ k }}: {{ v }}{% endfor %}
-          {%- endif -%}
+          {%- for k, v in e.payload.items() if k not in hidden_keys %}
+            · {{ k.replace('_', ' ') }}: {{ v }}
+          {%- endfor -%}
         </div>
+        {% if e.payload.caption %}<div class="timeline-caption">{{ e.payload.caption }}</div>{% endif %}
+        {% if e.payload.photo_url %}
+        <a href="{{ e.payload.photo_url }}" target="_blank" rel="noopener">
+          <img class="timeline-photo" src="{{ e.payload.photo_url }}" alt="{{ e.event_type.replace('_', ' ') }} photo" loading="lazy">
+        </a>
+        {% endif %}
+        {% if e.payload.location_flagged %}
+        <div class="timeline-flag">⚠ Taken {{ e.payload.distance_from_plot_m | round | int }}m from the plot</div>
+        {% endif %}
       </div>
       {% endfor %}
     {% else %}

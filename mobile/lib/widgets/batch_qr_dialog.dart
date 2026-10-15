@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/api_client.dart';
+import '../models/batch.dart';
+import 'matched_commitment_card.dart';
 
 /// Shared by farm_page.dart (right after registering a batch) and
 /// batches_page.dart (viewing an existing one) so there's one QR rendering
@@ -35,6 +37,11 @@ Future<void> showBatchQrDialog(
   BuildContext context,
   String code, {
   String? subtitle,
+  // The buyer order this batch auto-matched at registration (B-50), if
+  // any — shown as its own card so "matched to an open buyer order" means
+  // something concrete (how much, for how much, by when) right away
+  // instead of sending the farmer to Market to find out.
+  MatchedCommitment? matchedCommitment,
 }) {
   return showDialog<void>(
     context: context,
@@ -45,6 +52,10 @@ Future<void> showBatchQrDialog(
         children: [
           if (subtitle != null) ...[
             Text(subtitle, style: const TextStyle(color: Colors.black54)),
+            const SizedBox(height: 16),
+          ],
+          if (matchedCommitment != null) ...[
+            MatchedCommitmentCard(matchedCommitment),
             const SizedBox(height: 16),
           ],
           Container(

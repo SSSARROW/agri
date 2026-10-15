@@ -25,16 +25,26 @@ export interface AdListItem {
   closed_reason?: string | null;
   created_at: string;
   updated_at: string;
-  latest_version_number: number;
-  latest_title: MultilingualText;
-  latest_quantity_kg: number;
-  latest_price_type: "fixed" | "range";
+  latest_version_number?: number;
+  current_version_number?: number;
+  latest_title?: MultilingualText;
+  title?: MultilingualText;
+  latest_quantity_kg?: number;
+  quantity_kg?: number;
+  latest_price_type?: "fixed" | "range";
+  price_type?: "fixed" | "range";
   latest_price_fixed?: number | null;
+  price_fixed?: number | null;
   latest_price_min?: number | null;
+  price_min?: number | null;
   latest_price_max?: number | null;
-  latest_collection_start: string;
-  latest_collection_end: string;
-  latest_expires_at: string;
+  price_max?: number | null;
+  latest_collection_start?: string;
+  collection_window_start?: string;
+  latest_collection_end?: string;
+  collection_window_end?: string;
+  latest_expires_at?: string;
+  expires_at?: string;
   latest_standard_name?: string | null;
 }
 

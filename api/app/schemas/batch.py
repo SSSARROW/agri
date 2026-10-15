@@ -22,6 +22,20 @@ class BatchMergeCreate(BaseModel):
     protocol_id: uuid.UUID | None = None
 
 
+class MatchedCommitmentOut(BaseModel):
+    """What this batch auto-matched to at registration (B-50) — shown to the
+    farmer right away so "matched to an open buyer order" means something
+    concrete instead of requiring a trip to the Market tab to find out."""
+
+    id: uuid.UUID
+    crop: str
+    volume_kg: float
+    remaining_kg: float
+    delivery_window_start: datetime
+    delivery_window_end: datetime
+    indicative_price_lkr_per_kg: float | None
+
+
 class BatchOut(BaseModel):
     id: uuid.UUID
     code: str
@@ -30,6 +44,7 @@ class BatchOut(BaseModel):
     protocol_id: uuid.UUID | None
     protocol_name: str | None
     commitment_id: uuid.UUID | None
+    commitment: MatchedCommitmentOut | None
     created_at: datetime
     latest_status: str
     latest_occurred_at: datetime | None

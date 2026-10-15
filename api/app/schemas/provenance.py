@@ -7,8 +7,11 @@ from app.schemas.tier_evaluation import ProtocolEvaluationOut
 
 class ProvenanceEvent(BaseModel):
     # Which batch this event actually happened on — needed once lineage
-    # (merges) pulls a parent batch's history into the same timeline.
-    batch_code: str
+    # (merges) pulls a parent batch's history into the same timeline. None
+    # for a plot-level event (the plot's registration photo, or the planting
+    # that produced this batch's crop) folded in for origin context — it
+    # happened before any batch existed, so there's no batch code to show.
+    batch_code: str | None
     event_type: str
     occurred_at: datetime
     # Sanitized: exact lat/lon/accuracy is a farmer's precise field location,

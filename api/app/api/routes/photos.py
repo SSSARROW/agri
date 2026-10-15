@@ -12,7 +12,7 @@ from app.core.errors import AppError
 from app.core.geo import haversine_distance_m
 from app.core.storage import upload_photo
 from app.core.tier_evaluation import get_planted_at
-from app.db.models import Event, Plot
+from app.db.models import Batch, Event, Plot
 from app.db.session import get_db
 from app.schemas.event import EventOut
 from app.schemas.photo_schedule import PhotoCheckpointOut, PlotPhotoScheduleOut
@@ -22,10 +22,11 @@ router = APIRouter(prefix="/photos", tags=["photos"])
 # A geotagged, timestamped field photo — the closest thing to independently
 # checkable evidence this build has for "did this actually happen here"
 # without a human inspector. Still self-reported (a photo can be staged),
-# but harder to fake than a checkbox. Three contexts: proof of the plot
-# itself at registration, evidence attached to a planting record, and
-# periodic growing-cycle updates afterward.
-ALLOWED_EVENT_TYPES = {"plot_photo", "planting_photo", "progress_photo"}
+# but harder to fake than a checkbox. Four contexts: proof of the plot
+# itself at registration, evidence attached to a planting record, periodic
+# growing-cycle updates afterward, and evidence of a harvest attached to the
+# batch registered from it.
+ALLOWED_EVENT_TYPES = {"plot_photo", "planting_photo", "progress_photo", "batch_photo"}
 ALLOWED_CONTENT_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 
@@ -51,6 +52,16 @@ async def upload_field_photo(
     occurred_at: datetime | None = Form(None),
     lat: float | None = Form(None),
     lon: float | None = Form(None),
+    # Set for "batch_photo" — ties the photo to the batch's own provenance
+    # timeline (GET /p/{code}), not just this plot's photo list. Still needs
+    # plot_id too: that's what proves ownership below, and a batch photo is
+    # evidence against the plot it came from either way.
+    batch_id: uuid.UUID | None = Form(None),
+    # Set for "planting_photo" on an intercropped plot — lets a batch's
+    # provenance page (GET /p/{code}) show the planting photo for *its* crop
+    # specifically, not whichever crop was planted on this plot most
+    # recently (see provenance.py's build_provenance).
+    crop: str | None = Form(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Event:
@@ -76,6 +87,17 @@ async def upload_field_photo(
             code="forbidden", message="You do not own this plot.", status_code=status.HTTP_403_FORBIDDEN
         )
 
+    if batch_id is not None:
+        batch = await db.get(Batch, batch_id)
+        if batch is None:
+            raise AppError(code="not_found", message="Batch not found.", status_code=status.HTTP_404_NOT_FOUND)
+        if batch.plot_id != plot_id:
+            raise AppError(
+                code="invalid_payload",
+                message="batch_id does not belong to plot_id.",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise AppError(
             code="invalid_payload",
@@ -96,6 +118,8 @@ async def upload_field_photo(
     payload: dict = {"photo_url": photo_url}
     if caption:
         payload["caption"] = caption
+    if crop:
+        payload["crop"] = crop
     if lat is not None and lon is not None:
         centroid = to_shape(plot.geometry).centroid
         distance_m = haversine_distance_m(lat, lon, centroid.y, centroid.x)
@@ -111,6 +135,7 @@ async def upload_field_photo(
             event_type=event_type,
             user_id=current_user.id,
             plot_id=plot_id,
+            batch_id=batch_id,
             payload=payload,
             occurred_at=occurred_at or datetime.now(timezone.utc),
         )
