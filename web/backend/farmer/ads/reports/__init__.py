@@ -1,0 +1,1 @@
+"""Farmer ads reports package."""

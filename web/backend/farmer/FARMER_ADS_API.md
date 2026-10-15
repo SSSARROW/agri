@@ -213,3 +213,47 @@ Returns all advertisements accepted by the farmer with their derived status (`pe
   "total": 1
 }
 ```
+
+---
+
+## 5. Report an Advertisement
+
+Report a live advertisement for review by the Paramparā team.
+
+- **Method**: `POST`
+- **Path**: `/api/farmer/ads/{id}/report`
+- **Auth**: Bearer JWT with role `farmer`
+
+### Request Body
+```json
+{
+  "reason": "fake_ad",
+  "details": "The contact number is invalid and the company name does not exist."
+}
+```
+
+`reason` must be one of: `fake_ad`, `wrong_information`, `suspicious_exporter`, `other`.
+`details` is optional, max 500 characters.
+
+### Response (200 OK)
+```json
+{
+  "report_id": "a1b2c3d4-...",
+  "ad_id": "1d27932e-...",
+  "farmer_id": "9f4ac2b1-...",
+  "reason": "fake_ad",
+  "details": "...",
+  "status": "open",
+  "created_at": "2026-10-15T09:00:00Z",
+  "message": "Report submitted. Our team will review it shortly."
+}
+```
+
+### Errors
+| Status | Meaning |
+|---|---|
+| 400 | Ad is not live (closed or expired) |
+| 404 | Ad not found |
+| 409 | You have already reported this ad |
+| 403 | Not a farmer token |
+

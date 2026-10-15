@@ -195,6 +195,17 @@ def list_ads(
     for v in all_versions:
         versions_by_ad.setdefault(v["ad_id"], []).append(v)
 
+    std_v_ids = list({v["standard_version_id"] for v in all_versions if v.get("standard_version_id")})
+    std_map = {}
+    if std_v_ids:
+        std_v_res = (
+            supabase.table("quality_standard_versions")
+            .select("id, name")
+            .in_("id", std_v_ids)
+            .execute()
+        )
+        std_map = {s["id"]: s.get("name") for s in (std_v_res.data or [])}
+
     enriched_items = []
     for ad in all_ads:
         aid = ad["id"]
@@ -209,6 +220,18 @@ def list_ads(
         # Use latest version (or latest published if live/expired)
         v_list_sorted = sorted(v_list, key=lambda x: x["version_number"], reverse=True)
         top_v = v_list_sorted[0] if v_list_sorted else {}
+        v_num = top_v.get("version_number", 1)
+        title_obj = top_v.get("title", {"en": ""})
+        qty = float(top_v.get("quantity_kg", 0))
+        ptype = top_v.get("price_type", "fixed")
+        pfixed = float(top_v["price_fixed"]) if top_v.get("price_fixed") is not None else None
+        pmin = float(top_v["price_min"]) if top_v.get("price_min") is not None else None
+        pmax = float(top_v["price_max"]) if top_v.get("price_max") is not None else None
+        exp = top_v.get("expires_at")
+        cstart = top_v.get("collection_window_start")
+        cend = top_v.get("collection_window_end")
+        std_vid = top_v.get("standard_version_id")
+        std_name = std_map.get(std_vid) if std_vid else None
 
         ver_num = top_v.get("version_number", 1)
         title_obj = top_v.get("title") or {"en": ""}
