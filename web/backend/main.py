@@ -44,6 +44,9 @@ from farmer.router import router as farmer_exporter_link_router
 from exporter.ads.router import router as exporter_ads_router
 from farmer.ads.router import router as farmer_ads_router
 from exporter.ads.applicants.router import router as exporter_applicants_router
+from farmer.ads.reports.router import router as farmer_ads_reports_router
+from exporter.ads.stats.router import router as exporter_ads_stats_router
+from admin.ads import router as admin_ads_router
 
 app.include_router(auth_router)
 app.include_router(actors_router)
@@ -70,6 +73,15 @@ ENABLE_AD_ACCEPTANCE = os.getenv("ENABLE_AD_ACCEPTANCE", "true").lower() == "tru
 if ENABLE_AD_ACCEPTANCE:
     app.include_router(farmer_ads_router)
     app.include_router(exporter_applicants_router)
+
+ENABLE_AD_STATS = os.getenv("ENABLE_AD_STATS", "true").lower() == "true"
+if ENABLE_AD_STATS:
+    app.include_router(exporter_ads_stats_router)
+    app.include_router(farmer_ads_reports_router)
+
+ENABLE_AD_MODERATION = os.getenv("ENABLE_AD_MODERATION", "true").lower() == "true"
+if ENABLE_AD_MODERATION:
+    app.include_router(admin_ads_router)
 
 @app.get("/")
 def root():

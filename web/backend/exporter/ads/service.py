@@ -195,6 +195,17 @@ def list_ads(
     for v in all_versions:
         versions_by_ad.setdefault(v["ad_id"], []).append(v)
 
+    std_v_ids = list({v["standard_version_id"] for v in all_versions if v.get("standard_version_id")})
+    std_map = {}
+    if std_v_ids:
+        std_v_res = (
+            supabase.table("quality_standard_versions")
+            .select("id, name")
+            .in_("id", std_v_ids)
+            .execute()
+        )
+        std_map = {s["id"]: s.get("name") for s in (std_v_res.data or [])}
+
     enriched_items = []
     for ad in all_ads:
         aid = ad["id"]
@@ -209,6 +220,18 @@ def list_ads(
         # Use latest version (or latest published if live/expired)
         v_list_sorted = sorted(v_list, key=lambda x: x["version_number"], reverse=True)
         top_v = v_list_sorted[0] if v_list_sorted else {}
+        v_num = top_v.get("version_number", 1)
+        title_obj = top_v.get("title", {"en": ""})
+        qty = float(top_v.get("quantity_kg", 0))
+        ptype = top_v.get("price_type", "fixed")
+        pfixed = float(top_v["price_fixed"]) if top_v.get("price_fixed") is not None else None
+        pmin = float(top_v["price_min"]) if top_v.get("price_min") is not None else None
+        pmax = float(top_v["price_max"]) if top_v.get("price_max") is not None else None
+        exp = top_v.get("expires_at")
+        cstart = top_v.get("collection_window_start")
+        cend = top_v.get("collection_window_end")
+        std_vid = top_v.get("standard_version_id")
+        std_name = std_map.get(std_vid) if std_vid else None
 
         enriched_items.append({
             "id": ad["id"],
@@ -220,16 +243,29 @@ def list_ads(
             "closed_reason": ad.get("closed_reason"),
             "created_at": ad["created_at"],
             "updated_at": ad["updated_at"],
-            "current_version_number": top_v.get("version_number", 1),
-            "title": top_v.get("title", {"en": ""}),
+            "current_version_number": v_num,
+            "latest_version_number": v_num,
+            "title": title_obj,
+            "latest_title": title_obj,
             "grade_tier": top_v.get("grade_tier", ""),
-            "quantity_kg": float(top_v.get("quantity_kg", 0)),
-            "price_type": top_v.get("price_type", "fixed"),
-            "price_fixed": float(top_v["price_fixed"]) if top_v.get("price_fixed") is not None else None,
-            "price_min": float(top_v["price_min"]) if top_v.get("price_min") is not None else None,
-            "price_max": float(top_v["price_max"]) if top_v.get("price_max") is not None else None,
-            "expires_at": top_v.get("expires_at"),
-            "standard_version_id": top_v.get("standard_version_id"),
+            "quantity_kg": qty,
+            "latest_quantity_kg": qty,
+            "price_type": ptype,
+            "latest_price_type": ptype,
+            "price_fixed": pfixed,
+            "latest_price_fixed": pfixed,
+            "price_min": pmin,
+            "latest_price_min": pmin,
+            "price_max": pmax,
+            "latest_price_max": pmax,
+            "expires_at": exp,
+            "latest_expires_at": exp,
+            "collection_window_start": cstart,
+            "latest_collection_start": cstart,
+            "collection_window_end": cend,
+            "latest_collection_end": cend,
+            "standard_version_id": std_vid,
+            "latest_standard_name": std_name,
         })
 
     total = len(enriched_items)

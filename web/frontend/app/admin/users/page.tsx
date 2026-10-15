@@ -116,6 +116,12 @@ export default function AdminUsersListPage() {
           >
             ← Back to Dashboard
           </Link>
+          <Link
+            href="/admin/ads"
+            className="px-4 py-2 bg-red-950/60 hover:bg-red-900/60 border border-red-800/40 text-red-300 text-xs font-semibold rounded-xl transition-all"
+          >
+            Ads →
+          </Link>
         </div>
       </header>
 

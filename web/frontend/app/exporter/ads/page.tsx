@@ -282,15 +282,25 @@ export default function ExporterAdsListPage() {
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {ads.map((ad) => {
+            const verNum = ad.latest_version_number ?? (ad as any).current_version_number ?? 1;
+            const pType = ad.latest_price_type ?? (ad as any).price_type ?? "fixed";
+            const pFixed = ad.latest_price_fixed ?? (ad as any).price_fixed;
+            const pMin = ad.latest_price_min ?? (ad as any).price_min;
+            const pMax = ad.latest_price_max ?? (ad as any).price_max;
+            const rawExpires = ad.latest_expires_at ?? (ad as any).expires_at;
+            const rawStart = ad.latest_collection_start ?? (ad as any).collection_window_start;
+            const rawEnd = ad.latest_collection_end ?? (ad as any).collection_window_end;
+            const adTitle = ad.latest_title?.en || (ad as any).title?.en || "Untitled Buy Request";
+
             const priceDisplay =
-              ad.latest_price_type === "fixed"
-                ? `LKR ${Number(ad.latest_price_fixed || 0).toLocaleString()} / kg`
-                : `LKR ${Number(ad.latest_price_min || 0).toLocaleString()} – ${Number(
-                    ad.latest_price_max || 0
+              pType === "fixed"
+                ? `LKR ${Number(pFixed || 0).toLocaleString()} / kg`
+                : `LKR ${Number(pMin || 0).toLocaleString()} – ${Number(
+                    pMax || 0
                   ).toLocaleString()} / kg`;
 
-            const expiryDate = ad.latest_expires_at
-              ? new Date(ad.latest_expires_at).toLocaleDateString(undefined, {
+            const expiryDate = rawExpires
+              ? new Date(rawExpires).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
                   year: "numeric",
@@ -310,7 +320,7 @@ export default function ExporterAdsListPage() {
                         {ad.crop}
                       </span>
                       <span className="text-xs font-mono text-zinc-500">
-                        v{ad.latest_version_number}
+                        v{verNum}
                       </span>
                     </div>
                     {getStatusBadge(ad.computed_status)}
@@ -318,11 +328,11 @@ export default function ExporterAdsListPage() {
 
                   {/* Title */}
                   <Link
-                    href={`/exporter/ads/${ad.id}/versions/${ad.latest_version_number}`}
+                    href={`/exporter/ads/${ad.id}/versions/${verNum}`}
                     className="block group-hover:text-teal-400 transition-colors"
                   >
                     <h3 className="text-base font-semibold text-zinc-100 line-clamp-1">
-                      {ad.latest_title?.en || "Untitled Buy Request"}
+                      {adTitle}
                     </h3>
                   </Link>
 
@@ -339,7 +349,7 @@ export default function ExporterAdsListPage() {
                     <div>
                       <span className="text-zinc-500 block">Target Qty</span>
                       <span className="font-semibold text-zinc-200">
-                        {Number(ad.latest_quantity_kg).toLocaleString()} kg
+                        {Number(ad.latest_quantity_kg ?? (ad as any).quantity_kg ?? 0).toLocaleString()} kg
                       </span>
                     </div>
                     <div>
@@ -357,15 +367,21 @@ export default function ExporterAdsListPage() {
                     <div>
                       <span className="text-zinc-500 block">Window</span>
                       <span className="font-medium text-zinc-300">
-                        {new Date(ad.latest_collection_start).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        –{" "}
-                        {new Date(ad.latest_collection_end).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {rawStart && rawEnd ? (
+                          <>
+                            {new Date(rawStart).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}{" "}
+                            –{" "}
+                            {new Date(rawEnd).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </>
+                        ) : (
+                          "Flexible"
+                        )}
                       </span>
                     </div>
                   </div>
@@ -380,7 +396,7 @@ export default function ExporterAdsListPage() {
                 {/* Card Actions */}
                 <div className="mt-5 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2">
                   <Link
-                    href={`/exporter/ads/${ad.id}/versions/${ad.latest_version_number}`}
+                    href={`/exporter/ads/${ad.id}/versions/${verNum}`}
                     className="flex-1 py-1.5 px-3 text-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-all"
                   >
                     View / Edit
