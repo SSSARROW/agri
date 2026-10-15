@@ -80,6 +80,8 @@ flutter run -d <device-id> \
 `flutter devices` lists the `<device-id>` once the phone is connected. Both
 `--dart-define`s are required — without them the app falls back to the
 emulator-only `10.0.2.2` address and every request will fail to connect.
+The Android debug network policy allows this local HTTP traffic; use HTTPS
+endpoints and remove that policy before shipping a production build.
 
 ## 7. Grant permissions on first run
 

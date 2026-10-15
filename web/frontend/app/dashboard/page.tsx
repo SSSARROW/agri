@@ -15,6 +15,11 @@ export default function DashboardPage() {
     async function loadUser() {
       try {
         const profile = await fetchUserProfile();
+        // Exporters have their own dashboard — redirect them there
+        if (profile.role === "exporter") {
+          router.replace("/exporter/dashboard");
+          return;
+        }
         setUser(profile);
       } catch (err: any) {
         clearAuthToken();
@@ -76,12 +81,20 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-3 flex-wrap">
           {user.role === "admin" && (
-            <Link
-              href="/admin/users"
-              className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5"
-            >
-              <span>👥</span> Actor Registry
-            </Link>
+            <>
+              <Link
+                href="/admin/users"
+                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5"
+              >
+                <span>👥</span> Actor Registry
+              </Link>
+              <Link
+                href="/admin/exporters"
+                className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5"
+              >
+                <span>🏢</span> Exporters
+              </Link>
+            </>
           )}
           <span
             className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
@@ -175,15 +188,26 @@ export default function DashboardPage() {
               </div>
 
               {user.role === "admin" && (
-                <Link
-                  href="/admin/users"
-                  className="w-full py-3 px-4 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/40 hover:to-indigo-600/40 border border-purple-500/40 rounded-2xl text-xs font-bold text-purple-200 flex items-center justify-between transition-all"
-                >
-                  <span className="flex items-center gap-2">
-                    <span>👥</span> Open Actor Registry Management
-                  </span>
-                  <span>→</span>
-                </Link>
+                <div className="space-y-2 w-full">
+                  <Link
+                    href="/admin/users"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/40 hover:to-indigo-600/40 border border-purple-500/40 rounded-2xl text-xs font-bold text-purple-200 flex items-center justify-between transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>👥</span> Open Actor Registry Management
+                    </span>
+                    <span>→</span>
+                  </Link>
+                  <Link
+                    href="/admin/exporters"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-amber-600/30 to-teal-600/30 hover:from-amber-600/40 hover:to-teal-600/40 border border-amber-500/40 rounded-2xl text-xs font-bold text-amber-200 flex items-center justify-between transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>🏢</span> Open Exporter Verification Management
+                    </span>
+                    <span>→</span>
+                  </Link>
+                </div>
               )}
             </div>
           </div>

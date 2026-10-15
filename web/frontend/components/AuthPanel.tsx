@@ -19,8 +19,8 @@ export function AuthPanel() {
     setError(null);
     setLoading(true);
     try {
-      await loginUser({ email, password });
-      router.push("/dashboard");
+      const result = await loginUser({ email, password });
+      router.push(result.role === "exporter" ? "/exporter/dashboard" : "/dashboard");
     } catch (err: any) {
       const msg = err?.response?.data?.detail || "Invalid email or password. Please try again.";
       setError(typeof msg === "string" ? msg : "Login failed");
