@@ -47,6 +47,8 @@ from exporter.ads.applicants.router import router as exporter_applicants_router
 from farmer.ads.reports.router import router as farmer_ads_reports_router
 from exporter.ads.stats.router import router as exporter_ads_stats_router
 from admin.ads import router as admin_ads_router
+from exporter.planting_notices.router import router as exporter_planting_notices_router
+from farmer.planting_notices.router import router as farmer_planting_notices_router
 
 app.include_router(auth_router)
 app.include_router(actors_router)
@@ -82,6 +84,11 @@ if ENABLE_AD_STATS:
 ENABLE_AD_MODERATION = os.getenv("ENABLE_AD_MODERATION", "true").lower() == "true"
 if ENABLE_AD_MODERATION:
     app.include_router(admin_ads_router)
+
+ENABLE_PLANTING_NOTICES = os.getenv("ENABLE_PLANTING_NOTICES", "true").lower() == "true"
+if ENABLE_PLANTING_NOTICES:
+    app.include_router(exporter_planting_notices_router)
+    app.include_router(farmer_planting_notices_router)
 
 @app.get("/")
 def root():
