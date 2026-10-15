@@ -7,14 +7,21 @@ import '../core/event_queue.dart';
 import '../core/farm_service.dart';
 import '../core/sync_service.dart';
 import '../models/batch.dart';
+import '../models/protocol_evaluation.dart';
 import '../theme/app_colors.dart';
 import '../widgets/batch_qr_dialog.dart';
+import '../widgets/ui_kit.dart';
 
 class _BasketItem {
   final Batch batch;
   final double weightKg;
   final String condition;
-  _BasketItem(this.batch, this.weightKg, this.condition);
+  // False when the batch claims a quality standard that isn't actually
+  // backed by recorded events yet — the collector saw that and added it
+  // anyway (see _confirmUnverified). True for a batch with no claimed
+  // standard at all, same as "nothing to flag."
+  final bool verified;
+  _BasketItem(this.batch, this.weightKg, this.condition, this.verified);
 }
 
 class _WeighAndCondition {
@@ -98,7 +105,40 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
       return;
     }
     setState(() => _scanning = false);
-    final weighResult = await _promptWeightAndCondition(batch);
+
+    // A collector is buying on the farmer's claimed quality standard — check
+    // it's actually backed by recorded events (B-33) rather than taking
+    // their word, the same computation the public QR page shows a consumer.
+    // No protocol claimed at all means nothing to check.
+    ProtocolEvaluation? evaluation;
+    bool evaluationFailed = false;
+    if (batch.protocolId != null) {
+      final scheduleResult = await FarmService.batchSchedule(batch.id);
+      if (!mounted) return;
+      if (scheduleResult.isOk && scheduleResult.data != null) {
+        evaluation = scheduleResult.data;
+      } else {
+        evaluationFailed = true;
+      }
+    }
+
+    final notVerified =
+        batch.protocolId != null &&
+        (evaluationFailed || !(evaluation?.tierAchieved ?? false));
+    if (notVerified) {
+      final proceed = await _confirmUnverified(
+        batch,
+        evaluation,
+        evaluationFailed,
+      );
+      if (!mounted) return;
+      if (proceed != true) {
+        setState(() => _busy = false);
+        return;
+      }
+    }
+
+    final weighResult = await _promptWeightAndCondition(batch, evaluation);
     if (weighResult != null) {
       await EventQueue.add(
         eventType: 'weigh',
@@ -123,14 +163,60 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
       SyncService.instance.syncNow();
       setState(
         () => _basket.add(
-          _BasketItem(batch, weighResult.weightKg, weighResult.condition),
+          _BasketItem(
+            batch,
+            weighResult.weightKg,
+            weighResult.condition,
+            batch.protocolId == null || (evaluation?.tierAchieved ?? false),
+          ),
         ),
       );
     }
     if (mounted) setState(() => _busy = false);
   }
 
-  Future<_WeighAndCondition?> _promptWeightAndCondition(Batch batch) async {
+  // Blocks adding an unverified batch to the round behind an explicit tap —
+  // a collector can still choose to take it (a farmer might simply not have
+  // logged every step yet), but not by accident.
+  Future<bool?> _confirmUnverified(
+    Batch batch,
+    ProtocolEvaluation? evaluation,
+    bool evaluationFailed,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Not yet verified'),
+        content: Text(
+          evaluationFailed
+              ? "Could not check ${batch.code}'s quality standard right now — no connection or the check failed. Add it to this round anyway?"
+              : '${batch.code} claims ${batch.protocolName ?? "a quality standard"}, '
+                    'but only ${evaluation?.requiredSatisfied ?? 0}/${evaluation?.requiredTotal ?? 0} '
+                    'required steps have a matching recorded event. Add it to this round anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Add anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_WeighAndCondition?> _promptWeightAndCondition(
+    Batch batch,
+    ProtocolEvaluation? evaluation,
+  ) async {
     final weightController = TextEditingController();
     final noteController = TextEditingController();
     String condition = 'good';
@@ -145,6 +231,19 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (batch.protocolId != null) ...[
+                  StatusRow(
+                    evaluation == null
+                        ? 'Not verified — ${batch.protocolName ?? "claimed standard"} (added anyway)'
+                        : evaluation.tierAchieved
+                        ? 'Verified — meets ${evaluation.protocolName}'
+                        : 'Not verified — ${evaluation.requiredSatisfied}/${evaluation.requiredTotal} steps (added anyway)',
+                    level: (evaluation?.tierAchieved ?? false)
+                        ? StatusLevel.success
+                        : StatusLevel.warning,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   controller: weightController,
                   autofocus: true,
@@ -341,6 +440,15 @@ class _CollectorHomePageState extends State<CollectorHomePage> {
                                             : Colors.black54,
                                       ),
                                     ),
+                                    if (!item.verified)
+                                      const Text(
+                                        'Not verified',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.warning,
+                                        ),
+                                      ),
                                   ],
                                 ),
                                 Text('${item.weightKg.toStringAsFixed(1)} kg'),
