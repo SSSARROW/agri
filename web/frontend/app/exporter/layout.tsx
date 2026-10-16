@@ -16,6 +16,7 @@ import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
 
 const ENABLE_EXPORTER_ADS = process.env.NEXT_PUBLIC_ENABLE_EXPORTER_ADS !== "false";
 const ENABLE_EXPORTER_FARMERS = process.env.NEXT_PUBLIC_ENABLE_EXPORTER_FARMERS !== "false";
+const ENABLE_PLANTING_NOTICES = process.env.NEXT_PUBLIC_ENABLE_PLANTING_NOTICES !== "false";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: "🏠", href: "/exporter/dashboard", active: true },
@@ -35,7 +36,13 @@ const NAV_ITEMS = [
     active: ENABLE_EXPORTER_FARMERS,
     soon: !ENABLE_EXPORTER_FARMERS,
   },
-  { label: "Planting Notices", icon: "🌱", href: "#", active: false, soon: true },
+  {
+    label: "Planting Notices",
+    icon: "🌱",
+    href: ENABLE_PLANTING_NOTICES ? "/exporter/planting-notices" : "#",
+    active: ENABLE_PLANTING_NOTICES,
+    soon: !ENABLE_PLANTING_NOTICES,
+  },
 ];
 
 export default function ExporterLayout({

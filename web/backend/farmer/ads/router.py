@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Path
 
@@ -16,6 +17,8 @@ from farmer.ads.service import (
     withdraw_acceptance,
     get_my_acceptances,
 )
+
+ENABLE_AD_STATS = os.getenv("ENABLE_AD_STATS", "true").lower() == "true"
 
 router = APIRouter(prefix="/api/farmer/ads", tags=["farmer-ads"])
 
@@ -56,6 +59,12 @@ async def get_ad_details(
     the linked published quality standard version, and all quality stages.
     """
     farmer_id = current_farmer["sub"]
+    if ENABLE_AD_STATS:
+        try:
+            from farmer.ads.views import record_view
+            record_view(ad_id=id, farmer_id=farmer_id)
+        except Exception:
+            pass  # view recording failures must never break the detail response
     return get_open_ad_detail(ad_id=id, farmer_id=farmer_id)
 
 

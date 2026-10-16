@@ -15,10 +15,13 @@ import {
   AdDetail,
   AdVersionDetail,
   AdVersionUpdatePayload,
+  fetchAdStats,
+  AdStats,
 } from "@/lib/adsApi";
 import { fetchStandards, StandardData, VersionSummary } from "@/lib/standardsApi";
 import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
 
+const ENABLE_AD_STATS = process.env.NEXT_PUBLIC_ENABLE_AD_STATS !== "false";
 const ENABLE_AD_ACCEPTANCE = process.env.NEXT_PUBLIC_ENABLE_AD_ACCEPTANCE !== "false";
 
 interface PageProps {
@@ -39,6 +42,7 @@ export default function AdVersionEditorPage({ params }: PageProps) {
   const [version, setVersion] = useState<AdVersionDetail | null>(null);
   const [standards, setStandards] = useState<StandardData[]>([]);
   const [profile, setProfile] = useState<ExporterProfile | null>(null);
+  const [stats, setStats] = useState<AdStats | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,10 +96,7 @@ export default function AdVersionEditorPage({ params }: PageProps) {
     setLoading(true);
     try {
       if (isNaN(versionNum)) {
-        const adData = await fetchAd(adId);
-        const sorted = [...(adData.versions || [])].sort((a, b) => b.version_number - a.version_number);
-        const target = sorted[0]?.version_number || 1;
-        router.replace(`/exporter/ads/${adId}/versions/${target}`);
+        router.replace(`/exporter/ads/${adId}`);
         return;
       }
 
@@ -145,6 +146,15 @@ export default function AdVersionEditorPage({ params }: PageProps) {
       if (adData.crop) {
         const stdRes = await fetchStandards({ crop: adData.crop, is_archived: false, page_size: 50 });
         setStandards(stdRes.items);
+      }
+
+      if (ENABLE_AD_STATS && adData.computed_status !== "draft") {
+        try {
+          const s = await fetchAdStats(adId);
+          setStats(s);
+        } catch {
+          // stats failure is non-fatal
+        }
       }
     } catch (err: any) {
       showToast(err.detail || err.message || "Failed to load advertisement data.", "error");
@@ -340,7 +350,13 @@ export default function AdVersionEditorPage({ params }: PageProps) {
                 className="px-3.5 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
               >
                 <span>Applicants</span>
-                <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-teal-500/20 text-teal-300">👥</span>
+                {ENABLE_AD_STATS && stats && stats.pending_count > 0 ? (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-teal-500 text-zinc-950 text-[10px] font-black flex items-center justify-center">
+                    {stats.pending_count}
+                  </span>
+                ) : (
+                  <span className="text-[11px] px-1.5 rounded-full bg-teal-500/20 text-teal-300">👥</span>
+                )}
               </Link>
             )}
             <button
@@ -438,6 +454,24 @@ export default function AdVersionEditorPage({ params }: PageProps) {
       </div>
 
       {/* State Alerts */}
+      {ENABLE_AD_STATS && isAdClosed && ad.closed_reason?.startsWith("taken_down:") && (
+        <div className="mt-6 p-4 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs flex items-start gap-3">
+          <span className="text-base shrink-0">⛔</span>
+          <div>
+            <p className="font-semibold text-red-200">This ad was removed by an administrator</p>
+            <p className="text-red-400/90 mt-0.5">
+              Reason:{" "}
+              <span className="italic font-medium">
+                {ad.closed_reason.replace("taken_down: ", "")}
+              </span>
+            </p>
+            <p className="text-red-500/70 mt-1">
+              Close, new-version, and publish actions are disabled. Contact support if you believe this is an error.
+            </p>
+          </div>
+        </div>
+      )}
+
       {isAdClosed && (
         <div className="mt-6 p-4 rounded-xl bg-rose-950/30 border border-rose-800/40 text-rose-300 text-xs flex items-center gap-3">
           <span className="text-base">🚫</span>
@@ -475,6 +509,43 @@ export default function AdVersionEditorPage({ params }: PageProps) {
               Create New Draft
             </button>
           )}
+        </div>
+      )}
+
+      {/* Stats card — shown for live/expired/closed published ads */}
+      {ENABLE_AD_STATS && stats && (
+        <div className="mt-6 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+          <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+            <span className="w-5 h-5 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs">📊</span>
+            Ad Performance
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Views", value: stats.total_views },
+              { label: "Unique Farmers", value: stats.unique_viewers },
+              { label: "Accepts", value: stats.accepts.total },
+              { label: "Accept Rate", value: `${stats.view_to_accept_rate.toFixed(1)}%` },
+            ].map((s) => (
+              <div key={s.label} className="bg-zinc-950/60 rounded-xl p-3 border border-zinc-800">
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{s.label}</p>
+                <p className="text-lg font-bold text-zinc-100 mt-0.5">{s.value}</p>
+              </div>
+            ))}
+          </div>
+          {/* Approved vs target progress bar */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs text-zinc-400">
+              <span>Approved quantity</span>
+              <span>{stats.approved_quantity_kg.toFixed(0)} / {stats.target_quantity_kg.toFixed(0)} kg</span>
+            </div>
+            <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all"
+                style={{ width: `${Math.min(100, stats.filled_percentage)}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-zinc-500">{stats.filled_percentage.toFixed(1)}% filled</p>
+          </div>
         </div>
       )}
 

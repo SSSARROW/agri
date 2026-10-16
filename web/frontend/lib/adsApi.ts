@@ -310,3 +310,30 @@ export const SRI_LANKA_DISTRICTS = [
   "Matale", "Matara", "Monaragala", "Mullaitivu", "Nuwara Eliya",
   "Polonnaruwa", "Puttalam", "Ratnapura", "Trincomalee", "Vavuniya"
 ];
+
+export interface AdStats {
+  ad_id: string;
+  computed_status: string;
+  total_views: number;
+  unique_viewers: number;
+  accepts: {
+    total: number;
+    pending: number;
+    approved: number;
+    declined: number;
+    withdrawn: number;
+  };
+  view_to_accept_rate: number;
+  target_quantity_kg: number;
+  approved_quantity_kg: number;
+  pending_quantity_kg: number;
+  filled_percentage: number;
+  pending_count: number;
+  views_per_day?: { date: string; views: number }[];
+}
+
+export async function fetchAdStats(id: string, days?: number): Promise<AdStats> {
+  const q = days ? `?days=${days}` : "";
+  return authFetch(`/api/exporter/ads/${id}/stats${q}`);
+}
+
