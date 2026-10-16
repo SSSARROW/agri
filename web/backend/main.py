@@ -49,6 +49,8 @@ from exporter.ads.stats.router import router as exporter_ads_stats_router
 from admin.ads import router as admin_ads_router
 from exporter.planting_notices.router import router as exporter_planting_notices_router
 from farmer.planting_notices.router import router as farmer_planting_notices_router
+from exporter.stage_proofs.router import router as exporter_stage_proofs_router
+from farmer.stage_proofs.router import router as farmer_stage_proofs_router
 
 app.include_router(auth_router)
 app.include_router(actors_router)
@@ -89,6 +91,11 @@ ENABLE_PLANTING_NOTICES = os.getenv("ENABLE_PLANTING_NOTICES", "true").lower() =
 if ENABLE_PLANTING_NOTICES:
     app.include_router(exporter_planting_notices_router)
     app.include_router(farmer_planting_notices_router)
+
+ENABLE_STAGE_PROOFS = os.getenv("ENABLE_STAGE_PROOFS", "true").lower() == "true"
+if ENABLE_STAGE_PROOFS:
+    app.include_router(exporter_stage_proofs_router)
+    app.include_router(farmer_stage_proofs_router)
 
 @app.get("/")
 def root():
