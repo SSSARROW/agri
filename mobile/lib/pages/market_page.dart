@@ -7,6 +7,7 @@ import '../models/exporter_link.dart';
 import '../theme/app_colors.dart';
 import '../widgets/ui_kit.dart';
 import 'ad_detail_page.dart';
+import 'stage_proofs_page.dart';
 
 String _formatDate(DateTime d) {
   final local = d.toLocal();
@@ -488,6 +489,26 @@ class _MarketPageState extends State<MarketPage> {
                       'Keep your plot\'s planting and progress records up to '
                       'date — this is who sees them.',
                       style: TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const StageProofsPage(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.fact_check_outlined),
+                        label: const Text('View standard & submit proof'),
+                      ),
                     ),
                   ],
                   if (link.status == 'declined' &&

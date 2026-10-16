@@ -22,11 +22,13 @@ import {
   MegaphoneIcon,
   SproutIcon,
   UsersIcon,
+  ShieldCheckIcon,
 } from "@/components/ui/icons";
 
 const ENABLE_EXPORTER_ADS = process.env.NEXT_PUBLIC_ENABLE_EXPORTER_ADS !== "false";
 const ENABLE_EXPORTER_FARMERS = process.env.NEXT_PUBLIC_ENABLE_EXPORTER_FARMERS !== "false";
 const ENABLE_PLANTING_NOTICES = process.env.NEXT_PUBLIC_ENABLE_PLANTING_NOTICES !== "false";
+const ENABLE_STAGE_PROOFS = process.env.NEXT_PUBLIC_ENABLE_STAGE_PROOFS !== "false";
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", icon: <HomeIcon />, href: "/exporter/dashboard" },
@@ -49,6 +51,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: <SproutIcon />,
     href: ENABLE_PLANTING_NOTICES ? "/exporter/planting-notices" : "#",
     disabled: !ENABLE_PLANTING_NOTICES,
+  },
+  {
+    label: "Stage Proofs",
+    icon: <ShieldCheckIcon />,
+    href: ENABLE_STAGE_PROOFS ? "/exporter/stage-proofs" : "#",
+    disabled: !ENABLE_STAGE_PROOFS,
   },
 ];
 
