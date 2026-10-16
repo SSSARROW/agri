@@ -12,6 +12,37 @@ import '../widgets/ui_kit.dart';
 import 'batch_detail_page.dart';
 import 'batch_schedule_page.dart';
 
+// A plot's "Photos" grid mixes four different event types (registration,
+// planting, periodic progress, and harvest/batch) with nothing telling them
+// apart beyond the picture itself — a farmer looking back couldn't tell a
+// progress check-in from the one-time registration photo, or when either
+// was actually taken.
+const _photoTypeLabels = {
+  'plot_photo': 'Registration',
+  'planting_photo': 'Planting',
+  'progress_photo': 'Progress',
+  'batch_photo': 'Batch',
+};
+
+String _photoTypeLabel(String eventType) =>
+    _photoTypeLabels[eventType] ?? eventType.replaceAll('_', ' ');
+
+String _formatPhotoDate(DateTime d) {
+  final local = d.toLocal();
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${local.day} ${months[local.month - 1]}';
+}
+
+String _formatPhotoDateTime(DateTime d) {
+  final local = d.toLocal();
+  final h = local.hour.toString().padLeft(2, '0');
+  final m = local.minute.toString().padLeft(2, '0');
+  return '${_formatPhotoDate(d)} ${local.year}, $h:$m';
+}
+
 const _plotTypeLabels = {
   'open_field': 'Open field',
   'greenhouse': 'Greenhouse',
@@ -113,15 +144,77 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
       builder: (context) => Dialog(
         backgroundColor: Colors.black,
         insetPadding: const EdgeInsets.all(12),
-        child: Stack(
-          alignment: Alignment.topRight,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            InteractiveViewer(
-              child: Image.network(photo.photoUrl, fit: BoxFit.contain),
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                InteractiveViewer(
+                  child: Image.network(photo.photoUrl, fit: BoxFit.contain),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
+            // The grid thumbnail only has room for a date; the full view is
+            // where the rest of what makes this photo *evidence* — which
+            // check-in it is, exactly when, the farmer's own note — actually
+            // fits.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        _photoTypeLabel(photo.eventType),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatPhotoDateTime(photo.occurredAt),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (photo.caption != null && photo.caption!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      photo.caption!,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ],
+                  if (photo.locationFlagged) ...[
+                    const SizedBox(height: 6),
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                          size: 16,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Taken far from this plot',
+                          style: TextStyle(color: Colors.orange, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -360,6 +453,52 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
                                   color: const Color(0xFFF5F5F5),
                                   child: const Icon(Icons.broken_image),
                                 ),
+                          ),
+                        ),
+                        // A gradient strip rather than plain text on the raw
+                        // photo — keeps the type/date readable over any
+                        // background without needing a solid backing chip
+                        // that would eat into the already-small thumbnail.
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(6, 14, 6, 4),
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Colors.transparent, Colors.black54],
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _photoTypeLabel(photo.eventType),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    _formatPhotoDate(photo.occurredAt),
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                         if (photo.locationFlagged)
