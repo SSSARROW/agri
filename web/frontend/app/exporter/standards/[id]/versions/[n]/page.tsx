@@ -5,12 +5,21 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
 import {
+  fetchStandard,
   fetchVersion,
   updateDraftVersion,
   publishVersion,
   VersionDetail,
   StageData,
 } from "@/lib/standardsApi";
+import {
+  fetchTemplates,
+  getFieldDefsForCrop,
+  GradeSpecFieldDef,
+} from "@/lib/templatesApi";
+import GradeSpecEditor, {
+  GradeSpecRow,
+} from "@/app/exporter/standards/components/GradeSpecEditor";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +81,8 @@ export default function ExporterVersionEditorPage() {
 
   // Form States
   const [verName, setVerName] = useState("");
-  const [gradeSpec, setGradeSpec] = useState<Array<{ key: string; value: string }>>([]);
+  const [gradeSpec, setGradeSpec] = useState<GradeSpecRow[]>([]);
+  const [fieldDefs, setFieldDefs] = useState<GradeSpecFieldDef[]>([]);
   const [stages, setStages] = useState<StageData[]>([]);
 
   // Active Editors & UI
@@ -92,9 +102,10 @@ export default function ExporterVersionEditorPage() {
     setLoading(true);
     setError(null);
     try {
-      const [profData, verData] = await Promise.all([
+      const [profData, verData, standardData] = await Promise.all([
         fetchExporterProfile(),
         fetchVersion(id, n),
+        fetchStandard(id),
       ]);
       setProfile(profData);
       setVersion(verData);
@@ -108,6 +119,15 @@ export default function ExporterVersionEditorPage() {
       setGradeSpec(gPairs);
       setStages(verData.stages || []);
       setHasUnsavedChanges(false);
+
+      // Per-crop named field definitions (Step 2C) — falls back to [] (every
+      // key renders under "Other / Additional Parameters") on any failure,
+      // same as GradeSpecEditor's own documented fallback behavior. Crop
+      // lives on the parent standard, not the version itself.
+      const templatesRes = await fetchTemplates(standardData.crop);
+      setFieldDefs(
+        templatesRes ? getFieldDefsForCrop(templatesRes, standardData.crop) : []
+      );
     } catch (err: any) {
       setError(err.detail || err.message || "Failed to load version details.");
     } finally {
@@ -130,26 +150,11 @@ export default function ExporterVersionEditorPage() {
   const isReadonly = version?.status === "published";
   const isExporterVerified = profile?.status === "verified";
 
-  // Grade Spec Controls
-  const handleAddGradeSpecRow = () => {
+  // Grade spec edits come back as a whole replaced array from GradeSpecEditor
+  // (it owns the named/other-row split internally); this just stores it.
+  const handleGradeSpecChange = (updated: GradeSpecRow[]) => {
     if (isReadonly) return;
-    setGradeSpec((prev) => [...prev, { key: "", value: "" }]);
-    markDirty();
-  };
-
-  const handleRemoveGradeSpecRow = (idx: number) => {
-    if (isReadonly) return;
-    setGradeSpec((prev) => prev.filter((_, i) => i !== idx));
-    markDirty();
-  };
-
-  const handleGradeSpecChange = (idx: number, field: "key" | "value", val: string) => {
-    if (isReadonly) return;
-    setGradeSpec((prev) => {
-      const updated = [...prev];
-      updated[idx][field] = val;
-      return updated;
-    });
+    setGradeSpec(updated);
     markDirty();
   };
 
@@ -417,51 +422,13 @@ export default function ExporterVersionEditorPage() {
               <CardHeader
                 title="Grade Specifications"
                 subtitle="Custom parameters for moisture, leaf grades, oil percentage, etc."
-                action={
-                  !isReadonly && (
-                    <Button variant="secondary" size="sm" onClick={handleAddGradeSpecRow}>
-                      + Add Parameter
-                    </Button>
-                  )
-                }
               />
-
-              {gradeSpec.length === 0 ? (
-                <p className="text-sm text-ink-400 italic py-2">No grade parameters defined yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {gradeSpec.map((row, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Input
-                        type="text"
-                        disabled={isReadonly}
-                        placeholder="e.g. moisture_max_pct"
-                        value={row.key}
-                        onChange={(e) => handleGradeSpecChange(idx, "key", e.target.value)}
-                        className="flex-1"
-                      />
-                      <Input
-                        type="text"
-                        disabled={isReadonly}
-                        placeholder="e.g. 5.0"
-                        value={row.value}
-                        onChange={(e) => handleGradeSpecChange(idx, "value", e.target.value)}
-                        className="flex-1"
-                      />
-                      {!isReadonly && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveGradeSpecRow(idx)}
-                          className="w-9 h-9 rounded-lg bg-danger-bg text-danger hover:brightness-95 border border-danger-border flex items-center justify-center shrink-0 transition-colors"
-                          aria-label="Remove parameter"
-                        >
-                          <RemoveIcon />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <GradeSpecEditor
+                fieldDefs={fieldDefs}
+                gradeSpec={gradeSpec}
+                onChange={handleGradeSpecChange}
+                readOnly={isReadonly}
+              />
             </Card>
 
             {/* Section 2: Stages List & Reordering */}
