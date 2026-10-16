@@ -16,6 +16,40 @@ import {
 import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
 import { fetchStandards, StandardData, VersionSummary } from "@/lib/standardsApi";
 import { SRI_LANKA_DISTRICTS } from "@/lib/adsApi";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge, Tone } from "@/components/ui/badge";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { Table, Thead, Tbody, Tr, Th, Td, Pagination } from "@/components/ui/table";
+import { Alert } from "@/components/ui/alert";
+import { Toast, ToastState } from "@/components/ui/toast";
+import { ConfirmModal } from "@/components/ui/modal";
+import { SectionSpinner } from "@/components/ui/spinner";
+
+const STATE_TONE: Record<string, Tone> = {
+  draft: "warning",
+  upcoming: "success",
+  past: "neutral",
+  cancelled: "danger",
+};
+
+const RESPONSE_TONE: Record<string, Tone> = {
+  ready: "success",
+  cannot: "danger",
+  no_reply: "neutral",
+};
+
+const RESPONSE_LABEL: Record<string, string> = {
+  ready: "Ready",
+  cannot: "Cannot",
+  no_reply: "Pending",
+};
+
+const CROP_LABEL: Record<string, string> = {
+  tea: "Tea",
+  cinnamon: "Cinnamon",
+};
 
 export default function PlantingNoticeDetailPage() {
   const params = useParams();
@@ -26,7 +60,7 @@ export default function PlantingNoticeDetailPage() {
   const [profile, setProfile] = useState<ExporterProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
 
   // Draft editing state
   const [isEditingDraft, setIsEditingDraft] = useState(false);
@@ -224,429 +258,367 @@ export default function PlantingNoticeDetailPage() {
   const isVerified = profile?.status === "verified";
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-20 flex justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-500">Loading planting notice details...</p>
-        </div>
-      </div>
-    );
+    return <SectionSpinner />;
   }
 
   if (error || !notice) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="p-6 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-sm">
-          {error || "Planting notice not found."}
-        </div>
-        <div className="mt-4">
-          <Link href="/exporter/planting-notices" className="text-xs text-emerald-700 hover:underline">
-            ← Back to Planting Notices
-          </Link>
-        </div>
+      <div className="max-w-4xl mx-auto space-y-4">
+        <Alert tone="danger" title={error || "Planting notice not found."} />
+        <Link
+          href="/exporter/planting-notices"
+          className="text-xs font-semibold text-brand-700 hover:text-brand-800"
+        >
+          ← Back to Planting Notices
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Toast */}
-      {toast && (
-        <div
-          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
-            toast.type === "success" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
+    <div className="max-w-6xl mx-auto">
+      <Toast toast={toast} />
 
-      {/* Back link */}
-      <div>
+      <div className="mb-4">
         <Link
           href="/exporter/planting-notices"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
         >
-          <span>←</span>
-          <span>Back to Planting Notices</span>
+          ← Back to Planting Notices
         </Link>
       </div>
 
-      {/* Unverified Warning Banner */}
-      {!isVerified && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-base">⚠️</span>
-            <span>
-              <strong>Company Verification Required:</strong> Your exporter account must be verified by an administrator before you can publish or cancel planting notices.
-            </span>
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <Badge tone="neutral">{CROP_LABEL[notice.crop] || notice.crop}</Badge>
+        <Badge tone={STATE_TONE[notice.computed_state] ?? "neutral"}>
+          {notice.computed_state}
+        </Badge>
+        <span className="text-xs text-ink-400">
+          Target Month: {formatTargetMonth(notice.target_month)}
+        </span>
+      </div>
+
+      <PageHeader
+        title={notice.title?.en || "Planting Notice"}
+        subtitle={
+          notice.standard_name
+            ? `Quality Standard: ${notice.standard_name} (v${notice.standard_version_number})`
+            : undefined
+        }
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {notice.status === "draft" && !isEditingDraft && (
+              <Button variant="secondary" onClick={() => setIsEditingDraft(true)}>
+                Edit Draft
+              </Button>
+            )}
+            {notice.status === "draft" && (
+              <Button
+                onClick={() => setShowPublishModal(true)}
+                disabled={!isVerified}
+                title={!isVerified ? "Company verification required" : ""}
+              >
+                Publish Notice
+              </Button>
+            )}
+            {notice.status === "published" && (
+              <Button
+                variant="danger"
+                onClick={() => setShowCancelModal(true)}
+                disabled={!isVerified}
+                title={!isVerified ? "Company verification required" : ""}
+              >
+                Cancel Notice
+              </Button>
+            )}
+            <Button variant="ghost" onClick={handleDuplicate} disabled={duplicating}>
+              {duplicating ? "Duplicating..." : "Duplicate"}
+            </Button>
           </div>
-          <Link href="/exporter/profile" className="font-semibold underline ml-2">
-            View Profile
-          </Link>
-        </div>
-      )}
+        }
+      />
 
-      {/* Header Card */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-              {notice.crop === "tea" ? "🍃 Tea" : "🪵 Cinnamon"}
-            </span>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                notice.computed_state === "draft"
-                  ? "bg-amber-100 text-amber-800"
-                  : notice.computed_state === "upcoming"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : notice.computed_state === "past"
-                  ? "bg-gray-100 text-gray-700"
-                  : "bg-rose-100 text-rose-800"
-              }`}
-            >
-              {notice.computed_state.toUpperCase()}
-            </span>
-            <span className="text-xs text-gray-400">
-              Target Month: {formatTargetMonth(notice.target_month)}
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2">
-            {notice.title?.en || "Planting Notice"}
-          </h1>
-          {notice.standard_name && (
-            <p className="text-xs text-emerald-700 font-medium mt-1">
-              Quality Standard: {notice.standard_name} (v{notice.standard_version_number})
-            </p>
-          )}
-          {notice.status === "cancelled" && notice.cancelled_reason && (
-            <p className="text-xs text-rose-700 bg-rose-50 p-2 rounded-lg mt-2 inline-block">
-              Cancellation Reason: {notice.cancelled_reason}
-            </p>
-          )}
-        </div>
+      <div className="space-y-6">
+        {notice.status === "cancelled" && notice.cancelled_reason && (
+          <Alert tone="danger" title="Cancellation Reason">
+            {notice.cancelled_reason}
+          </Alert>
+        )}
 
-        {/* Top Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {notice.status === "draft" && !isEditingDraft && (
-            <button
-              onClick={() => setIsEditingDraft(true)}
-              className="px-4 py-2 text-xs font-medium rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-            >
-              Edit Draft
-            </button>
-          )}
-
-          {notice.status === "draft" && (
-            <button
-              onClick={() => setShowPublishModal(true)}
-              disabled={!isVerified}
-              title={!isVerified ? "Company verification required" : ""}
-              className="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm disabled:opacity-40"
-            >
-              Publish Notice
-            </button>
-          )}
-
-          {notice.status === "published" && (
-            <button
-              onClick={() => setShowCancelModal(true)}
-              disabled={!isVerified}
-              title={!isVerified ? "Company verification required" : ""}
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 disabled:opacity-40"
-            >
-              Cancel Notice
-            </button>
-          )}
-
-          <button
-            onClick={handleDuplicate}
-            disabled={duplicating}
-            className="px-4 py-2 text-xs font-medium rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50"
+        {!isVerified && (
+          <Alert
+            tone="warning"
+            title="Company verification required"
+            action={
+              <Link href="/exporter/profile" className="text-xs font-semibold text-warning underline">
+                View Profile
+              </Link>
+            }
           >
-            {duplicating ? "Duplicating..." : "Duplicate"}
-          </button>
-        </div>
-      </div>
+            Your exporter account must be verified by an administrator before you can publish or
+            cancel planting notices.
+          </Alert>
+        )}
 
-      {/* Progress & Counters Card */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Progress Bar Card */}
-        <div className="md:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-semibold text-gray-700">Committed Supply Progress</span>
-            <span className="font-bold text-gray-900">
-              {notice.total_expected_volume_kg.toLocaleString()} / {notice.volume_needed_kg.toLocaleString()} kg
-            </span>
-          </div>
-          <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-            <div
-              className={`h-3 rounded-full transition-all ${
-                notice.volume_percentage >= 100
-                  ? "bg-emerald-600"
-                  : notice.volume_percentage >= 50
-                  ? "bg-emerald-500"
-                  : "bg-amber-500"
-              }`}
-              style={{ width: `${Math.min(100, notice.volume_percentage)}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>{notice.volume_percentage.toFixed(1)}% of required volume</span>
-            <span>Target Month: {formatTargetMonth(notice.target_month)}</span>
-          </div>
-        </div>
-
-        {/* Response Count Cards */}
-        <div className="bg-emerald-50/80 border border-emerald-100 p-5 rounded-2xl flex flex-col justify-between">
-          <div className="text-xs font-semibold text-emerald-800">Ready Responses</div>
-          <div className="text-2xl font-bold text-emerald-900 mt-2">{notice.counts.ready}</div>
-          <div className="text-[11px] text-emerald-700 mt-1">
-            {notice.total_expected_volume_kg.toLocaleString()} kg bound
-          </div>
-        </div>
-
-        <div className="bg-gray-50 border border-gray-200/80 p-5 rounded-2xl flex flex-col justify-between">
-          <div className="text-xs font-semibold text-gray-600">Pending / Cannot</div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-bold text-gray-900">{notice.counts.no_reply}</span>
-            <span className="text-xs text-gray-400">pending</span>
-            <span className="text-xs text-rose-600 font-medium ml-auto">
-              {notice.counts.cannot} cannot
-            </span>
-          </div>
-          <div className="text-[11px] text-gray-500 mt-1">
-            Out of {notice.counts.eligible_total} eligible approved farmers
-          </div>
-        </div>
-      </div>
-
-      {/* Draft Editable Form (if editing draft) */}
-      {isEditingDraft ? (
-        <form onSubmit={handleSaveDraft} className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 space-y-6">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h2 className="text-base font-bold text-gray-900">Edit Draft Details</h2>
-            <button
-              type="button"
-              onClick={() => setIsEditingDraft(false)}
-              className="text-xs text-gray-500 hover:text-gray-800"
-            >
-              Cancel Edit
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Target Volume (kg)</label>
-              <input
-                type="number"
-                min="1"
-                value={editVolumeNeededKg}
-                onChange={(e) => setEditVolumeNeededKg(e.target.value)}
-                required
-                className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2"
+        {/* Progress & Counters Card */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="md:col-span-2 space-y-3">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-ink-700">Committed Supply Progress</span>
+              <span className="font-bold text-ink-900">
+                {notice.total_expected_volume_kg.toLocaleString()} / {notice.volume_needed_kg.toLocaleString()} kg
+              </span>
+            </div>
+            <div className="w-full bg-paper-sunken border border-border rounded-full h-3 overflow-hidden">
+              <div
+                className={`h-3 rounded-full transition-all ${
+                  notice.volume_percentage >= 100
+                    ? "bg-brand-700"
+                    : notice.volume_percentage >= 50
+                    ? "bg-brand-500"
+                    : "bg-gold-500"
+                }`}
+                style={{ width: `${Math.min(100, notice.volume_percentage)}%` }}
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Target Month</label>
-              <input
-                type="month"
-                value={editTargetMonth}
-                onChange={(e) => setEditTargetMonth(e.target.value)}
-                required
-                className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2"
-              />
+            <div className="flex justify-between text-xs text-ink-500">
+              <span>{notice.volume_percentage.toFixed(1)}% of required volume</span>
+              <span>Target Month: {formatTargetMonth(notice.target_month)}</span>
             </div>
-          </div>
+          </Card>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-gray-700">Multilingual Title & Message</label>
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-md">
-                {(["en", "si", "ta"] as const).map((l) => (
+          <Card className="bg-success-bg border-success-border flex flex-col justify-between">
+            <div className="text-xs font-semibold text-success">Ready Responses</div>
+            <div className="text-2xl font-display font-semibold text-success mt-2">
+              {notice.counts.ready}
+            </div>
+            <div className="text-[11px] text-success mt-1">
+              {notice.total_expected_volume_kg.toLocaleString()} kg bound
+            </div>
+          </Card>
+
+          <Card className="flex flex-col justify-between">
+            <div className="text-xs font-semibold text-ink-500">Pending / Cannot</div>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-2xl font-display font-semibold text-ink-900">
+                {notice.counts.no_reply}
+              </span>
+              <span className="text-xs text-ink-400">pending</span>
+              <span className="text-xs text-danger font-semibold ml-auto">
+                {notice.counts.cannot} cannot
+              </span>
+            </div>
+            <div className="text-[11px] text-ink-500 mt-1">
+              Out of {notice.counts.eligible_total} eligible approved farmers
+            </div>
+          </Card>
+        </div>
+
+        {/* Draft Editable Form (if editing draft) */}
+        {isEditingDraft ? (
+          <Card className="border-brand-200">
+            <form onSubmit={handleSaveDraft} className="space-y-6">
+              <CardHeader
+                title="Edit Draft Details"
+                action={
                   <button
                     type="button"
-                    key={l}
-                    onClick={() => setActiveLangTab(l)}
-                    className={`px-2.5 py-0.5 text-xs rounded font-medium ${
-                      activeLangTab === l ? "bg-white text-emerald-700 shadow-sm" : "text-gray-600"
-                    }`}
+                    onClick={() => setIsEditingDraft(false)}
+                    className="text-xs text-ink-500 hover:text-ink-900"
                   >
-                    {l.toUpperCase()}
+                    Cancel Edit
                   </button>
-                ))}
+                }
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <Field label="Target Volume (kg)" required>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editVolumeNeededKg}
+                    onChange={(e) => setEditVolumeNeededKg(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Target Month" required>
+                  <Input
+                    type="month"
+                    value={editTargetMonth}
+                    onChange={(e) => setEditTargetMonth(e.target.value)}
+                    required
+                  />
+                </Field>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-ink-700">
+                    Multilingual Title & Message
+                  </label>
+                  <div className="flex gap-1 bg-paper-sunken p-1 rounded-md">
+                    {(["en", "si", "ta"] as const).map((l) => (
+                      <button
+                        type="button"
+                        key={l}
+                        onClick={() => setActiveLangTab(l)}
+                        className={`px-2.5 py-0.5 text-xs rounded font-semibold transition-colors ${
+                          activeLangTab === l
+                            ? "bg-paper-raised text-brand-700 shadow-sm"
+                            : "text-ink-500"
+                        }`}
+                      >
+                        {l.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="text"
+                    placeholder="Title"
+                    value={editTitle[activeLangTab]}
+                    onChange={(e) => setEditTitle({ ...editTitle, [activeLangTab]: e.target.value })}
+                  />
+                  <Textarea
+                    rows={3}
+                    placeholder="Message"
+                    value={editMessage[activeLangTab]}
+                    onChange={(e) => setEditMessage({ ...editMessage, [activeLangTab]: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" onClick={() => setIsEditingDraft(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={savingDraft}>
+                  {savingDraft ? "Saving..." : "Save Draft"}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        ) : (
+          /* View Only Notice Details */
+          <Card>
+            <CardHeader
+              title="Notice Specifications"
+              action={
+                notice.status !== "draft" ? (
+                  <span className="text-[11px] text-ink-400 italic">
+                    Content is immutable after publication.
+                  </span>
+                ) : undefined
+              }
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div>
+                <span className="text-ink-400 block mb-0.5">Eligible Districts</span>
+                <span className="font-medium text-ink-800">
+                  {notice.eligible_districts && notice.eligible_districts.length > 0
+                    ? notice.eligible_districts.join(", ")
+                    : "All 25 Districts"}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-ink-400 block mb-0.5">Created At</span>
+                <span className="font-medium text-ink-800">
+                  {new Date(notice.created_at).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-ink-400 block mb-0.5">Published At</span>
+                <span className="font-medium text-ink-800">
+                  {notice.published_at ? new Date(notice.published_at).toLocaleString() : "Not published"}
+                </span>
               </div>
             </div>
-            <input
-              type="text"
-              placeholder="Title"
-              value={editTitle[activeLangTab]}
-              onChange={(e) => setEditTitle({ ...editTitle, [activeLangTab]: e.target.value })}
-              className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 mb-2"
-            />
-            <textarea
-              rows={3}
-              placeholder="Message"
-              value={editMessage[activeLangTab]}
-              onChange={(e) => setEditMessage({ ...editMessage, [activeLangTab]: e.target.value })}
-              className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2"
-            />
-          </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsEditingDraft(false)}
-              className="px-4 py-2 text-xs font-medium text-gray-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={savingDraft}
-              className="px-5 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-xl"
-            >
-              {savingDraft ? "Saving..." : "Save Draft"}
-            </button>
-          </div>
-        </form>
-      ) : (
-        /* View Only Notice Details */
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h2 className="text-base font-bold text-gray-900">Notice Specifications</h2>
-            {notice.status !== "draft" && (
-              <span className="text-[11px] text-gray-400 italic">
-                Content is immutable after publication.
-              </span>
-            )}
-          </div>
+            <div className="pt-4 text-xs">
+              <span className="text-ink-400 block mb-1">Notice Message</span>
+              <p className="text-ink-700 bg-paper-sunken p-3.5 rounded-lg border border-border whitespace-pre-line">
+                {notice.message?.en || "No message provided."}
+              </p>
+            </div>
+          </Card>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        {/* Farmer Responses Breakdown Table */}
+        <Card padded={false}>
+          <div className="p-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border">
             <div>
-              <span className="text-gray-400 block mb-0.5">Eligible Districts</span>
-              <span className="font-medium text-gray-800">
-                {notice.eligible_districts && notice.eligible_districts.length > 0
-                  ? notice.eligible_districts.join(", ")
-                  : "All 25 Districts"}
-              </span>
+              <h2 className="font-display text-lg font-semibold text-ink-900">Farmer Responses</h2>
+              <p className="text-sm text-ink-500 mt-0.5">
+                Approved farmers eligible for this notice and their commitments.
+              </p>
             </div>
 
-            <div>
-              <span className="text-gray-400 block mb-0.5">Created At</span>
-              <span className="font-medium text-gray-800">
-                {new Date(notice.created_at).toLocaleDateString()}
-              </span>
-            </div>
-
-            <div>
-              <span className="text-gray-400 block mb-0.5">Published At</span>
-              <span className="font-medium text-gray-800">
-                {notice.published_at ? new Date(notice.published_at).toLocaleString() : "Not published"}
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                type="text"
+                placeholder="Search farmer name..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setRespPage(1);
+                }}
+                className="!w-auto"
+              />
+              <select
+                value={responseFilter}
+                onChange={(e) => {
+                  setResponseFilter(e.target.value);
+                  setRespPage(1);
+                }}
+                className="text-sm bg-paper-raised border border-border rounded-lg px-3.5 py-2.5 text-ink-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 cursor-pointer"
+              >
+                <option value="">All Responses</option>
+                <option value="ready">Ready</option>
+                <option value="cannot">Cannot</option>
+                <option value="no_reply">Pending (No Reply)</option>
+              </select>
             </div>
           </div>
 
-          <div className="pt-2 text-xs">
-            <span className="text-gray-400 block mb-1">Notice Message</span>
-            <p className="text-gray-700 bg-gray-50 p-3.5 rounded-xl border border-gray-100 whitespace-pre-line">
-              {notice.message?.en || "No message provided."}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Farmer Responses Breakdown Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden space-y-4 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">Farmer Responses</h2>
-            <p className="text-xs text-gray-500">
-              Approved farmers eligible for this notice and their commitments.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Search */}
-            <input
-              type="text"
-              placeholder="Search farmer name..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setRespPage(1);
-              }}
-              className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-
-            {/* Filter by response status */}
-            <select
-              value={responseFilter}
-              onChange={(e) => {
-                setResponseFilter(e.target.value);
-                setRespPage(1);
-              }}
-              className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="">All Responses</option>
-              <option value="ready">Ready</option>
-              <option value="cannot">Cannot</option>
-              <option value="no_reply">Pending (No Reply)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Responses Table */}
-        {loadingResponses ? (
-          <div className="py-12 text-center text-xs text-gray-400">Loading responses...</div>
-        ) : responses.length === 0 ? (
-          <div className="py-12 text-center text-xs text-gray-500">
-            No farmer responses found matching your criteria.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-700">
-              <thead className="bg-gray-50/80 text-gray-500 font-semibold uppercase text-[10px] tracking-wider border-b border-gray-100">
-                <tr>
-                  <th className="py-3 px-4">Farmer</th>
-                  <th className="py-3 px-4">District</th>
-                  <th className="py-3 px-4">Phone</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Expected Volume</th>
-                  <th className="py-3 px-4">Plot Committed</th>
-                  <th className="py-3 px-4">Responded At</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+          {/* Responses Table */}
+          {loadingResponses ? (
+            <SectionSpinner />
+          ) : responses.length === 0 ? (
+            <div className="py-12 text-center text-sm text-ink-500">
+              No farmer responses found matching your criteria.
+            </div>
+          ) : (
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Farmer</Th>
+                  <Th>District</Th>
+                  <Th>Phone</Th>
+                  <Th>Status</Th>
+                  <Th>Expected Volume</Th>
+                  <Th>Plot Committed</Th>
+                  <Th>Responded At</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
                 {responses.map((r) => (
-                  <tr key={r.farmer_id} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-gray-900">{r.farmer_name}</td>
-                    <td className="py-3 px-4 text-gray-600">{r.district || "—"}</td>
-                    <td className="py-3 px-4 text-gray-600 font-mono">
-                      {r.phone || "—"}
-                    </td>
-                    <td className="py-3 px-4">
-                      {r.response === "ready" && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                          Ready
-                        </span>
-                      )}
-                      {r.response === "cannot" && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
-                          Cannot
-                        </span>
-                      )}
-                      {r.response === "no_reply" && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
-                          Pending
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 font-medium text-gray-900">
+                  <Tr key={r.farmer_id}>
+                    <Td className="font-semibold">{r.farmer_name}</Td>
+                    <Td className="text-ink-700">{r.district || "—"}</Td>
+                    <Td className="text-ink-700 font-mono">{r.phone || "—"}</Td>
+                    <Td>
+                      <Badge tone={RESPONSE_TONE[r.response] ?? "neutral"}>
+                        {RESPONSE_LABEL[r.response] ?? r.response}
+                      </Badge>
+                    </Td>
+                    <Td className="font-medium">
                       {r.expected_volume_kg ? `${r.expected_volume_kg.toLocaleString()} kg` : "—"}
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">
+                    </Td>
+                    <Td className="text-ink-700">
                       {r.plot_name ? (
                         <span>
                           {r.plot_name}
@@ -655,109 +627,68 @@ export default function PlantingNoticeDetailPage() {
                       ) : (
                         "—"
                       )}
-                    </td>
-                    <td className="py-3 px-4 text-gray-400">
+                    </Td>
+                    <Td className="text-ink-400">
                       {r.responded_at ? new Date(r.responded_at).toLocaleDateString() : "—"}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </Tbody>
+            </Table>
+          )}
 
-        {/* Responses Pagination */}
-        {respTotalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100 text-xs">
-            <span className="text-gray-500">
-              Showing page {respPage} of {respTotalPages} ({respTotal} farmers)
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setRespPage((p) => Math.max(1, p - 1))}
-                disabled={respPage === 1}
-                className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setRespPage((p) => Math.min(respTotalPages, p + 1))}
-                disabled={respPage === respTotalPages}
-                className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+          {/* Responses Pagination */}
+          {respTotalPages > 1 && (
+            <Pagination
+              page={respPage}
+              totalPages={respTotalPages}
+              totalItems={respTotal}
+              onChange={setRespPage}
+            />
+          )}
+        </Card>
       </div>
 
       {/* Publish Modal Confirmation */}
-      {showPublishModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-gray-900">Publish Planting Notice?</h3>
-            <p className="text-xs text-gray-600">
-              Once published, this notice will be immediately visible to your approved farmers in the eligible districts.
-              The notice parameters will become <strong>immutable</strong> and cannot be edited.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setShowPublishModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePublish}
-                disabled={publishing}
-                className="px-5 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-xl shadow-sm hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {publishing ? "Publishing..." : "Confirm & Publish"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        onConfirm={handlePublish}
+        title="Publish Planting Notice?"
+        confirmLabel="Confirm & Publish"
+        loading={publishing}
+      >
+        Once published, this notice will be immediately visible to your approved farmers in the
+        eligible districts. The notice parameters will become <strong>immutable</strong> and cannot
+        be edited.
+      </ConfirmModal>
 
       {/* Cancel Modal with Reason */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-gray-900 text-rose-700">Cancel Planting Notice</h3>
-            <p className="text-xs text-gray-600">
-              Cancelling this notice will mark it as cancelled and will automatically <strong>release all active plot bindings</strong> committed by your farmers for this notice.
-            </p>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Reason for Cancellation (optional)
-              </label>
-              <textarea
-                rows={3}
-                placeholder="e.g. Sourcing quota revised or market conditions changed..."
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full text-xs border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
-              >
-                Dismiss
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={cancelling}
-                className="px-5 py-2 text-xs font-semibold bg-rose-600 text-white rounded-xl shadow-sm hover:bg-rose-700 disabled:opacity-50"
-              >
-                {cancelling ? "Cancelling..." : "Confirm Cancellation"}
-              </button>
-            </div>
-          </div>
+      <ConfirmModal
+        open={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleCancel}
+        title="Cancel Planting Notice"
+        confirmLabel={cancelling ? "Cancelling..." : "Confirm Cancellation"}
+        confirmVariant="danger"
+        loading={cancelling}
+      >
+        <div className="space-y-4">
+          <p>
+            Cancelling this notice will mark it as cancelled and will automatically{" "}
+            <strong>release all active plot bindings</strong> committed by your farmers for this
+            notice.
+          </p>
+          <Field label="Reason for Cancellation (optional)">
+            <Textarea
+              rows={3}
+              placeholder="e.g. Sourcing quota revised or market conditions changed..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+          </Field>
         </div>
-      )}
+      </ConfirmModal>
     </div>
   );
 }

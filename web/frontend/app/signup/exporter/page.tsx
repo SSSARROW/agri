@@ -4,6 +4,9 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signupExporter } from "@/lib/api";
+import { Field, Input } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 export default function ExporterSignupPage() {
   const router = useRouter();
@@ -42,177 +45,141 @@ export default function ExporterSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-950 via-zinc-900 to-black py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center">
-      <div className="w-full max-w-2xl bg-white/95 dark:bg-zinc-900/90 backdrop-blur-2xl border border-teal-500/20 shadow-2xl rounded-3xl p-8 sm:p-10">
-        
-        {/* Navigation Link */}
+    <main className="min-h-screen w-full bg-paper flex flex-col items-center justify-center p-4 sm:p-6 py-12">
+      <div className="w-full max-w-2xl bg-paper-raised border border-border shadow-xl shadow-ink-900/5 rounded-2xl p-8 sm:p-10">
         <Link
           href="/"
-          className="inline-flex items-center text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline mb-6"
+          className="inline-flex items-center text-xs font-semibold text-brand-700 hover:text-brand-800 mb-6"
         >
-          ← Back to Sign In
+          ← Back to sign in
         </Link>
 
-        {/* Header */}
         <div className="mb-8">
-          <div className="inline-block px-3 py-1 bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
-            🚢 Exporter Registration
-          </div>
-          <h1 className="text-3xl font-black text-zinc-900 dark:text-white">
-            Register Business / Exporter Account
+          <p className="text-xs font-bold text-brand-700 uppercase tracking-widest mb-3">
+            Exporter registration
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-900 tracking-tight">
+            Register business / exporter account
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Connect directly with verified regional crop producers & track export supply chains.
+          <p className="text-sm text-ink-500 mt-1.5">
+            Connect directly with verified regional crop producers &amp; track export
+            supply chains.
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 text-sm font-medium">
-            {error}
+          <div className="mb-6">
+            <Alert tone="danger" title={error} />
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Representative Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                Representative Name *
-              </label>
-              <input
+            <Field label="Representative name" required>
+              <Input
                 type="text"
                 name="name"
                 required
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Nimal Silva"
-                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                Work Email *
-              </label>
-              <input
+            </Field>
+            <Field label="Work email" required>
+              <Input
                 type="email"
                 name="email"
                 required
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="exports@agritrade.lk"
-                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
               />
-            </div>
+            </Field>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                Password *
-              </label>
-              <input
+            <Field label="Password" required>
+              <Input
                 type="password"
                 name="password"
                 required
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                Contact Phone *
-              </label>
-              <input
+            </Field>
+            <Field label="Contact phone" required>
+              <Input
                 type="tel"
                 name="phone"
                 required
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="+94 11 234 5678"
-                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
               />
-            </div>
+            </Field>
           </div>
 
           {/* Business Details */}
-          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
-            <h3 className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-3">
-              Corporate & License Verification
-            </h3>
+          <div className="border-t border-border pt-5">
+            <h2 className="text-xs font-bold text-brand-700 uppercase tracking-widest mb-3">
+              Corporate &amp; license verification
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                  Business / Company Name *
-                </label>
-                <input
+              <Field label="Business / company name" required>
+                <Input
                   type="text"
                   name="business_name"
                   required
                   value={formData.business_name}
                   onChange={handleChange}
                   placeholder="Lanka Agri Exports Ltd"
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                  Business Registration No *
-                </label>
-                <input
+              </Field>
+              <Field label="Business registration no" required>
+                <Input
                   type="text"
                   name="business_reg_no"
                   required
                   value={formData.business_reg_no}
                   onChange={handleChange}
                   placeholder="PV-123456"
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
                 />
-              </div>
+              </Field>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                Business Address *
-              </label>
-              <input
-                type="text"
-                name="business_address"
-                required
-                value={formData.business_address}
-                onChange={handleChange}
-                placeholder="Level 5, Trade Tower, Colombo 03"
-                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
-              />
+              <Field label="Business address" required>
+                <Input
+                  type="text"
+                  name="business_address"
+                  required
+                  value={formData.business_address}
+                  onChange={handleChange}
+                  placeholder="Level 5, Trade Tower, Colombo 03"
+                />
+              </Field>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-                Export License No *
-              </label>
-              <input
+            <Field label="Export license no" required>
+              <Input
                 type="text"
                 name="export_license_no"
                 required
                 value={formData.export_license_no}
                 onChange={handleChange}
                 placeholder="EXP-2026-987"
-                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
               />
-            </div>
+            </Field>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-teal-600/30 transition-all text-sm disabled:opacity-50 mt-6"
-          >
-            {loading ? "Registering Exporter..." : "Complete Exporter Registration"}
-          </button>
+          <Button type="submit" disabled={loading} className="w-full mt-2" size="lg">
+            {loading ? "Registering exporter…" : "Complete exporter registration"}
+          </Button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

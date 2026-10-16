@@ -18,6 +18,7 @@
 
 import React from "react";
 import type { GradeSpecFieldDef } from "@/lib/templatesApi";
+import { Field, Input } from "@/components/ui/field";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -125,24 +126,18 @@ export default function GradeSpecEditor({
     <div className="space-y-5">
       {/* ── Named (per-crop) fields ─────────────────────────────── */}
       {hasNamedFields && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {fieldDefs.map((def) => (
-            <div key={def.key}>
-              <label className="block text-[11px] font-semibold text-zinc-300 mb-1">
-                {def.label}
-              </label>
-              <input
+            <Field key={def.key} label={def.label} htmlFor={`grade-spec-${def.key}`}>
+              <Input
                 id={`grade-spec-${def.key}`}
                 type="text"
                 disabled={readOnly}
                 placeholder={def.hint}
                 value={namedValues[def.key] ?? ""}
                 onChange={(e) => handleNamedChange(def.key, e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-200
-                           focus:border-teal-500 focus:outline-none disabled:opacity-60 disabled:cursor-default
-                           placeholder-zinc-600"
               />
-            </div>
+            </Field>
           ))}
         </div>
       )}
@@ -151,7 +146,7 @@ export default function GradeSpecEditor({
       <div className="space-y-2">
         {/* Section header — always shown so exporter knows extra keys exist */}
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
+          <span className="text-[11px] font-semibold text-ink-500 uppercase tracking-wide">
             {hasNamedFields ? "Other / Additional Parameters" : "Grade Parameters"}
           </span>
           {!readOnly && (
@@ -159,7 +154,7 @@ export default function GradeSpecEditor({
               id="grade-spec-add-other"
               type="button"
               onClick={handleAddOtherRow}
-              className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 transition-colors"
+              className="text-[11px] font-semibold text-brand-700 hover:text-brand-800 transition-colors"
             >
               + Add Parameter
             </button>
@@ -167,7 +162,7 @@ export default function GradeSpecEditor({
         </div>
 
         {otherRows.length === 0 ? (
-          <p className="text-[11px] text-zinc-600 italic py-1">
+          <p className="text-[11px] text-ink-400 italic py-1">
             {hasNamedFields
               ? "No additional parameters. Use the fields above for standard specs."
               : "No grade parameters defined yet."}
@@ -175,37 +170,37 @@ export default function GradeSpecEditor({
         ) : (
           <div className="space-y-2">
             {otherRows.map((row, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-xs">
-                <input
+              <div key={idx} className="flex items-center gap-2">
+                <Input
                   id={`grade-spec-other-key-${idx}`}
                   type="text"
                   disabled={readOnly}
                   placeholder="Parameter name"
                   value={row.key}
                   onChange={(e) => handleOtherChange(idx, "key", e.target.value)}
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-zinc-200
-                             focus:border-teal-500 focus:outline-none disabled:opacity-60"
+                  className="flex-1"
                 />
-                <input
+                <Input
                   id={`grade-spec-other-value-${idx}`}
                   type="text"
                   disabled={readOnly}
                   placeholder="Value"
                   value={row.value}
                   onChange={(e) => handleOtherChange(idx, "value", e.target.value)}
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-zinc-200
-                             focus:border-teal-500 focus:outline-none disabled:opacity-60"
+                  className="flex-1"
                 />
                 {!readOnly && (
                   <button
                     id={`grade-spec-other-remove-${idx}`}
                     type="button"
                     onClick={() => handleRemoveOtherRow(idx)}
-                    className="w-8 h-8 rounded-xl bg-red-950/40 text-red-400 hover:bg-red-900/60
-                               font-bold flex items-center justify-center flex-shrink-0"
+                    className="w-9 h-9 rounded-lg bg-danger-bg text-danger hover:brightness-95 border border-danger-border
+                               font-bold flex items-center justify-center shrink-0 transition-colors"
                     aria-label={`Remove parameter ${row.key || idx}`}
                   >
-                    ✕
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 )}
               </div>

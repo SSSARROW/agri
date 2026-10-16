@@ -3,6 +3,7 @@
 import React, { useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAd } from "@/lib/adsApi";
+import { SectionSpinner } from "@/components/ui/spinner";
 
 interface PageProps {
   params: Promise<{
@@ -28,9 +29,9 @@ export default function AdDetailPage({ params }: PageProps) {
   }, [adId, router]);
 
   return (
-    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
-      <div className="w-8 h-8 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
-      <p className="text-zinc-500 text-sm font-medium">Redirecting to advertisement…</p>
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
+      <SectionSpinner />
+      <p className="text-ink-500 text-sm font-medium">Redirecting to advertisement…</p>
     </div>
   );
 }

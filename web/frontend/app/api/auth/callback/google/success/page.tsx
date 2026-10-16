@@ -3,6 +3,7 @@
 import React, { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { setAuthToken } from "@/lib/api";
+import { Spinner } from "@/components/ui/spinner";
 
 function GoogleSuccessContent() {
   const router = useRouter();
@@ -25,21 +26,27 @@ function GoogleSuccessContent() {
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      <h2 className="text-xl font-bold text-white">Completing Google Sign In...</h2>
-      <p className="text-sm text-zinc-400">Authenticating session and preparing dashboard.</p>
+      <Spinner size={36} />
+      <h2 className="font-display text-xl font-semibold text-ink-900">
+        Completing Google sign in…
+      </h2>
+      <p className="text-sm text-ink-500">
+        Authenticating session and preparing dashboard.
+      </p>
     </div>
   );
 }
 
 export default function GoogleSuccessPage() {
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-paper flex flex-col items-center justify-center p-4">
       <Suspense
         fallback={
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <h2 className="text-xl font-bold text-white">Loading...</h2>
+            <Spinner size={36} />
+            <h2 className="font-display text-xl font-semibold text-ink-900">
+              Loading…
+            </h2>
           </div>
         }
       >

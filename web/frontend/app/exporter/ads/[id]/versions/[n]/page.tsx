@@ -20,6 +20,15 @@ import {
 } from "@/lib/adsApi";
 import { fetchStandards, StandardData, VersionSummary } from "@/lib/standardsApi";
 import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Field, Input, Textarea, Select } from "@/components/ui/field";
+import { Alert } from "@/components/ui/alert";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { SectionSpinner } from "@/components/ui/spinner";
+import { Toast, ToastState } from "@/components/ui/toast";
+import { ConfirmModal } from "@/components/ui/modal";
+import { ChevronRightIcon, UsersIcon } from "@/components/ui/icons";
 
 const ENABLE_AD_STATS = process.env.NEXT_PUBLIC_ENABLE_AD_STATS !== "false";
 const ENABLE_AD_ACCEPTANCE = process.env.NEXT_PUBLIC_ENABLE_AD_ACCEPTANCE !== "false";
@@ -29,6 +38,22 @@ interface PageProps {
     id: string;
     n: string;
   }>;
+}
+
+function SectionNumber({ n }: { n: number }) {
+  return (
+    <span className="w-6 h-6 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center text-xs font-bold shrink-0">
+      {n}
+    </span>
+  );
+}
+
+function ChartIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 3v18h18M7 16v-4m5 4V8m5 8v-6" />
+    </svg>
+  );
 }
 
 export default function AdVersionEditorPage({ params }: PageProps) {
@@ -48,7 +73,7 @@ export default function AdVersionEditorPage({ params }: PageProps) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [creatingDraft, setCreatingDraft] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
 
   // Form Fields (editable when version is draft)
   const [selectedStandardVersionId, setSelectedStandardVersionId] = useState<string>("");
@@ -300,18 +325,18 @@ export default function AdVersionEditorPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
-        <p className="text-zinc-500 text-sm font-medium">Loading advertisement version…</p>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+        <SectionSpinner />
+        <p className="text-ink-500 text-sm font-medium">Loading advertisement version…</p>
       </div>
     );
   }
 
   if (!ad || !version) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <p className="text-red-400 font-semibold">Advertisement version not found.</p>
-        <Link href="/exporter/ads" className="mt-4 inline-block text-xs text-teal-400 underline">
+      <div className="max-w-4xl mx-auto py-16 text-center">
+        <p className="text-danger font-semibold">Advertisement version not found.</p>
+        <Link href="/exporter/ads" className="mt-4 inline-block text-xs text-brand-700 font-semibold underline">
           Back to Advertisements
         </Link>
       </div>
@@ -319,101 +344,68 @@ export default function AdVersionEditorPage({ params }: PageProps) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      {/* Toast */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl border text-sm font-medium shadow-2xl backdrop-blur-md transition-all ${
-            toast.type === "success"
-              ? "bg-emerald-950/90 text-emerald-200 border-emerald-700/50"
-              : "bg-red-950/90 text-red-200 border-red-700/50"
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
+    <div className="max-w-5xl mx-auto">
+      <Toast toast={toast} />
 
       {/* Top Header */}
-      <div className="pb-6 border-b border-zinc-800">
+      <div className="pb-6 border-b border-border mb-6">
         <div className="flex items-center justify-between gap-4">
           <Link
             href="/exporter/ads"
-            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="text-xs font-semibold text-ink-500 hover:text-ink-900 inline-flex items-center gap-1 transition-colors"
           >
-            ← Back to Advertisements
+            <ChevronRightIcon className="w-3.5 h-3.5 rotate-180" /> Back to Advertisements
           </Link>
 
           <div className="flex items-center gap-2">
             {ENABLE_AD_ACCEPTANCE && (
-              <Link
-                href={`/exporter/ads/${adId}/applicants`}
-                className="px-3.5 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
-              >
-                <span>Applicants</span>
-                {ENABLE_AD_STATS && stats && stats.pending_count > 0 ? (
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-teal-500 text-zinc-950 text-[10px] font-black flex items-center justify-center">
+              <Button href={`/exporter/ads/${adId}/applicants`} variant="secondary" size="sm">
+                <UsersIcon className="w-3.5 h-3.5" />
+                Applicants
+                {ENABLE_AD_STATS && stats && stats.pending_count > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-brand-700 text-white text-[10px] font-black flex items-center justify-center">
                     {stats.pending_count}
                   </span>
-                ) : (
-                  <span className="text-[11px] px-1.5 rounded-full bg-teal-500/20 text-teal-300">👥</span>
                 )}
-              </Link>
+              </Button>
             )}
-            <button
-              onClick={handleDuplicate}
-              className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
-            >
+            <Button onClick={handleDuplicate} variant="secondary" size="sm">
               Duplicate Ad
-            </button>
+            </Button>
             {!isAdClosed && (
-              <button
-                onClick={() => setShowCloseModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-800/40 text-xs font-medium transition-all"
-              >
+              <Button onClick={() => setShowCloseModal(true)} variant="danger" size="sm">
                 Close Ad
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
-        <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider bg-paper-sunken text-ink-700 border border-border">
                 {ad.crop}
               </span>
-              <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+              <h1 className="font-display text-2xl font-semibold text-ink-900">
                 {version.title?.en || "Buy Request Advertisement"}
               </h1>
             </div>
-            <p className="mt-1 text-xs text-zinc-400">
-              Ad ID: <span className="font-mono text-zinc-500">{ad.id}</span>
+            <p className="mt-1 text-xs text-ink-500">
+              Ad ID: <span className="font-mono text-ink-400">{ad.id}</span>
             </p>
           </div>
 
           {/* Ad Status Badge */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500">Ad State:</span>
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full font-semibold border capitalize ${
-                ad.computed_status === "live"
-                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                  : ad.computed_status === "draft"
-                  ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                  : ad.computed_status === "closed"
-                  ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
-                  : "bg-zinc-700/40 text-zinc-400 border-zinc-600/30"
-              }`}
-            >
-              {ad.computed_status}
-            </span>
+            <span className="text-xs text-ink-500">Ad State:</span>
+            <StatusBadge status={ad.computed_status} />
           </div>
         </div>
 
         {/* Version Switcher Bar */}
-        <div className="mt-6 flex items-center justify-between border-t border-zinc-800/80 pt-4">
+        <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
           <div className="flex items-center gap-2 overflow-x-auto">
-            <span className="text-xs text-zinc-500 mr-1 font-medium">Versions:</span>
+            <span className="text-xs text-ink-500 mr-1 font-medium">Versions:</span>
             {ad.versions
               .sort((a, b) => a.version_number - b.version_number)
               .map((v) => {
@@ -422,16 +414,16 @@ export default function AdVersionEditorPage({ params }: PageProps) {
                   <Link
                     key={v.version_number}
                     href={`/exporter/ads/${adId}/versions/${v.version_number}`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                       isSelected
-                        ? "bg-zinc-800 text-teal-400 border border-teal-500/40 shadow-sm"
-                        : "bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                        ? "bg-brand-50 text-brand-700 border border-brand-200"
+                        : "bg-paper-sunken text-ink-500 hover:text-ink-900 border border-border"
                     }`}
                   >
                     <span>v{v.version_number}</span>
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
-                        v.status === "published" ? "bg-emerald-400" : "bg-amber-400"
+                        v.status === "published" ? "bg-success" : "bg-warning"
                       }`}
                     />
                     <span className="capitalize text-[10px] opacity-75">({v.status})</span>
@@ -442,81 +434,57 @@ export default function AdVersionEditorPage({ params }: PageProps) {
 
           {/* New Draft Button if on published version and no draft exists */}
           {!isAdClosed && !hasExistingDraft && (
-            <button
-              onClick={handleCreateNewDraft}
-              disabled={creatingDraft}
-              className="px-3.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-semibold transition-all"
-            >
+            <Button onClick={handleCreateNewDraft} disabled={creatingDraft} variant="secondary" size="sm">
               {creatingDraft ? "Creating Draft…" : "+ New Draft Version"}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* State Alerts */}
-      {ENABLE_AD_STATS && isAdClosed && ad.closed_reason?.startsWith("taken_down:") && (
-        <div className="mt-6 p-4 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs flex items-start gap-3">
-          <span className="text-base shrink-0">⛔</span>
-          <div>
-            <p className="font-semibold text-red-200">This ad was removed by an administrator</p>
-            <p className="text-red-400/90 mt-0.5">
-              Reason:{" "}
-              <span className="italic font-medium">
-                {ad.closed_reason.replace("taken_down: ", "")}
-              </span>
-            </p>
-            <p className="text-red-500/70 mt-1">
-              Close, new-version, and publish actions are disabled. Contact support if you believe this is an error.
-            </p>
-          </div>
-        </div>
-      )}
+      <div className="space-y-4 mb-6">
+        {ENABLE_AD_STATS && isAdClosed && ad.closed_reason?.startsWith("taken_down:") && (
+          <Alert tone="danger" title="This ad was removed by an administrator">
+            Reason:{" "}
+            <span className="italic font-medium">
+              {ad.closed_reason.replace("taken_down: ", "")}
+            </span>
+            <br />
+            Close, new-version, and publish actions are disabled. Contact support if
+            you believe this is an error.
+          </Alert>
+        )}
 
-      {isAdClosed && (
-        <div className="mt-6 p-4 rounded-xl bg-rose-950/30 border border-rose-800/40 text-rose-300 text-xs flex items-center gap-3">
-          <span className="text-base">🚫</span>
-          <div>
-            <p className="font-semibold text-rose-200">Advertisement Closed</p>
-            <p className="text-rose-400/90 mt-0.5">
-              This advertisement is closed and cannot be updated. Reason:{" "}
-              <span className="italic font-medium">{ad.closed_reason || "None specified"}</span>.
-            </p>
-          </div>
-        </div>
-      )}
+        {isAdClosed && (
+          <Alert tone="danger" title="Advertisement closed">
+            This advertisement is closed and cannot be updated. Reason:{" "}
+            <span className="italic font-medium">{ad.closed_reason || "None specified"}</span>.
+          </Alert>
+        )}
 
-      {isPublished && !isAdClosed && (
-        <div className="mt-6 p-4 rounded-xl bg-emerald-950/30 border border-emerald-800/40 text-emerald-300 text-xs flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-base">🔒</span>
-            <div>
-              <p className="font-semibold text-emerald-200">
-                Version {versionNum} is Published (Immutable)
-              </p>
-              <p className="text-emerald-400/90 mt-0.5">
-                Published versions cannot be modified to ensure integrity for contracted farmers.
-                To adjust terms, create a new draft version.
-              </p>
-            </div>
-          </div>
-
-          {!hasExistingDraft && (
-            <button
-              onClick={handleCreateNewDraft}
-              disabled={creatingDraft}
-              className="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-zinc-950 text-xs font-bold transition-all shadow-md shrink-0"
-            >
-              Create New Draft
-            </button>
-          )}
-        </div>
-      )}
+        {isPublished && !isAdClosed && (
+          <Alert
+            tone="success"
+            title={`Version ${versionNum} is published (immutable)`}
+            action={
+              !hasExistingDraft ? (
+                <Button onClick={handleCreateNewDraft} disabled={creatingDraft} size="sm">
+                  Create New Draft
+                </Button>
+              ) : undefined
+            }
+          >
+            Published versions cannot be modified to ensure integrity for
+            contracted farmers. To adjust terms, create a new draft version.
+          </Alert>
+        )}
+      </div>
 
       {/* Stats card — shown for live/expired/closed published ads */}
       {ENABLE_AD_STATS && stats && (
-        <div className="mt-6 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-          <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
-            <span className="w-5 h-5 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs">📊</span>
+        <Card className="mb-6 space-y-4">
+          <h3 className="font-display text-sm font-semibold text-ink-900 flex items-center gap-2">
+            <ChartIcon className="w-4 h-4 text-brand-700" />
             Ad Performance
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -526,88 +494,74 @@ export default function AdVersionEditorPage({ params }: PageProps) {
               { label: "Accepts", value: stats.accepts.total },
               { label: "Accept Rate", value: `${stats.view_to_accept_rate.toFixed(1)}%` },
             ].map((s) => (
-              <div key={s.label} className="bg-zinc-950/60 rounded-xl p-3 border border-zinc-800">
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{s.label}</p>
-                <p className="text-lg font-bold text-zinc-100 mt-0.5">{s.value}</p>
+              <div key={s.label} className="bg-paper-sunken rounded-lg p-3 border border-border">
+                <p className="text-[10px] text-ink-500 uppercase tracking-wider">{s.label}</p>
+                <p className="text-lg font-display font-semibold text-ink-900 mt-0.5">{s.value}</p>
               </div>
             ))}
           </div>
           {/* Approved vs target progress bar */}
           <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-zinc-400">
+            <div className="flex justify-between text-xs text-ink-500">
               <span>Approved quantity</span>
               <span>{stats.approved_quantity_kg.toFixed(0)} / {stats.target_quantity_kg.toFixed(0)} kg</span>
             </div>
-            <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+            <div className="h-2 rounded-full bg-paper-sunken overflow-hidden border border-border">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all"
+                className="h-full rounded-full bg-brand-700 transition-all"
                 style={{ width: `${Math.min(100, stats.filled_percentage)}%` }}
               />
             </div>
-            <p className="text-[10px] text-zinc-500">{stats.filled_percentage.toFixed(1)}% filled</p>
+            <p className="text-[10px] text-ink-500">{stats.filled_percentage.toFixed(1)}% filled</p>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Form Area */}
-      <div className="mt-6 space-y-8">
+      <div className="space-y-6">
         {/* Section 1: Standard Linkage */}
-        <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
-          <h2 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-bold">
-              1
-            </span>
+        <Card className="space-y-5">
+          <h2 className="font-display text-base font-semibold text-ink-900 flex items-center gap-2.5">
+            <SectionNumber n={1} />
             Target Crop & Quality Standard
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Crop</label>
-              <input
-                type="text"
-                disabled
-                value={ad.crop.toUpperCase()}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800 text-zinc-400 text-sm font-semibold cursor-not-allowed"
-              />
-            </div>
+            <Field label="Crop">
+              <Input type="text" disabled value={ad.crop.toUpperCase()} className="font-semibold" />
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Linked Quality Standard {isReadOnly && "(Locked)"}
-              </label>
+            <Field label={`Linked Quality Standard ${isReadOnly ? "(Locked)" : ""}`}>
               {isReadOnly ? (
-                <div className="px-3.5 py-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800 text-sm text-zinc-300">
+                <div className="px-3.5 py-2.5 rounded-lg bg-paper-sunken border border-border text-sm text-ink-700">
                   {version.standard_name || "Quality Standard"} (v{version.standard_version_number})
                 </div>
               ) : (
-                <select
+                <Select
                   value={selectedStandardVersionId}
                   onChange={(e) => setSelectedStandardVersionId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50"
                 >
                   {publishedStandardOptions.map((opt) => (
                     <option key={opt.versionId} value={opt.versionId}>
                       {opt.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
-            </div>
+            </Field>
           </div>
-        </div>
+        </Card>
 
         {/* Section 2: Multilingual Content */}
-        <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-bold">
-                2
-              </span>
+        <Card className="space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="font-display text-base font-semibold text-ink-900 flex items-center gap-2.5">
+              <SectionNumber n={2} />
               Titles & Descriptions
             </h2>
 
             {/* Language Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-950 border border-zinc-800 text-xs">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-paper-sunken border border-border text-xs">
               {[
                 { id: "en", label: "English *" },
                 { id: "si", label: "සිංහල" },
@@ -617,10 +571,10 @@ export default function AdVersionEditorPage({ params }: PageProps) {
                   type="button"
                   key={t.id}
                   onClick={() => setLangTab(t.id as any)}
-                  className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                  className={`px-3 py-1 rounded-md font-semibold transition-colors ${
                     langTab === t.id
-                      ? "bg-zinc-800 text-teal-400"
-                      : "text-zinc-400 hover:text-zinc-200"
+                      ? "bg-paper-raised text-brand-700 shadow-sm"
+                      : "text-ink-500 hover:text-ink-900"
                   }`}
                 >
                   {t.label}
@@ -631,156 +585,120 @@ export default function AdVersionEditorPage({ params }: PageProps) {
 
           {langTab === "en" && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                  Title (English) <span className="text-red-400">*</span>
-                </label>
-                <input
+              <Field label="Title (English)" required>
+                <Input
                   type="text"
                   disabled={isReadOnly}
                   value={titleEn}
                   onChange={(e) => setTitleEn(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                  Description (English) <span className="text-red-400">*</span>
-                </label>
-                <textarea
+              </Field>
+              <Field label="Description (English)" required>
+                <Textarea
                   rows={4}
                   disabled={isReadOnly}
                   value={descEn}
                   onChange={(e) => setDescEn(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                 />
-              </div>
+              </Field>
             </div>
           )}
 
           {langTab === "si" && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                  Title (Sinhala)
-                </label>
-                <input
+              <Field label="Title (Sinhala)">
+                <Input
                   type="text"
                   disabled={isReadOnly}
                   value={titleSi}
                   onChange={(e) => setTitleSi(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                  Description (Sinhala)
-                </label>
-                <textarea
+              </Field>
+              <Field label="Description (Sinhala)">
+                <Textarea
                   rows={4}
                   disabled={isReadOnly}
                   value={descSi}
                   onChange={(e) => setDescSi(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                 />
-              </div>
+              </Field>
             </div>
           )}
 
           {langTab === "ta" && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                  Title (Tamil)
-                </label>
-                <input
+              <Field label="Title (Tamil)">
+                <Input
                   type="text"
                   disabled={isReadOnly}
                   value={titleTa}
                   onChange={(e) => setTitleTa(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                  Description (Tamil)
-                </label>
-                <textarea
+              </Field>
+              <Field label="Description (Tamil)">
+                <Textarea
                   rows={4}
                   disabled={isReadOnly}
                   value={descTa}
                   onChange={(e) => setDescTa(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                 />
-              </div>
+              </Field>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Section 3: Quantity, Grade & Pricing */}
-        <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
-          <h2 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-bold">
-              3
-            </span>
+        <Card className="space-y-5">
+          <h2 className="font-display text-base font-semibold text-ink-900 flex items-center gap-2.5">
+            <SectionNumber n={3} />
             Volume, Grade & Pricing
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Target Quantity (kg) <span className="text-red-400">*</span>
-              </label>
-              <input
+            <Field label="Target Quantity (kg)" required>
+              <Input
                 type="number"
                 disabled={isReadOnly}
                 min="1"
                 step="any"
                 value={quantityKg}
                 onChange={(e) => setQuantityKg(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Grade / Tier Specification
-              </label>
-              <input
+            <Field label="Grade / Tier Specification">
+              <Input
                 type="text"
                 disabled={isReadOnly}
                 value={gradeTier}
                 onChange={(e) => setGradeTier(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="pt-3 border-t border-zinc-800/80">
-            <label className="block text-xs font-semibold text-zinc-400 mb-2">
-              Pricing Structure
-            </label>
+          <div className="pt-4 border-t border-border">
+            <label className="block text-xs font-semibold text-ink-700 mb-2">Pricing Structure</label>
             {!isReadOnly && (
               <div className="flex items-center gap-4 mb-3">
-                <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs text-ink-700 cursor-pointer">
                   <input
                     type="radio"
                     name="priceType"
                     value="fixed"
                     checked={priceType === "fixed"}
                     onChange={() => setPriceType("fixed")}
-                    className="accent-teal-500"
+                    className="accent-brand-700"
                   />
                   Fixed Price
                 </label>
-                <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs text-ink-700 cursor-pointer">
                   <input
                     type="radio"
                     name="priceType"
                     value="range"
                     checked={priceType === "range"}
                     onChange={() => setPriceType("range")}
-                    className="accent-teal-500"
+                    className="accent-brand-700"
                   />
                   Price Range
                 </label>
@@ -790,131 +708,101 @@ export default function AdVersionEditorPage({ params }: PageProps) {
             <div>
               {priceType === "fixed" ? (
                 <div className="max-w-xs">
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">
-                    Fixed Price (LKR per kg)
-                  </label>
-                  <input
-                    type="number"
-                    disabled={isReadOnly}
-                    min="1"
-                    step="0.01"
-                    value={priceFixed}
-                    onChange={(e) => setPriceFixed(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
-                  />
+                  <Field label="Fixed Price (LKR per kg)">
+                    <Input
+                      type="number"
+                      disabled={isReadOnly}
+                      min="1"
+                      step="0.01"
+                      value={priceFixed}
+                      onChange={(e) => setPriceFixed(e.target.value)}
+                    />
+                  </Field>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1">
-                      Min Price (LKR / kg)
-                    </label>
-                    <input
+                  <Field label="Min Price (LKR / kg)">
+                    <Input
                       type="number"
                       disabled={isReadOnly}
                       min="1"
                       step="0.01"
                       value={priceMin}
                       onChange={(e) => setPriceMin(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1">
-                      Max Price (LKR / kg)
-                    </label>
-                    <input
+                  </Field>
+                  <Field label="Max Price (LKR / kg)">
+                    <Input
                       type="number"
                       disabled={isReadOnly}
                       min="1"
                       step="0.01"
                       value={priceMax}
                       onChange={(e) => setPriceMax(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
                     />
-                  </div>
+                  </Field>
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Section 4: Timeline & Dates */}
-        <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
-          <h2 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-bold">
-              4
-            </span>
+        <Card className="space-y-5">
+          <h2 className="font-display text-base font-semibold text-ink-900 flex items-center gap-2.5">
+            <SectionNumber n={4} />
             Collection Timeline & Expiry
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Collection Window Start
-              </label>
-              <input
+            <Field label="Collection Window Start">
+              <Input
                 type="date"
                 disabled={isReadOnly}
                 value={collectionStart}
                 onChange={(e) => setCollectionStart(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Collection Window End
-              </label>
-              <input
+            <Field label="Collection Window End">
+              <Input
                 type="date"
                 disabled={isReadOnly}
                 value={collectionEnd}
                 onChange={(e) => setCollectionEnd(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Advertisement Expiry Date
-              </label>
-              <input
+            <Field label="Advertisement Expiry Date">
+              <Input
                 type="date"
                 disabled={isReadOnly}
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
           </div>
-        </div>
+        </Card>
 
         {/* Section 5: Logistics & Districts */}
-        <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
-          <h2 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-bold">
-              5
-            </span>
+        <Card className="space-y-5">
+          <h2 className="font-display text-base font-semibold text-ink-900 flex items-center gap-2.5">
+            <SectionNumber n={5} />
             Logistics & Eligible Districts
           </h2>
 
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-              Pickup / Drop-off Location
-            </label>
-            <input
+          <Field label="Pickup / Drop-off Location">
+            <Input
               type="text"
               disabled={isReadOnly}
               value={pickupLocation}
               onChange={(e) => setPickupLocation(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
             />
-          </div>
+          </Field>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-zinc-400">
+              <label className="text-xs font-semibold text-ink-700">
                 Eligible Districts ({selectedDistricts.length} selected)
               </label>
               {!isReadOnly && (
@@ -922,15 +810,15 @@ export default function AdVersionEditorPage({ params }: PageProps) {
                   <button
                     type="button"
                     onClick={() => setSelectedDistricts([...SRI_LANKA_DISTRICTS])}
-                    className="text-teal-400 hover:underline"
+                    className="text-brand-700 font-semibold hover:underline"
                   >
                     Select All
                   </button>
-                  <span className="text-zinc-600">|</span>
+                  <span className="text-ink-300">|</span>
                   <button
                     type="button"
                     onClick={() => setSelectedDistricts([])}
-                    className="text-zinc-400 hover:underline"
+                    className="text-ink-500 font-semibold hover:underline"
                   >
                     Clear
                   </button>
@@ -938,24 +826,22 @@ export default function AdVersionEditorPage({ params }: PageProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-3 rounded-xl bg-zinc-950 border border-zinc-800">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-3 rounded-lg bg-paper-sunken border border-border">
               {SRI_LANKA_DISTRICTS.map((district) => {
                 const checked = selectedDistricts.includes(district);
                 return (
                   <label
                     key={district}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-                      checked
-                        ? "bg-teal-500/15 text-teal-300 font-medium"
-                        : "text-zinc-400"
-                    } ${isReadOnly ? "cursor-not-allowed opacity-75" : "cursor-pointer hover:bg-zinc-900"}`}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
+                      checked ? "bg-brand-50 text-brand-700 font-semibold" : "text-ink-500"
+                    } ${isReadOnly ? "cursor-not-allowed opacity-75" : "cursor-pointer hover:bg-paper-raised"}`}
                   >
                     <input
                       type="checkbox"
                       disabled={isReadOnly}
                       checked={checked}
                       onChange={() => toggleDistrict(district)}
-                      className="accent-teal-500 rounded"
+                      className="accent-brand-700 rounded"
                     />
                     {district}
                   </label>
@@ -963,137 +849,93 @@ export default function AdVersionEditorPage({ params }: PageProps) {
               })}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Section 6: Terms */}
-        <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
-          <h2 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-bold">
-              6
-            </span>
+        <Card className="space-y-5">
+          <h2 className="font-display text-base font-semibold text-ink-900 flex items-center gap-2.5">
+            <SectionNumber n={6} />
             Commercial Terms
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Payment Timing
-              </label>
-              <input
+            <Field label="Payment Timing">
+              <Input
                 type="text"
                 disabled={isReadOnly}
                 value={paymentTiming}
                 onChange={(e) => setPaymentTiming(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Rejection Handling
-              </label>
-              <input
+            <Field label="Rejection Handling">
+              <Input
                 type="text"
                 disabled={isReadOnly}
                 value={rejectionHandling}
                 onChange={(e) => setRejectionHandling(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Packaging
-              </label>
-              <input
+            <Field label="Packaging">
+              <Input
                 type="text"
                 disabled={isReadOnly}
                 value={packaging}
                 onChange={(e) => setPackaging(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Transport Responsibility
-              </label>
-              <input
+            <Field label="Transport Responsibility">
+              <Input
                 type="text"
                 disabled={isReadOnly}
                 value={transportResponsibility}
                 onChange={(e) => setTransportResponsibility(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-teal-500/50 disabled:bg-zinc-950/60 disabled:cursor-not-allowed"
               />
-            </div>
+            </Field>
           </div>
-        </div>
+        </Card>
 
         {/* Footer Actions (Only visible in draft mode) */}
         {!isReadOnly && (
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
-            <button
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+            <Button
               type="button"
+              variant="secondary"
               onClick={handleSaveDraft}
               disabled={saving || publishing}
-              className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-semibold transition-all disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save Draft"}
-            </button>
+            </Button>
 
-            <button
-              type="button"
-              onClick={handlePublish}
-              disabled={saving || publishing}
-              className="px-6 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-zinc-950 text-sm font-bold shadow-lg shadow-teal-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-            >
+            <Button type="button" onClick={handlePublish} disabled={saving || publishing}>
               {publishing ? "Publishing…" : "Publish Version"}
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {/* Close Modal */}
-      {showCloseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-zinc-100">Close Advertisement</h3>
-            <p className="mt-2 text-sm text-zinc-400">
-              Closing this advertisement marks it as closed immediately. Farmers will no longer see it as active.
-            </p>
-
-            <div className="mt-4">
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Closure Reason
-              </label>
-              <textarea
-                rows={3}
-                value={closeReason}
-                onChange={(e) => setCloseReason(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-rose-500/50"
-              />
-            </div>
-
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowCloseModal(false)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleCloseAd}
-                disabled={closing}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition-all disabled:opacity-50"
-              >
-                {closing ? "Closing…" : "Confirm Close"}
-              </button>
-            </div>
-          </div>
+      <ConfirmModal
+        open={showCloseModal}
+        onClose={() => setShowCloseModal(false)}
+        onConfirm={handleCloseAd}
+        title="Close Advertisement"
+        confirmLabel="Confirm Close"
+        confirmVariant="danger"
+        loading={closing}
+      >
+        <p className="text-sm text-ink-700">
+          Closing this advertisement marks it as closed immediately. Farmers
+          will no longer see it as active.
+        </p>
+        <div className="mt-4">
+          <Field label="Closure Reason">
+            <Textarea rows={3} value={closeReason} onChange={(e) => setCloseReason(e.target.value)} />
+          </Field>
         </div>
-      )}
+      </ConfirmModal>
     </div>
   );
 }

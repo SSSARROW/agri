@@ -12,6 +12,13 @@ import {
   StandardData,
   VersionSummary,
 } from "@/lib/standardsApi";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Toast, ToastState } from "@/components/ui/toast";
+import { SectionSpinner } from "@/components/ui/spinner";
 
 export default function ExporterStandardDetailPage() {
   const params = useParams();
@@ -21,7 +28,7 @@ export default function ExporterStandardDetailPage() {
   const [standard, setStandard] = useState<StandardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
 
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -101,23 +108,16 @@ export default function ExporterStandardDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="p-8 py-20 text-center space-y-3 text-white">
-        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-zinc-400 text-xs font-medium">Loading standard details...</p>
-      </div>
-    );
+    return <SectionSpinner />;
   }
 
   if (error || !standard) {
     return (
-      <div className="p-8 max-w-4xl mx-auto space-y-4 text-white">
-        <Link href="/exporter/standards" className="text-xs text-teal-400 hover:underline">
+      <div className="max-w-4xl mx-auto space-y-4">
+        <Link href="/exporter/standards" className="text-xs font-semibold text-brand-700 hover:text-brand-800">
           ← Back to Quality Standards
         </Link>
-        <div className="p-6 rounded-2xl bg-red-950/50 border border-red-500/30 text-red-300 text-sm">
-          {error || "Standard not found"}
-        </div>
+        <Alert tone="danger" title={error || "Standard not found"} />
       </div>
     );
   }
@@ -127,116 +127,84 @@ export default function ExporterStandardDetailPage() {
   const hasPublished = versions.some((v) => v.status === "published");
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6 text-white">
-      {/* Toast Banner */}
-      {toast && (
-        <div
-          className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-2xl border backdrop-blur-xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-4 ${
-            toast.type === "success"
-              ? "bg-emerald-950/90 border-emerald-500/40 text-emerald-200"
-              : "bg-red-950/90 border-red-500/40 text-red-200"
-          }`}
+    <div className="max-w-6xl mx-auto">
+      <Toast toast={toast} />
+
+      <div className="mb-4">
+        <Link
+          href="/exporter/standards"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
         >
-          <span>{toast.type === "success" ? "✅" : "⚠️"}</span>
-          <span>{toast.message}</span>
-        </div>
-      )}
-
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
-        <div>
-          <Link href="/exporter/standards" className="text-xs text-zinc-400 hover:text-white transition-colors mb-2 inline-block">
-            ← Back to Standards List
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{standard.crop === "tea" ? "🌱" : "🪵"}</span>
-            <div>
-              <h1 className="text-2xl font-black tracking-tight capitalize">
-                {standard.crop} Quality Standard
-              </h1>
-              <p className="text-xs text-zinc-400">ID: {standard.id}</p>
-            </div>
-            {standard.is_archived && (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                📦 Archived
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            disabled={actionLoading || hasDraft || !hasPublished}
-            onClick={handleCreateDraft}
-            title={
-              hasDraft
-                ? "A draft version already exists. Edit the current draft first."
-                : !hasPublished
-                ? "Must have at least one published version before creating a new draft."
-                : "Create a new draft version by copying latest published version"
-            }
-            className="px-3.5 py-2 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/30 text-teal-300 text-xs font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            + New Draft Version
-          </button>
-
-          <button
-            disabled={actionLoading}
-            onClick={handleDuplicate}
-            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-semibold rounded-xl transition-all"
-          >
-            📋 Duplicate Standard
-          </button>
-
-          <button
-            disabled={actionLoading}
-            onClick={handleToggleArchive}
-            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-amber-300 text-xs font-semibold rounded-xl transition-all"
-          >
-            {standard.is_archived ? "🔓 Unarchive" : "📦 Archive"}
-          </button>
-        </div>
+          ← Back to Standards List
+        </Link>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <Badge tone="neutral" className="capitalize">{standard.crop}</Badge>
+        {standard.is_archived && <Badge tone="warning">Archived</Badge>}
+        <span className="text-xs text-ink-400">ID: {standard.id}</span>
+      </div>
+
+      <PageHeader
+        title={<span className="capitalize">{standard.crop} Quality Standard</span>}
+        action={
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="secondary"
+              disabled={actionLoading || hasDraft || !hasPublished}
+              onClick={handleCreateDraft}
+              title={
+                hasDraft
+                  ? "A draft version already exists. Edit the current draft first."
+                  : !hasPublished
+                  ? "Must have at least one published version before creating a new draft."
+                  : "Create a new draft version by copying latest published version"
+              }
+            >
+              + New Draft Version
+            </Button>
+
+            <Button variant="secondary" disabled={actionLoading} onClick={handleDuplicate}>
+              Duplicate Standard
+            </Button>
+
+            <Button variant="secondary" disabled={actionLoading} onClick={handleToggleArchive}>
+              {standard.is_archived ? "Unarchive" : "Archive"}
+            </Button>
+          </div>
+        }
+      />
+
       {/* Main Content: Versions Table / Timeline */}
-      <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 backdrop-blur-xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-          <h2 className="text-base font-bold text-zinc-100 flex items-center gap-2">
-            <span>📜</span> Versions History
-          </h2>
-          <span className="text-xs text-zinc-400">{versions.length} Total Versions</span>
-        </div>
+      <Card>
+        <CardHeader
+          title="Versions History"
+          action={<span className="text-xs text-ink-500">{versions.length} total versions</span>}
+        />
 
         {versions.length === 0 ? (
-          <div className="py-12 text-center text-zinc-500 text-xs">No version records found.</div>
+          <div className="py-12 text-center text-sm text-ink-500">No version records found.</div>
         ) : (
           <div className="space-y-3">
             {versions.map((ver) => (
               <div
                 key={ver.id}
-                className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-zinc-700 transition-all"
+                className="p-4 bg-paper-sunken border border-border rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-border-strong transition-colors"
               >
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-sm text-zinc-100">
+                    <span className="font-semibold text-sm text-ink-900">
                       Version {ver.version_number}: {ver.name}
                     </span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
-                        ver.status === "published"
-                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                          : "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                      }`}
-                    >
+                    <Badge tone={ver.status === "published" ? "success" : "warning"}>
                       {ver.status}
-                    </span>
+                    </Badge>
                   </div>
 
-                  <div className="text-[11px] text-zinc-500 flex items-center gap-4">
+                  <div className="text-[11px] text-ink-500 flex items-center gap-4">
                     <span>Created: {new Date(ver.created_at).toLocaleString()}</span>
                     {ver.published_at && (
-                      <span className="text-emerald-400">
+                      <span className="text-success">
                         Published: {new Date(ver.published_at).toLocaleString()}
                       </span>
                     )}
@@ -244,22 +212,20 @@ export default function ExporterStandardDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <Link
+                  <Button
                     href={`/exporter/standards/${id}/versions/${ver.version_number}`}
-                    className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all w-full sm:w-auto text-center border ${
-                      ver.status === "draft"
-                        ? "bg-teal-500 text-black hover:bg-teal-400 font-bold border-teal-500 shadow"
-                        : "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700"
-                    }`}
+                    variant={ver.status === "draft" ? "primary" : "secondary"}
+                    size="sm"
+                    className="w-full sm:w-auto"
                   >
-                    {ver.status === "draft" ? "Edit Draft ✏️" : "View Read-Only Spec 👁️"}
-                  </Link>
+                    {ver.status === "draft" ? "Edit Draft" : "View Read-Only Spec"}
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

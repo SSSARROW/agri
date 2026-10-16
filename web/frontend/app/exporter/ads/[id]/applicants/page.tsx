@@ -10,6 +10,16 @@ import {
   AdApplicantsResponse,
 } from "@/lib/adsApi";
 import { fetchExporterProfile, ExporterProfile } from "@/lib/exporterApi";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input, Field, Textarea } from "@/components/ui/field";
+import { Alert } from "@/components/ui/alert";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SectionSpinner } from "@/components/ui/spinner";
+import { Toast, ToastState } from "@/components/ui/toast";
+import { ConfirmModal } from "@/components/ui/modal";
+import { ChevronRightIcon, UsersIcon } from "@/components/ui/icons";
 
 interface PageProps {
   params: Promise<{
@@ -25,7 +35,7 @@ export default function AdApplicantsPage({ params }: PageProps) {
   const [profile, setProfile] = useState<ExporterProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
 
   // Filters & Pagination
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -103,119 +113,82 @@ export default function AdApplicantsPage({ params }: PageProps) {
 
   const isVerified = profile?.status === "verified";
 
-  const getStatusBadge = (status: ApplicantItem["derived_status"]) => {
-    switch (status) {
-      case "approved":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Approved
-          </span>
-        );
-      case "pending":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            Pending Review
-          </span>
-        );
-      case "declined":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-            Declined
-          </span>
-        );
-      case "withdrawn":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-700/40 text-zinc-400 border border-zinc-600/30">
-            Withdrawn
-          </span>
-        );
-      case "removed":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-400 border border-zinc-700">
-            Removed
-          </span>
-        );
-    }
+  const STATUS_LABELS: Record<ApplicantItem["derived_status"], string> = {
+    approved: "Approved",
+    pending: "Pending Review",
+    declined: "Declined",
+    withdrawn: "Withdrawn",
+    removed: "Removed",
   };
 
   const progressPercent = data && data.target_quantity_kg > 0
     ? Math.min(100, Math.round((data.approved_quantity_kg / data.target_quantity_kg) * 100))
     : 0;
 
+  const STATUS_TABS = [
+    { id: "", label: "All Applicants" },
+    { id: "pending", label: "Pending" },
+    { id: "approved", label: "Approved" },
+    { id: "declined", label: "Declined" },
+    { id: "withdrawn", label: "Withdrawn" },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      {/* Toast */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl border text-sm font-medium shadow-2xl backdrop-blur-md transition-all ${
-            toast.type === "success"
-              ? "bg-emerald-950/90 text-emerald-200 border-emerald-700/50"
-              : "bg-red-950/90 text-red-200 border-red-700/50"
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
+    <div className="max-w-7xl mx-auto">
+      <Toast toast={toast} />
 
       {/* Header */}
-      <div className="pb-6 border-b border-zinc-800">
+      <div className="pb-6 border-b border-border mb-6">
         <Link
           href={`/exporter/ads/${adId}`}
-          className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="text-xs font-semibold text-ink-500 hover:text-ink-900 inline-flex items-center gap-1 transition-colors"
         >
-          ← Back to Advertisement
+          <ChevronRightIcon className="w-3.5 h-3.5 rotate-180" /> Back to Advertisement
         </Link>
 
         <div className="mt-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider bg-paper-sunken text-ink-700 border border-border">
                 {data?.crop || "Ad"}
               </span>
-              <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+              <h1 className="font-display text-2xl font-semibold text-ink-900">
                 Purchase Request Applicants
               </h1>
             </div>
-            <p className="mt-1 text-xs text-zinc-400">
+            <p className="mt-1 text-xs text-ink-500">
               Review and approve supply proposals from local smallholder farmers.
             </p>
           </div>
 
-          {data?.is_filled && (
-            <div className="px-3.5 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              Target Capacity Fulfilled (100%)
-            </div>
-          )}
+          {data?.is_filled && <Badge tone="success">Target Capacity Fulfilled (100%)</Badge>}
         </div>
 
         {/* Capacity Summary Progress Card */}
         {data && (
-          <div className="mt-6 p-5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+          <Card className="mt-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               <div>
-                <span className="text-zinc-500 block mb-0.5">Target Volume</span>
-                <span className="text-base font-bold text-zinc-100">
+                <span className="text-ink-500 block mb-0.5">Target Volume</span>
+                <span className="text-base font-display font-semibold text-ink-900">
                   {Number(data.target_quantity_kg).toLocaleString()} kg
                 </span>
               </div>
               <div>
-                <span className="text-zinc-500 block mb-0.5">Approved Volume</span>
-                <span className="text-base font-bold text-emerald-400">
+                <span className="text-ink-500 block mb-0.5">Approved Volume</span>
+                <span className="text-base font-display font-semibold text-brand-700">
                   {Number(data.approved_quantity_kg).toLocaleString()} kg
                 </span>
               </div>
               <div>
-                <span className="text-zinc-500 block mb-0.5">Pending Proposals</span>
-                <span className="text-base font-bold text-amber-400">
+                <span className="text-ink-500 block mb-0.5">Pending Proposals</span>
+                <span className="text-base font-display font-semibold text-gold-600">
                   {Number(data.pending_quantity_kg).toLocaleString()} kg
                 </span>
               </div>
               <div>
-                <span className="text-zinc-500 block mb-0.5">Remaining Capacity</span>
-                <span className="text-base font-bold text-teal-300">
+                <span className="text-ink-500 block mb-0.5">Remaining Capacity</span>
+                <span className="text-base font-display font-semibold text-ink-900">
                   {Number(data.remaining_quantity_kg).toLocaleString()} kg
                 </span>
               </div>
@@ -223,57 +196,47 @@ export default function AdApplicantsPage({ params }: PageProps) {
 
             {/* Progress bar */}
             <div className="mt-4">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5 font-medium">
+              <div className="flex items-center justify-between text-[11px] text-ink-500 mb-1.5 font-medium">
                 <span>Progress: {progressPercent}% of target</span>
                 <span>{Number(data.remaining_quantity_kg).toLocaleString()} kg remaining</span>
               </div>
-              <div className="w-full h-2.5 rounded-full bg-zinc-950 overflow-hidden border border-zinc-800">
+              <div className="w-full h-2.5 rounded-full bg-paper-sunken overflow-hidden border border-border">
                 <div
-                  className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-500"
+                  className="h-full bg-brand-700 transition-all duration-500"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
-          </div>
+          </Card>
         )}
       </div>
 
       {/* Unverified Exporter Warning */}
       {!isVerified && profile && (
-        <div className="mt-6 p-4 rounded-xl bg-amber-950/40 border border-amber-600/30 text-amber-200 text-xs flex items-start gap-3">
-          <span className="text-base">⚠️</span>
-          <div>
-            <p className="font-semibold text-amber-100">
-              Account Verification Required for Approvals
-            </p>
-            <p className="text-amber-300/90 mt-0.5">
-              You can review applicant submissions in read-only mode. Approving supply commitments requires an approved and verified exporter profile.
-            </p>
-          </div>
+        <div className="mb-6">
+          <Alert tone="warning" title="Account verification required for approvals">
+            You can review applicant submissions in read-only mode. Approving
+            supply commitments requires an approved and verified exporter
+            profile.
+          </Alert>
         </div>
       )}
 
       {/* Filters & Tabs */}
-      <div className="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         {/* Status Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-800 text-xs overflow-x-auto">
-          {[
-            { id: "", label: "All Applicants" },
-            { id: "pending", label: "Pending" },
-            { id: "approved", label: "Approved" },
-            { id: "declined", label: "Declined" },
-            { id: "withdrawn", label: "Withdrawn" },
-          ].map((tab) => (
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-paper-sunken border border-border text-xs overflow-x-auto">
+          {STATUS_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => {
                 setStatusFilter(tab.id);
                 setPage(1);
               }}
-              className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-md font-semibold whitespace-nowrap transition-colors ${
                 statusFilter === tab.id
-                  ? "bg-zinc-800 text-teal-400 shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-paper-raised text-brand-700 shadow-sm"
+                  : "text-ink-500 hover:text-ink-900"
               }`}
             >
               {tab.label}
@@ -282,8 +245,8 @@ export default function AdApplicantsPage({ params }: PageProps) {
         </div>
 
         {/* Search */}
-        <div className="relative max-w-xs w-full">
-          <input
+        <div className="max-w-xs w-full">
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => {
@@ -291,42 +254,35 @@ export default function AdApplicantsPage({ params }: PageProps) {
               setPage(1);
             }}
             placeholder="Search by farmer name..."
-            className="w-full px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 placeholder-zinc-500 text-xs focus:outline-none focus:border-teal-500/50"
           />
         </div>
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
-          <p className="text-zinc-500 text-xs font-medium">Loading applicant proposals…</p>
-        </div>
+        <SectionSpinner />
       ) : error ? (
-        <div className="my-12 p-6 rounded-2xl bg-red-950/30 border border-red-900/50 text-center">
-          <p className="text-red-300 font-semibold text-sm mb-2">Error Loading Applicants</p>
-          <p className="text-zinc-400 text-xs mb-4">{error}</p>
-          <button
-            onClick={loadApplicants}
-            className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold"
-          >
+        <Card className="text-center">
+          <p className="text-danger font-semibold text-sm mb-2">Error loading applicants</p>
+          <p className="text-ink-500 text-xs mb-4">{error}</p>
+          <Button variant="secondary" size="sm" onClick={loadApplicants}>
             Retry
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : !data || data.items.length === 0 ? (
-        <div className="my-12 p-12 rounded-2xl bg-zinc-900/40 border border-zinc-800 text-center flex flex-col items-center">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-800/60 border border-zinc-700/40 flex items-center justify-center text-2xl mb-3">
-            🌾
-          </div>
-          <h3 className="text-base font-semibold text-zinc-200 mb-1">No Applicants Found</h3>
-          <p className="text-xs text-zinc-400 max-w-sm">
-            {statusFilter || searchQuery
-              ? "No applicants match your current filters. Try resetting status or search."
-              : "No farmers have accepted this advertisement yet. Eligible farmers can accept via the farmer API."}
-          </p>
-        </div>
+        <Card padded={false}>
+          <EmptyState
+            icon={<UsersIcon className="w-6 h-6" />}
+            title="No applicants found"
+            description={
+              statusFilter || searchQuery
+                ? "No applicants match your current filters. Try resetting status or search."
+                : "No farmers have accepted this advertisement yet. Eligible farmers can accept via the farmer API."
+            }
+          />
+        </Card>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4">
           {data.items.map((app) => {
             const isPending = app.derived_status === "pending";
             const acceptedDate = new Date(app.accepted_at).toLocaleDateString(undefined, {
@@ -336,44 +292,32 @@ export default function AdApplicantsPage({ params }: PageProps) {
             });
 
             return (
-              <div
-                key={app.acceptance_id}
-                className="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800 hover:border-zinc-700/80 transition-all"
-              >
+              <Card key={app.acceptance_id} className="hover:border-border-strong transition-colors">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   {/* Farmer Info */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-base font-semibold text-zinc-100">
+                      <h3 className="font-display text-base font-semibold text-ink-900">
                         {app.farmer_name}
                       </h3>
-                      {getStatusBadge(app.derived_status)}
+                      <Badge tone={{ approved: "success" as const, pending: "warning" as const, declined: "danger" as const, withdrawn: "neutral" as const, removed: "neutral" as const }[app.derived_status]}>
+                        {STATUS_LABELS[app.derived_status]}
+                      </Badge>
                     </div>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-500">
                       <span>
-                        <span className="text-zinc-500">District:</span>{" "}
-                        <strong className="text-zinc-300">{app.farmer_district || "Not specified"}</strong>
+                        District: <strong className="text-ink-700">{app.farmer_district || "Not specified"}</strong>
                       </span>
-                      {app.dsd && (
-                        <span>
-                          <span className="text-zinc-500">DSD:</span> {app.dsd}
-                        </span>
-                      )}
-                      {app.farm_size_ha && (
-                        <span>
-                          <span className="text-zinc-500">Farm Size:</span> {app.farm_size_ha} ha
-                        </span>
-                      )}
-                      <span>
-                        <span className="text-zinc-500">Accepted:</span> {acceptedDate}
-                      </span>
+                      {app.dsd && <span>DSD: {app.dsd}</span>}
+                      {app.farm_size_ha && <span>Farm Size: {app.farm_size_ha} ha</span>}
+                      <span>Accepted: {acceptedDate}</span>
                     </div>
 
                     {/* Plots snippet */}
                     {app.plots.length > 0 && (
-                      <div className="mt-2 text-xs text-zinc-400">
-                        <span className="text-zinc-500">Plots:</span>{" "}
+                      <div className="mt-2 text-xs text-ink-500">
+                        Plots:{" "}
                         {app.plots.map((p) => `${p.name} (${p.area_ha ? p.area_ha + " ha" : "N/A"})`).join(", ")}
                       </div>
                     )}
@@ -381,22 +325,22 @@ export default function AdApplicantsPage({ params }: PageProps) {
                     {/* Phone Privacy Section */}
                     <div className="mt-3 text-xs">
                       {app.derived_status === "approved" ? (
-                        <span className="inline-flex items-center gap-1.5 text-emerald-300 font-mono bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-800/30">
-                          📞 {app.phone || "No phone on profile"}
+                        <span className="inline-flex items-center gap-1.5 text-success font-mono bg-success-bg px-2.5 py-1 rounded-lg border border-success-border">
+                          {app.phone || "No phone on profile"}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 text-zinc-500 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800">
-                          🔒 Phone hidden until approved
+                        <span className="inline-flex items-center gap-1.5 text-ink-500 bg-paper-sunken px-2.5 py-1 rounded-lg border border-border">
+                          Phone hidden until approved
                         </span>
                       )}
                     </div>
                   </div>
 
                   {/* Supply Quantity & Actions */}
-                  <div className="flex flex-col sm:flex-row lg:flex-col items-end justify-between gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-zinc-800">
+                  <div className="flex flex-col sm:flex-row lg:flex-col items-end justify-between gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-border">
                     <div className="text-right">
-                      <span className="text-zinc-500 text-xs block">Offered Supply</span>
-                      <span className="text-lg font-bold text-teal-300">
+                      <span className="text-ink-500 text-xs block">Offered Supply</span>
+                      <span className="text-lg font-display font-semibold text-brand-700">
                         {Number(app.supply_quantity_kg).toLocaleString()} kg
                       </span>
                     </div>
@@ -404,25 +348,26 @@ export default function AdApplicantsPage({ params }: PageProps) {
                     {/* Decision Actions */}
                     {isPending && (
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => setDecliningApplicant(app)}
                           disabled={!isVerified || actionLoading}
-                          className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           Decline
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          size="sm"
                           onClick={() => setApprovingApplicant(app)}
                           disabled={!isVerified || actionLoading}
-                          className="px-4 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-zinc-950 text-xs font-bold transition-all shadow-md shadow-teal-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           Approve Supply
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -430,126 +375,99 @@ export default function AdApplicantsPage({ params }: PageProps) {
 
       {/* Pagination */}
       {data && data.total_pages > 1 && (
-        <div className="mt-8 flex items-center justify-between border-t border-zinc-800 pt-4">
-          <p className="text-xs text-zinc-500">
-            Page <span className="font-semibold text-zinc-300">{page}</span> of{" "}
-            <span className="font-semibold text-zinc-300">{data.total_pages}</span>
+        <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
+          <p className="text-xs text-ink-500">
+            Page <span className="font-semibold text-ink-700">{page}</span> of{" "}
+            <span className="font-semibold text-ink-700">{data.total_pages}</span>
           </p>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300 disabled:opacity-40"
             >
               Previous
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setPage((p) => Math.min(data.total_pages, p + 1))}
               disabled={page >= data.total_pages}
-              className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300 disabled:opacity-40"
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* Approve Confirmation Modal */}
-      {approvingApplicant && data && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-zinc-100">
-              Confirm Supply Approval
-            </h3>
-            <p className="mt-2 text-xs text-zinc-400 leading-relaxed">
-              You are approving <strong className="text-zinc-200">{approvingApplicant.farmer_name}</strong> to supply{" "}
-              <strong className="text-teal-300">{Number(approvingApplicant.supply_quantity_kg).toLocaleString()} kg</strong> of harvest.
+      <ConfirmModal
+        open={!!approvingApplicant && !!data}
+        onClose={() => setApprovingApplicant(null)}
+        onConfirm={handleApprove}
+        title="Confirm Supply Approval"
+        confirmLabel="Confirm & Approve"
+        loading={actionLoading}
+      >
+        {approvingApplicant && data && (
+          <>
+            <p className="text-xs text-ink-500 leading-relaxed">
+              You are approving <strong className="text-ink-900">{approvingApplicant.farmer_name}</strong> to supply{" "}
+              <strong className="text-brand-700">{Number(approvingApplicant.supply_quantity_kg).toLocaleString()} kg</strong> of harvest.
               This will create an approved farmer link and disclose the farmer's contact phone number.
             </p>
 
-            <div className="mt-4 p-3 rounded-xl bg-zinc-950 border border-zinc-800/80 space-y-1.5 text-xs">
-              <div className="flex justify-between text-zinc-400">
+            <div className="mt-4 p-3 rounded-lg bg-paper-sunken border border-border space-y-1.5 text-xs">
+              <div className="flex justify-between text-ink-500">
                 <span>Current Approved:</span>
-                <span className="font-semibold text-zinc-200">{Number(data.approved_quantity_kg).toLocaleString()} kg</span>
+                <span className="font-semibold text-ink-900">{Number(data.approved_quantity_kg).toLocaleString()} kg</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-ink-500">
                 <span>New Approval:</span>
-                <span className="font-semibold text-teal-400">+{Number(approvingApplicant.supply_quantity_kg).toLocaleString()} kg</span>
+                <span className="font-semibold text-brand-700">+{Number(approvingApplicant.supply_quantity_kg).toLocaleString()} kg</span>
               </div>
-              <div className="flex justify-between border-t border-zinc-800 pt-1 text-zinc-300 font-bold">
+              <div className="flex justify-between border-t border-border pt-1 text-ink-700 font-bold">
                 <span>Remaining Capacity:</span>
-                <span className="text-emerald-400">
+                <span className="text-success">
                   {Math.max(0, data.remaining_quantity_kg - approvingApplicant.supply_quantity_kg).toLocaleString()} kg
                 </span>
               </div>
             </div>
-
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setApprovingApplicant(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleApprove}
-                disabled={actionLoading}
-                className="px-5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-zinc-950 text-xs font-bold transition-all shadow-md disabled:opacity-50"
-              >
-                {actionLoading ? "Approving…" : "Confirm & Approve"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ConfirmModal>
 
       {/* Decline Reason Modal */}
-      {decliningApplicant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-zinc-100">
-              Decline Application
-            </h3>
-            <p className="mt-2 text-xs text-zinc-400">
-              Decline supply application from <strong className="text-zinc-200">{decliningApplicant.farmer_name}</strong>.
+      <ConfirmModal
+        open={!!decliningApplicant}
+        onClose={() => setDecliningApplicant(null)}
+        onConfirm={handleDecline}
+        title="Decline Application"
+        confirmLabel="Confirm Decline"
+        confirmVariant="danger"
+        loading={actionLoading}
+      >
+        {decliningApplicant && (
+          <>
+            <p className="text-xs text-ink-500">
+              Decline supply application from <strong className="text-ink-900">{decliningApplicant.farmer_name}</strong>.
               You may provide an optional reason.
             </p>
 
             <div className="mt-4">
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
-                Reason for Declining (Optional)
-              </label>
-              <textarea
-                rows={3}
-                value={declineReason}
-                onChange={(e) => setDeclineReason(e.target.value)}
-                placeholder="e.g. Sourcing capacity filled, logistics outside range..."
-                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs focus:outline-none focus:border-rose-500/50"
-              />
+              <Field label="Reason for Declining (Optional)">
+                <Textarea
+                  rows={3}
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  placeholder="e.g. Sourcing capacity filled, logistics outside range..."
+                />
+              </Field>
             </div>
-
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setDecliningApplicant(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDecline}
-                disabled={actionLoading}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition-all disabled:opacity-50"
-              >
-                {actionLoading ? "Declining…" : "Confirm Decline"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ConfirmModal>
     </div>
   );
 }

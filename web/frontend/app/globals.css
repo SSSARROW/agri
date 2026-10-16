@@ -1,26 +1,165 @@
 @import "tailwindcss";
 
+/*
+ * Paramparā design system
+ * ------------------------------------------------------------------
+ * Brand anchor: the same forest green the mobile field app and the
+ * public batch-provenance page already use (AppColors.primary /
+ * #1B5E20 in mobile/lib/theme/app_colors.dart) — the web admin and
+ * exporter portals are a different surface of the same product, not
+ * a different product, so they share its color identity instead of
+ * an unrelated dark teal/zinc template.
+ *
+ * Light-first: a warm paper background (not pure white, not zinc-950)
+ * because this is a professional tool read for long stretches —
+ * verification queues, standards documents, ad copy — not a glanceable
+ * consumer app that benefits from a dark, glowy aesthetic.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand green — 700 is the exact mobile-app primary; the rest of the
+     scale is built around it for hover/bg/border states. */
+  --color-brand-50: #f1f8f0;
+  --color-brand-100: #dfeedc;
+  --color-brand-200: #bddcb6;
+  --color-brand-300: #96c48c;
+  --color-brand-400: #6ba563;
+  --color-brand-500: #468441;
+  --color-brand-600: #2d6b2c;
+  --color-brand-700: #1b5e20;
+  --color-brand-800: #164a1a;
+  --color-brand-900: #123c16;
+  --color-brand-950: #09220c;
+
+  /* Harvest gold — the one deliberate accent, used sparingly (a
+     highlight, a featured tag) so it still reads as a choice. */
+  --color-gold-50: #fdf8ec;
+  --color-gold-100: #faeec9;
+  --color-gold-200: #f3da93;
+  --color-gold-300: #e9c05c;
+  --color-gold-400: #dba934;
+  --color-gold-500: #c8911a;
+  --color-gold-600: #a6730f;
+  --color-gold-700: #845a0f;
+  --color-gold-800: #6c4812;
+  --color-gold-900: #5a3c13;
+
+  /* Warm paper neutrals — ink/paper, not black/zinc. */
+  --color-paper: #faf9f6;
+  --color-paper-raised: #ffffff;
+  --color-paper-sunken: #f2f0ea;
+  --color-ink-900: #1c1b17;
+  --color-ink-700: #3f3d35;
+  --color-ink-500: #6b6859;
+  --color-ink-400: #8d8a78;
+  --color-ink-300: #b4b0a0;
+  --color-border: #e4e1d6;
+  --color-border-strong: #cfcab8;
+
+  /* Semantic — reused verbatim from the mobile app's AppColors so a
+     "verified" badge means the same green everywhere in the product. */
+  --color-success: #1b5e20;
+  --color-success-bg: #e8f5e9;
+  --color-success-border: #bfe2c2;
+  --color-warning: #9a6b00;
+  --color-warning-bg: #fff3e0;
+  --color-warning-border: #f0dba8;
+  --color-danger: #b71c1c;
+  --color-danger-bg: #fdecea;
+  --color-danger-border: #f0bdb9;
+  --color-info: #1d5c8a;
+  --color-info-bg: #e9f2f9;
+  --color-info-border: #bcdaef;
+
+  --shadow-color: 28 27 23;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+  --color-brand-900: var(--color-brand-900);
+  --color-brand-950: var(--color-brand-950);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-gold-50: var(--color-gold-50);
+  --color-gold-100: var(--color-gold-100);
+  --color-gold-200: var(--color-gold-200);
+  --color-gold-300: var(--color-gold-300);
+  --color-gold-400: var(--color-gold-400);
+  --color-gold-500: var(--color-gold-500);
+  --color-gold-600: var(--color-gold-600);
+  --color-gold-700: var(--color-gold-700);
+  --color-gold-800: var(--color-gold-800);
+  --color-gold-900: var(--color-gold-900);
+
+  --color-paper: var(--color-paper);
+  --color-paper-raised: var(--color-paper-raised);
+  --color-paper-sunken: var(--color-paper-sunken);
+  --color-ink-900: var(--color-ink-900);
+  --color-ink-700: var(--color-ink-700);
+  --color-ink-500: var(--color-ink-500);
+  --color-ink-400: var(--color-ink-400);
+  --color-ink-300: var(--color-ink-300);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+  --color-success-border: var(--color-success-border);
+  --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
+  --color-warning-border: var(--color-warning-border);
+  --color-danger: var(--color-danger);
+  --color-danger-bg: var(--color-danger-bg);
+  --color-danger-border: var(--color-danger-border);
+  --color-info: var(--color-info);
+  --color-info-bg: var(--color-info-bg);
+  --color-info-border: var(--color-info-border);
+
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink-900);
+
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-inter);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+}
+
+/* A quiet focus ring that matches the brand instead of the browser's
+   default blue — applied consistently so it never has to be redefined
+   per component. */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+/* Thin, warm-toned scrollbars (webkit) so a long table doesn't fall
+   back to a jarring default gray gutter against the paper background. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 999px;
 }

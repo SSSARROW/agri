@@ -7,6 +7,13 @@ import {
   ExporterProfile,
   ExporterProfileUpdate,
 } from "@/lib/exporterApi";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { StatusBadge } from "@/components/ui/badge";
+import { SectionSpinner } from "@/components/ui/spinner";
 
 const CERTIFICATION_OPTIONS = [
   { value: "organic", label: "Organic" },
@@ -24,67 +31,6 @@ const SRI_LANKA_DISTRICTS = [
 ];
 
 // ── Small helper components ─────────────────────────────────────────────────
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
-      {children}
-    </label>
-  );
-}
-
-function TextInput({
-  name,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-  required,
-}: {
-  name: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <input
-      type={type}
-      name={name}
-      required={required}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className="w-full px-4 py-2.5 rounded-xl bg-zinc-800/80 border border-zinc-700 text-white placeholder-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
-    />
-  );
-}
-
-function TextareaInput({
-  name,
-  value,
-  onChange,
-  placeholder,
-  rows = 3,
-}: {
-  name: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  placeholder?: string;
-  rows?: number;
-}) {
-  return (
-    <textarea
-      name={name}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      rows={rows}
-      className="w-full px-4 py-2.5 rounded-xl bg-zinc-800/80 border border-zinc-700 text-white placeholder-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all resize-none"
-    />
-  );
-}
 
 // Toggle-style multi-select for districts and certifications
 function MultiToggle({
@@ -112,10 +58,10 @@ function MultiToggle({
             key={opt.value}
             type="button"
             onClick={() => toggle(opt.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
               active
-                ? "bg-teal-500/20 border-teal-500/50 text-teal-300"
-                : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                ? "bg-brand-50 border-brand-300 text-brand-700"
+                : "bg-paper-raised border-border text-ink-500 hover:border-border-strong hover:text-ink-700"
             }`}
           >
             {opt.label}
@@ -123,27 +69,6 @@ function MultiToggle({
         );
       })}
     </div>
-  );
-}
-
-// ── Status chip ─────────────────────────────────────────────────────────────
-
-function StatusChip({ status }: { status: string }) {
-  const classes =
-    status === "verified"
-      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-      : status === "rejected"
-      ? "bg-red-500/20 text-red-400 border-red-500/30"
-      : "bg-amber-500/20 text-amber-400 border-amber-500/30";
-  const labels: Record<string, string> = {
-    pending: "⏳ Pending Verification",
-    verified: "✅ Verified",
-    rejected: "❌ Rejected",
-  };
-  return (
-    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${classes}`}>
-      {labels[status] ?? status}
-    </span>
   );
 }
 
@@ -216,21 +141,10 @@ export default function ExporterProfilePage() {
   };
 
   // ── Loading / Error ──
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <SectionSpinner />;
+
   if (error && !profile) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="bg-red-950/40 border border-red-900/50 p-6 rounded-2xl max-w-sm text-center">
-          <p className="text-red-400 font-semibold text-sm">{error}</p>
-        </div>
-      </div>
-    );
+    return <Alert tone="danger" title={error} />;
   }
 
   const districtOptions = SRI_LANKA_DISTRICTS.map((d) => ({
@@ -239,174 +153,156 @@ export default function ExporterProfilePage() {
   }));
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white">Company Profile</h1>
-          <p className="text-zinc-400 text-sm mt-0.5">
-            Manage your business information and export details.
-          </p>
-        </div>
-        {profile && <StatusChip status={profile.status} />}
+    <div className="max-w-3xl mx-auto">
+      <PageHeader
+        eyebrow="Exporter Portal"
+        title="Company Profile"
+        subtitle="Manage your business information and export details."
+        action={profile && <StatusBadge status={profile.status} />}
+      />
+
+      <div className="space-y-6">
+        {/* Rejection reason (if any) */}
+        {profile?.status === "rejected" && profile.rejection_reason && (
+          <Alert tone="danger" title="Application rejected">
+            {profile.rejection_reason}
+          </Alert>
+        )}
+
+        {/* Success message */}
+        {success && <Alert tone="success" title="Profile saved successfully." />}
+
+        {/* Form-level error */}
+        {error && <Alert tone="danger" title={error} />}
+
+        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+          {/* Section: Company Identity */}
+          <Card>
+            <CardHeader title="Company Identity" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <Field label="Company Name" required>
+                <Input
+                  name="company_name"
+                  value={form.company_name ?? ""}
+                  onChange={handleText}
+                  placeholder="Lanka Agri Exports Ltd"
+                  required
+                />
+              </Field>
+              <Field label="Business Reg. No" required>
+                <Input
+                  name="business_reg_no"
+                  value={form.business_reg_no ?? ""}
+                  onChange={handleText}
+                  placeholder="PV-123456"
+                  required
+                />
+              </Field>
+              <Field label="Export Licence No">
+                <Input
+                  name="export_licence_no"
+                  value={form.export_licence_no ?? ""}
+                  onChange={handleText}
+                  placeholder="EXP-2026-987"
+                />
+              </Field>
+              <Field label="Contact Person">
+                <Input
+                  name="contact_person"
+                  value={form.contact_person ?? ""}
+                  onChange={handleText}
+                  placeholder="Nimal Silva"
+                />
+              </Field>
+              <Field label="Contact Phone">
+                <Input
+                  name="phone"
+                  type="tel"
+                  value={form.phone ?? ""}
+                  onChange={handleText}
+                  placeholder="+94 11 234 5678"
+                />
+              </Field>
+              <Field label="Business Email">
+                <Input
+                  name="email"
+                  type="email"
+                  value={form.email ?? ""}
+                  onChange={handleText}
+                  placeholder="exports@company.lk"
+                />
+              </Field>
+            </div>
+            <div className="mt-5">
+              <Field label="Company Description">
+                <Textarea
+                  name="description"
+                  value={form.description ?? ""}
+                  onChange={handleText}
+                  placeholder="Brief description of your company and what you export…"
+                  rows={3}
+                />
+              </Field>
+            </div>
+          </Card>
+
+          {/* Section: Operations */}
+          <Card>
+            <CardHeader title="Operations" />
+            <div className="space-y-5">
+              <div>
+                <p className="text-xs font-semibold text-ink-700 mb-1.5">
+                  Districts Served
+                </p>
+                <MultiToggle
+                  options={districtOptions}
+                  selected={form.districts_served ?? []}
+                  onChange={(next) => setForm({ ...form, districts_served: next })}
+                />
+                {(form.districts_served ?? []).length === 0 && (
+                  <p className="text-ink-500 text-xs mt-2">
+                    Select the districts you source from.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-ink-700 mb-1.5">
+                  Certifications Accepted
+                </p>
+                <MultiToggle
+                  options={CERTIFICATION_OPTIONS}
+                  selected={form.certifications ?? []}
+                  onChange={(next) => setForm({ ...form, certifications: next })}
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Read-only section */}
+          <Card className="bg-paper-sunken">
+            <CardHeader
+              title="Verification Status"
+              subtitle="Read-only — managed by Paramparā administrators."
+            />
+            <div className="flex items-center gap-3">
+              <StatusBadge status={profile?.status ?? "pending"} />
+              {profile?.status === "pending" && (
+                <p className="text-ink-500 text-xs">
+                  Your account is awaiting review by the platform team.
+                </p>
+              )}
+            </div>
+          </Card>
+
+          {/* Submit */}
+          <div className="flex justify-end">
+            <Button type="submit" size="lg" disabled={saving}>
+              {saving ? "Saving…" : "Save Profile"}
+            </Button>
+          </div>
+        </form>
       </div>
-
-      {/* Rejection reason (if any) */}
-      {profile?.status === "rejected" && profile.rejection_reason && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-900/50 text-red-400 text-sm">
-          <span className="font-semibold">Rejection reason: </span>
-          {profile.rejection_reason}
-        </div>
-      )}
-
-      {/* Success message */}
-      {success && (
-        <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-900/50 text-emerald-400 text-sm font-medium flex items-center gap-2">
-          <span>✓</span> Profile saved successfully.
-        </div>
-      )}
-
-      {/* Form-level error */}
-      {error && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-900/50 text-red-400 text-sm font-medium">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} noValidate className="space-y-6">
-        {/* Section: Company Identity */}
-        <section className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 space-y-5">
-          <h2 className="text-xs font-bold text-teal-400 uppercase tracking-widest">
-            Company Identity
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <FieldLabel>Company Name *</FieldLabel>
-              <TextInput
-                name="company_name"
-                value={form.company_name ?? ""}
-                onChange={handleText}
-                placeholder="Lanka Agri Exports Ltd"
-                required
-              />
-            </div>
-            <div>
-              <FieldLabel>Business Reg. No *</FieldLabel>
-              <TextInput
-                name="business_reg_no"
-                value={form.business_reg_no ?? ""}
-                onChange={handleText}
-                placeholder="PV-123456"
-                required
-              />
-            </div>
-            <div>
-              <FieldLabel>Export Licence No</FieldLabel>
-              <TextInput
-                name="export_licence_no"
-                value={form.export_licence_no ?? ""}
-                onChange={handleText}
-                placeholder="EXP-2026-987"
-              />
-            </div>
-            <div>
-              <FieldLabel>Contact Person</FieldLabel>
-              <TextInput
-                name="contact_person"
-                value={form.contact_person ?? ""}
-                onChange={handleText}
-                placeholder="Nimal Silva"
-              />
-            </div>
-            <div>
-              <FieldLabel>Contact Phone</FieldLabel>
-              <TextInput
-                name="phone"
-                type="tel"
-                value={form.phone ?? ""}
-                onChange={handleText}
-                placeholder="+94 11 234 5678"
-              />
-            </div>
-            <div>
-              <FieldLabel>Business Email</FieldLabel>
-              <TextInput
-                name="email"
-                type="email"
-                value={form.email ?? ""}
-                onChange={handleText}
-                placeholder="exports@company.lk"
-              />
-            </div>
-          </div>
-          <div>
-            <FieldLabel>Company Description</FieldLabel>
-            <TextareaInput
-              name="description"
-              value={form.description ?? ""}
-              onChange={handleText}
-              placeholder="Brief description of your company and what you export…"
-              rows={3}
-            />
-          </div>
-        </section>
-
-        {/* Section: Operations */}
-        <section className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 space-y-5">
-          <h2 className="text-xs font-bold text-teal-400 uppercase tracking-widest">
-            Operations
-          </h2>
-
-          <div>
-            <FieldLabel>Districts Served</FieldLabel>
-            <MultiToggle
-              options={districtOptions}
-              selected={form.districts_served ?? []}
-              onChange={(next) => setForm({ ...form, districts_served: next })}
-            />
-            {(form.districts_served ?? []).length === 0 && (
-              <p className="text-zinc-600 text-xs mt-2">
-                Select the districts you source from.
-              </p>
-            )}
-          </div>
-
-          <div>
-            <FieldLabel>Certifications Accepted</FieldLabel>
-            <MultiToggle
-              options={CERTIFICATION_OPTIONS}
-              selected={form.certifications ?? []}
-              onChange={(next) => setForm({ ...form, certifications: next })}
-            />
-          </div>
-        </section>
-
-        {/* Read-only section */}
-        <section className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6 space-y-3">
-          <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-            Verification Status (read-only)
-          </h2>
-          <div className="flex items-center gap-3">
-            <StatusChip status={profile?.status ?? "pending"} />
-            {profile?.status === "pending" && (
-              <p className="text-zinc-500 text-xs">
-                Managed by Paramparā administrators only.
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* Submit */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-8 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg shadow-teal-900/30 transition-all"
-          >
-            {saving ? "Saving…" : "Save Profile"}
-          </button>
-        </div>
-      </form>
     </div>
   );
 }
