@@ -97,6 +97,25 @@ if ENABLE_STAGE_PROOFS:
     app.include_router(exporter_stage_proofs_router)
     app.include_router(farmer_stage_proofs_router)
 
+ENABLE_NOTICE_REMINDERS = os.getenv("ENABLE_NOTICE_REMINDERS", "true").lower() == "true"
+if ENABLE_NOTICE_REMINDERS:
+    from exporter.planting_notices.reminders.router import router as exporter_notice_reminders_router
+    from farmer.notifications.router import router as farmer_notifications_router
+    app.include_router(exporter_notice_reminders_router)
+    app.include_router(farmer_notifications_router)
+
+ENABLE_NOTICE_SCHEDULER = os.getenv("ENABLE_NOTICE_SCHEDULER", "false").lower() == "true"
+if ENABLE_NOTICE_SCHEDULER:
+    from notifications.scheduler import start_scheduler, stop_scheduler
+
+    @app.on_event("startup")
+    async def _on_startup_scheduler():
+        start_scheduler()
+
+    @app.on_event("shutdown")
+    async def _on_shutdown_scheduler():
+        stop_scheduler()
+
 @app.get("/")
 def root():
     return {"status": "ok"}

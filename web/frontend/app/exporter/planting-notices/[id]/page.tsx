@@ -26,6 +26,7 @@ import { Alert } from "@/components/ui/alert";
 import { Toast, ToastState } from "@/components/ui/toast";
 import { ConfirmModal } from "@/components/ui/modal";
 import { SectionSpinner } from "@/components/ui/spinner";
+import { NoticeReminders } from "@/components/exporter/notice-reminders";
 
 const STATE_TONE: Record<string, Tone> = {
   draft: "warning",
@@ -647,6 +648,8 @@ export default function PlantingNoticeDetailPage() {
             />
           )}
         </Card>
+
+        <NoticeReminders noticeId={noticeId} isDraft={notice?.status === "draft"} />
       </div>
 
       {/* Publish Modal Confirmation */}
