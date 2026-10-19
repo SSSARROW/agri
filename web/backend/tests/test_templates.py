@@ -78,10 +78,22 @@ class TestTemplatesRoleEnforcement:
         but NOT 403, which would indicate a role check failure.
         """
         res = client.get("/api/exporter/standards/templates", headers=_exporter_headers())
-        # Role gate passes → must not be 403
-        assert res.status_code != 403, (
-            "Exporter should NOT get 403; role gate is blocking incorrectly."
-        )
+        assert res.status_code == 200, f"Expected 200 for exporter, got {res.status_code}"
+
+    def test_exporter_http_response_content(self):
+        res = client.get("/api/exporter/standards/templates", headers=_exporter_headers())
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["templates"]) == 2
+        assert "tea" in data["grade_spec_fields"]
+        assert "cinnamon" in data["grade_spec_fields"]
+
+    def test_exporter_http_crop_filter(self):
+        res = client.get("/api/exporter/standards/templates?crop=tea", headers=_exporter_headers())
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["templates"]) == 1
+        assert data["templates"][0]["crop"] == "tea"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
