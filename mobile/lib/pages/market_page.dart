@@ -7,6 +7,7 @@ import '../models/exporter_link.dart';
 import '../theme/app_colors.dart';
 import '../widgets/ui_kit.dart';
 import 'ad_detail_page.dart';
+import 'planting_notices_page.dart';
 import 'stage_proofs_page.dart';
 
 String _formatDate(DateTime d) {
@@ -199,6 +200,27 @@ class _MarketPageState extends State<MarketPage> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PlantingNoticesPage()),
+              ),
+              child: const Card(
+                child: ListTile(
+                  leading: IconCircle(Icons.calendar_month_outlined, size: 36),
+                  title: Text(
+                    'Planting notices',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    'Review upcoming season requests from your exporter',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: Icon(Icons.chevron_right, size: 20),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SegmentedButton<_MarketTab>(
