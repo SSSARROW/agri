@@ -13,8 +13,13 @@ class Settings(BaseSettings):
     # short-lived access token plus a separate refresh token, which doesn't
     # exist here yet.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
+    # Required fields with no default crash the whole app at import time
+    # (settings = Settings() below) if unset, not just the "Sign in with
+    # Google" button that actually needs them - defaulting to empty just
+    # means that one button 400s if clicked without real credentials
+    # configured, same as leaving it unset would mean anyway.
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
     BATCH_CODE_SECRET: str = "dev-secret-change-in-prod"
 

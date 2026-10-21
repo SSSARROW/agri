@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,9 +14,15 @@ from exporter.standards.router import router as standards_router
 app = FastAPI(title="Paramparā API")
 
 
+# localhost:3000 always allowed (local dev); CORS_ORIGINS adds any deployed
+# frontend origin(s) on top, comma-separated - e.g. the production web
+# frontend's URL, unknown at code-time since the host assigns it.
+_extra_origins = [
+    o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", *_extra_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,7 +45,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-import os
 from admin.exporter_verification import router as admin_exporter_router
 from exporter.farmers.router import router as exporter_farmers_router
 from farmer.router import router as farmer_exporter_link_router

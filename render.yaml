@@ -33,3 +33,59 @@ services:
         sync: false
       - key: BATCH_CODE_SECRET
         sync: false
+
+  - type: web
+    name: agri-web-backend
+    runtime: python
+    rootDir: web/backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: JWT_ALGORITHM
+        value: HS256
+      # Placeholders - update both to the real agri-web-frontend URL once
+      # that service exists and its Render-assigned URL is known (Render
+      # appends a random suffix to the requested name if it's taken, so
+      # this can't be predicted ahead of time - see agri-api's own URL).
+      - key: FRONTEND_URL
+        value: https://agri-web-frontend.onrender.com
+      - key: CORS_ORIGINS
+        value: https://agri-web-frontend.onrender.com
+      # JWT_SECRET and BATCH_CODE_SECRET must be the EXACT SAME VALUES as
+      # agri-api's - both services verify/generate against one shared
+      # secret each, not their own independent one.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: BATCH_CODE_SECRET
+        sync: false
+      # Optional - "Sign in with Google" 400s without these, nothing else
+      # does. Leave blank in the dashboard if not needed for now.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+  - type: web
+    name: agri-web-frontend
+    runtime: node
+    rootDir: web/frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Baked into the JS bundle at BUILD time (Next.js NEXT_PUBLIC_*
+      # convention) - changing this after the fact needs a rebuild, not
+      # just a restart. Placeholder until agri-web-backend's real URL
+      # is known, same caveat as above.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://agri-web-backend.onrender.com
