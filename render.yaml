@@ -23,6 +23,18 @@ services:
       # Secrets - set these in the Render dashboard (Environment tab) after
       # the service is created, not here. sync: false means "this var exists
       # but its value is entered manually in the dashboard, never committed."
+      #
+      # DATABASE_URL MUST be Supabase's SESSION POOLER connection string
+      # (Supabase dashboard -> Project Settings -> Database -> Connection
+      # string -> "Session pooler" tab), NOT the direct "db.<ref>.supabase.co"
+      # host. The direct host now resolves IPv6-only, and Render's network
+      # has no IPv6 egress - using it crashes every DB-touching request with
+      # "OSError: [Errno 101] Network is unreachable" while /health still
+      # looks fine (confirmed the hard way on 2026-10-21). Use Session mode
+      # specifically, not Transaction mode - asyncpg's prepared-statement
+      # caching doesn't work correctly with transaction-mode pooling.
+      # Expected shape:
+      #   postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
