@@ -609,8 +609,8 @@ class _PlotDetailPageState extends State<PlotDetailPage> {
               Expanded(
                 child: _PlotActionButton(
                   icon: Icons.inventory_2_outlined,
-                  label: 'Batch',
-                  tooltip: 'Register batch',
+                  label: 'Harvest',
+                  tooltip: 'Record a harvest batch',
                   onPressed: () => registerBatchForPlot(
                     context,
                     plot,

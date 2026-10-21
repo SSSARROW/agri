@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../models/plot.dart';
@@ -633,6 +635,12 @@ Future<void> registerBatchForPlot(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  "This records today's harvest from this plot — you'll be "
+                  'asked for a photo of the batch next.',
+                  style: TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
                 _CropField(
                   initialCrop: crop,
                   onSelected: (newCrop) async {
@@ -733,6 +741,41 @@ Future<void> registerBatchForPlot(
   // prompt below needs it, it's usually already resolved.
   final positionFuture = LocationService.getCurrentPosition();
 
+  // Photo is taken *before* the batch is created, not after — a farmer
+  // registering a batch here is also the one harvesting it (a collector
+  // only verifies an existing batch, see collector_home_page.dart), so
+  // this is the one moment evidence exists to capture. Required, not
+  // optional: looping on cancel rather than letting it through with no
+  // photo, same as plot registration's own photo requirement. Taking it
+  // first also means a farmer who backs out entirely leaves no orphan
+  // batch behind with a code and no evidence.
+  File? photoFile;
+  while (photoFile == null) {
+    photoFile = await PhotoCapture.takePhoto();
+    if (photoFile != null || !context.mounted) break;
+    final retry = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Photo required'),
+        content: const Text(
+          'A photo of this batch is required to register it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel registration'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Take photo'),
+          ),
+        ],
+      ),
+    );
+    if (retry != true || !context.mounted) return;
+  }
+  if (!context.mounted) return;
+
   // Unlike a planting record, a batch code is issued by the server — it
   // can't be queued offline the way events can, since there's nothing
   // meaningful to show the farmer until the server hands back a real code.
@@ -750,21 +793,27 @@ Future<void> registerBatchForPlot(
   }
   final batch = result.data!;
 
-  // Photo evidence is prompted but not required — the batch is already
-  // safely created on the server before this runs, so skipping the camera
-  // or a failed upload must never look like registration itself failed.
-  final photoFile = await PhotoCapture.takePhoto();
-  if (photoFile != null && context.mounted) {
-    final position = (await positionFuture).position;
-    await FarmService.uploadPlotPhoto(
-      plotId: plot.id,
-      eventType: 'batch_photo',
-      imageFile: photoFile,
-      batchId: batch.id,
-      lat: position?.latitude,
-      lon: position?.longitude,
-    );
-  }
+  final position = (await positionFuture).position;
+  await FarmService.uploadPlotPhoto(
+    plotId: plot.id,
+    eventType: 'batch_photo',
+    imageFile: photoFile!,
+    batchId: batch.id,
+    lat: position?.latitude,
+    lon: position?.longitude,
+  );
+
+  // Registering the batch *is* the harvest — a farmer can take and sell
+  // their own batches without a collector in the middle, so this records
+  // the collect event directly instead of leaving the batch stuck at
+  // "registered" until someone later scans its own QR to advance it.
+  await EventQueue.add(
+    eventType: 'collect',
+    payload: const {},
+    userId: AuthService.instance.userId,
+    batchId: batch.id,
+  );
+  SyncService.instance.syncNow();
 
   onDone?.call();
   if (!context.mounted) return;
