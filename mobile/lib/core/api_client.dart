@@ -9,11 +9,15 @@ class HealthResult {
 }
 
 class ApiClient {
-  // 10.0.2.2 is the Android emulator's alias for the host machine's localhost,
-  // which is where the FastAPI dev server runs.
+  // Defaults to the deployed api/ so a plain build (no --dart-define) still
+  // produces working QR codes and real connectivity out of the box - local
+  // and deployed share the same Supabase database, so there's no
+  // wrong-environment risk either way. Override with
+  // --dart-define=API_BASE_URL=http://10.0.2.2:8000 (the Android emulator's
+  // alias for the host machine) for fast local-only iteration instead.
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'https://agri-api-6ymr.onrender.com',
   );
 
   static Future<HealthResult> checkHealth() async {

@@ -17,7 +17,7 @@ class AdsService {
   // same host as login/signup, not on ApiClient's api/ host.
   static const _baseUrl = String.fromEnvironment(
     'AUTH_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8001',
+    defaultValue: 'https://agri-web-backend.onrender.com',
   );
 
   static Map<String, String> get _authHeaders => {

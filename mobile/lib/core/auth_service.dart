@@ -22,7 +22,7 @@ class AuthService {
 
   static const _authBaseUrl = String.fromEnvironment(
     'AUTH_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8001',
+    defaultValue: 'https://agri-web-backend.onrender.com',
   );
 
   static const _storage = FlutterSecureStorage();
