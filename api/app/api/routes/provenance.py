@@ -137,18 +137,19 @@ async def build_provenance(db: AsyncSession, batch: Batch, *, scan_warning: str 
         for e in events_result.scalars().all()
     ]
 
-    # Fold in the plot's own origin photos — the registration photo (proof
-    # the plot itself exists) and whichever planting photo matches this
-    # batch's crop — so a scan tells the full story back to before any
-    # batch existed, not just what happened after. Left out on purpose:
-    # progress_photo, since those are an ongoing plot-level log (every crop,
-    # every checkpoint) rather than evidence specific to this one harvest.
+    # Fold in the plot's own origin and growth photos — the registration
+    # photo (proof the plot itself exists), whichever planting photo matches
+    # this batch's crop, and every progress checkpoint logged for the plot —
+    # so a scan tells the full story back to before any batch existed, not
+    # just what happened after. progress_photo isn't crop-specific (a plot
+    # can intercrop), so it's included unfiltered like plot_photo rather
+    # than matched like planting_photo.
     if batch.plot_id is not None:
         origin_photos_result = await db.execute(
             select(Event)
             .where(
                 Event.plot_id == batch.plot_id,
-                Event.event_type.in_(["plot_photo", "planting_photo"]),
+                Event.event_type.in_(["plot_photo", "planting_photo", "progress_photo"]),
             )
             .order_by(Event.occurred_at)
         )
