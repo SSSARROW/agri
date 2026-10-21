@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: agri-api
+    runtime: python
+    rootDir: api
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: CORS_ORIGINS
+        value: '["http://localhost:3000"]'
+      # Secrets - set these in the Render dashboard (Environment tab) after
+      # the service is created, not here. sync: false means "this var exists
+      # but its value is entered manually in the dashboard, never committed."
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: BATCH_CODE_SECRET
+        sync: false
