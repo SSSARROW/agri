@@ -6,6 +6,7 @@ import '../core/location_service.dart';
 import '../core/photo_capture.dart';
 import '../core/plot_area.dart';
 import '../theme/app_colors.dart';
+import '../widgets/location_required_gate.dart';
 import 'plot_map_trace_page.dart';
 
 class _CornerPin {
@@ -205,6 +206,10 @@ class _PlotBoundaryWalkPageState extends State<PlotBoundaryWalkPage> {
 
   @override
   Widget build(BuildContext context) {
+    return LocationRequiredGate(child: _buildScaffold(context));
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Walk the plot boundary')),
       body: SafeArea(

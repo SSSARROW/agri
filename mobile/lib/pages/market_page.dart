@@ -199,24 +199,51 @@ class _MarketPageState extends State<MarketPage> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            // No icons, short labels, no wrap — the earlier icon+label
+            // version clipped "My exporter" to "My export…" with no sign a
+            // 4th segment was hiding off-screen; the first short-label pass
+            // fixed that but then wrapped "Applications" mid-word instead
+            // ("Application" / "s"), which is worse. Single-line + ellipsis
+            // is the actual guarantee that this never looks broken, on any
+            // screen width.
+            SizedBox(
+              width: double.infinity,
               child: SegmentedButton<_MarketTab>(
+                style: SegmentedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 segments: const [
                   ButtonSegment(
                     value: _MarketTab.open,
-                    label: Text('Open orders'),
-                    icon: Icon(Icons.storefront_outlined),
+                    label: Text(
+                      'Open orders',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   ButtonSegment(
                     value: _MarketTab.mine,
-                    label: Text('Applications'),
-                    icon: Icon(Icons.assignment_outlined),
+                    label: Text(
+                      'Applied',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   ButtonSegment(
                     value: _MarketTab.exporters,
-                    label: Text('My exporter'),
-                    icon: Icon(Icons.handshake_outlined),
+                    label: Text(
+                      'My exporter',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
                 selected: {_tab},
