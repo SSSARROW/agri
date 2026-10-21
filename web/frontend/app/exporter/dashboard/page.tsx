@@ -21,7 +21,7 @@ function StatusAlert({ profile }: { profile: ExporterProfile }) {
     return (
       <Alert tone="success" title="Account verified">
         Your exporter account is verified. You have full access to the
-        Paramparā platform.
+        Origo platform.
       </Alert>
     );
   }
@@ -53,7 +53,7 @@ function StatusAlert({ profile }: { profile: ExporterProfile }) {
         </Link>
       }
     >
-      Your account is under review. The Paramparā team will verify your
+      Your account is under review. The Origo team will verify your
       business registration and export licence — this usually takes 1–2
       business days.
     </Alert>

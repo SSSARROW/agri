@@ -283,7 +283,7 @@ export default function ExporterProfilePage() {
           <Card className="bg-paper-sunken">
             <CardHeader
               title="Verification Status"
-              subtitle="Read-only — managed by Paramparā administrators."
+              subtitle="Read-only — managed by Origo administrators."
             />
             <div className="flex items-center gap-3">
               <StatusBadge status={profile?.status ?? "pending"} />

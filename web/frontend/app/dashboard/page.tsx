@@ -108,7 +108,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="font-display font-semibold text-ink-900 text-sm leading-tight">
-                Paramparā
+                Origo
               </p>
               <p className="text-xs text-ink-500">Authenticated portal</p>
             </div>
@@ -141,7 +141,7 @@ export default function DashboardPage() {
               Welcome, <span className="text-brand-700">{user.name || user.email}</span>
             </>
           }
-          subtitle="Your account is verified and securely authenticated. You have active access to the Paramparā agriculture ecosystem."
+          subtitle="Your account is verified and securely authenticated. You have active access to the Origo agriculture ecosystem."
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -56,7 +56,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <DashboardShell
-      brandLabel="Paramparā"
+      brandLabel="Origo"
       brandSubtitle="Admin console"
       navItems={NAV_ITEMS}
       activeHref={activeHref}

@@ -1,0 +1,23 @@
+name: Keep Render services awake
+
+# Render's free tier spins a service down after ~15 minutes with no
+# requests, and the next request pays a 30-50s cold-start penalty (worse,
+# the frontend can briefly 520 while its backend is mid-wakeup). Pinging
+# every 10 minutes keeps all three services warm. GitHub's cron scheduler
+# isn't exact and can run a few minutes late under load, so this margin
+# isn't huge — if cold starts come back, drop the interval to */5.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping agri-api
+        run: curl -s -o /dev/null -w "agri-api: HTTP %{http_code} in %{time_total}s\n" https://agri-api-6ymr.onrender.com/health
+      - name: Ping agri-web-backend
+        run: curl -s -o /dev/null -w "agri-web-backend: HTTP %{http_code} in %{time_total}s\n" https://agri-web-backend.onrender.com/
+      - name: Ping agri-web-frontend
+        run: curl -s -o /dev/null -w "agri-web-frontend: HTTP %{http_code} in %{time_total}s\n" https://agri-web-frontend.onrender.com/

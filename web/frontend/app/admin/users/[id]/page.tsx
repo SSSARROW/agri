@@ -136,7 +136,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-ink-700">Account Activation Control</h4>
               <p className="text-xs text-ink-500 mt-0.5">
-                Toggle actor access authorization across the Paramparā ecosystem.
+                Toggle actor access authorization across the Origo ecosystem.
               </p>
             </div>
 

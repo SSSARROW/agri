@@ -16,7 +16,7 @@ export default function Home() {
       <AuthPanel />
 
       <footer className="mt-12 text-center text-xs text-ink-400 font-medium">
-        © {new Date().getFullYear()} Paramparā Agri Tech
+        © {new Date().getFullYear()} Origo Agri Tech
       </footer>
     </main>
   );

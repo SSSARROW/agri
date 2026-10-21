@@ -386,7 +386,7 @@ export default function ExporterVersionEditorPage() {
               <Button
                 disabled={!isExporterVerified}
                 onClick={() => setShowPublishModal(true)}
-                title={!isExporterVerified ? "Your exporter account is pending verification by Paramparā admins." : "Publish Version"}
+                title={!isExporterVerified ? "Your exporter account is pending verification by Origo admins." : "Publish Version"}
               >
                 Publish Version...
               </Button>
@@ -734,7 +734,7 @@ export default function ExporterVersionEditorPage() {
 
               <p className="text-xs text-ink-500 leading-relaxed mb-4">
                 This is how your farmers will experience this quality standard sequence in their
-                Paramparā app:
+                Origo app:
               </p>
 
               {stages.length === 0 ? (

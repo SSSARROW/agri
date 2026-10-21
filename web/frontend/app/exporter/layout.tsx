@@ -117,7 +117,7 @@ export default function ExporterLayout({
 
   return (
     <DashboardShell
-      brandLabel="Paramparā"
+      brandLabel="Origo"
       brandSubtitle={profile?.company_name || "Exporter Portal"}
       navItems={NAV_ITEMS}
       activeHref={pathname}

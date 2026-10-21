@@ -12,8 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Paramparā — Agricultural Traceability",
-    template: "%s · Paramparā",
+    default: "Origo — Agricultural Traceability",
+    template: "%s · Origo",
   },
   description:
     "Connecting Sri Lankan farmers and exporters with verified quality standards and full crop provenance.",
