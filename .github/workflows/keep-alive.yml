@@ -16,8 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping agri-api
-        run: curl -s -o /dev/null -w "agri-api: HTTP %{http_code} in %{time_total}s\n" https://agri-api-6ymr.onrender.com/health
+        run: |
+          curl -s -o /dev/null -w 'HTTP %{http_code} in %{time_total}s\n' https://agri-api-6ymr.onrender.com/health
       - name: Ping agri-web-backend
-        run: curl -s -o /dev/null -w "agri-web-backend: HTTP %{http_code} in %{time_total}s\n" https://agri-web-backend.onrender.com/
+        run: |
+          curl -s -o /dev/null -w 'HTTP %{http_code} in %{time_total}s\n' https://agri-web-backend.onrender.com/
       - name: Ping agri-web-frontend
-        run: curl -s -o /dev/null -w "agri-web-frontend: HTTP %{http_code} in %{time_total}s\n" https://agri-web-frontend.onrender.com/
+        run: |
+          curl -s -o /dev/null -w 'HTTP %{http_code} in %{time_total}s\n' https://agri-web-frontend.onrender.com/
