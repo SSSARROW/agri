@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/plot.dart';
 import '../models/protocol.dart';
@@ -601,6 +602,8 @@ Future<void> registerBatchForPlot(
   VoidCallback? onDone,
 }) async {
   String crop = 'Tea';
+  final weightController = TextEditingController();
+  final gradeController = TextEditingController();
 
   // Public endpoint, best-effort — a farmer can still register a batch with
   // no quality standard attached if this fails or nothing's seeded.
@@ -663,6 +666,25 @@ Future<void> registerBatchForPlot(
                           );
                     });
                   },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: weightController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Harvested weight (kg)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: gradeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Grade, if known (optional)',
+                    hintText: 'e.g. BOPF',
+                  ),
                 ),
                 if (protocols.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -806,13 +828,33 @@ Future<void> registerBatchForPlot(
   // Registering the batch *is* the harvest — a farmer can take and sell
   // their own batches without a collector in the middle, so this records
   // the collect event directly instead of leaving the batch stuck at
-  // "registered" until someone later scans its own QR to advance it.
+  // "registered" until someone later scans its own QR to advance it. Weight
+  // and grade ride along the same way when the farmer entered them here,
+  // rather than needing a separate Record Stage trip for each one.
   await EventQueue.add(
     eventType: 'collect',
     payload: const {},
     userId: AuthService.instance.userId,
     batchId: batch.id,
   );
+  final weightKg = num.tryParse(weightController.text.trim());
+  if (weightKg != null) {
+    await EventQueue.add(
+      eventType: 'weigh',
+      payload: {'weight_kg': weightKg},
+      userId: AuthService.instance.userId,
+      batchId: batch.id,
+    );
+  }
+  final grade = gradeController.text.trim();
+  if (grade.isNotEmpty) {
+    await EventQueue.add(
+      eventType: 'grade',
+      payload: {'grade': grade},
+      userId: AuthService.instance.userId,
+      batchId: batch.id,
+    );
+  }
   SyncService.instance.syncNow();
 
   onDone?.call();
