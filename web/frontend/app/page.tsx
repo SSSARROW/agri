@@ -4,9 +4,6 @@ export default function Home() {
   return (
     <main className="min-h-screen w-full bg-paper flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="text-center max-w-xl mb-8">
-        <p className="text-xs font-bold text-brand-700 uppercase tracking-widest mb-3">
-          Paramparā
-        </p>
         <h1 className="font-display text-4xl sm:text-5xl font-semibold text-ink-900 tracking-tight leading-tight">
           The agricultural traceability platform
         </h1>

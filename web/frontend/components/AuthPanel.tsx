@@ -48,9 +48,12 @@ export function AuthPanel() {
   return (
     <div className="w-full max-w-md mx-auto bg-paper-raised border border-border shadow-xl shadow-ink-900/5 rounded-2xl p-8">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-4">
-          Paramparā Agriculture Platform
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/origo-logo-horizontal.svg"
+          alt="Origo"
+          className="h-9 mx-auto mb-5"
+        />
         <h2 className="font-display text-2xl font-semibold text-ink-900">Welcome back</h2>
         <p className="text-sm text-ink-500 mt-1">
           Access your farm management &amp; export network

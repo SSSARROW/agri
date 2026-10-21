@@ -48,9 +48,16 @@ export function DashboardShell({
       >
         <div className="p-5 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-brand-700 flex items-center justify-center font-display font-semibold text-base text-white shrink-0">
-              P
-            </div>
+            {/* origo-mark.svg is dark-green-on-transparent, made for a light
+                background - origo-app-icon.svg is the white-on-dark-green
+                variant with its own rounded-square bg already baked in,
+                which is what this dark badge actually needs. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/origo-app-icon.svg"
+              alt=""
+              className="w-9 h-9 rounded-lg shrink-0"
+            />
             <div className="min-w-0">
               <p className="text-sm font-display font-semibold text-ink-900 leading-tight">
                 {brandLabel}
