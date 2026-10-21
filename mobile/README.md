@@ -1,9 +1,32 @@
 # Agri Field (mobile)
 
-The farmer/collector-facing Flutter app. This guide covers running it on a
-real Android phone instead of the emulator — the main difference is how the
-phone reaches the backend, since it can't use the emulator's `10.0.2.2`
-localhost alias.
+The farmer/collector-facing Flutter app.
+
+## Default: talks to the deployed servers
+
+`flutter run` or `flutter build apk --release` with **no flags at all**
+already points at the live deployed backend
+(`https://agri-api-6ymr.onrender.com`, `https://agri-web-backend.onrender.com`
+— see [`lib/core/api_client.dart`](lib/core/api_client.dart)). This is what
+you want for a demo, an exhibition QR, or just trying the app — any batch QR
+it generates will work when scanned from any phone, anywhere, with no
+backend running on your machine.
+
+**Only use the `--dart-define` overrides below if you're actively changing
+backend code and want the app to hit your own local server instead.** A
+build made with these flags bakes your computer's local/LAN address into
+every QR it generates — that QR stops working the moment you're off that
+network, your IP changes, or your local server isn't running. Before
+building anything meant to be scanned by someone else (a poster, a
+teammate's phone, a real demo), rebuild with no `--dart-define` flags so it
+falls back to the deployed default.
+
+## Running against your own local backend instead
+
+This guide covers running it on a real Android phone against a backend
+running on your own machine — the main difference from using the emulator is
+how the phone reaches that backend, since it can't use the emulator's
+`10.0.2.2` localhost alias.
 
 ## Prerequisites
 
@@ -78,10 +101,11 @@ flutter run -d <device-id> \
 ```
 
 `flutter devices` lists the `<device-id>` once the phone is connected. Both
-`--dart-define`s are required — without them the app falls back to the
-emulator-only `10.0.2.2` address and every request will fail to connect.
-The Android debug network policy allows this local HTTP traffic; use HTTPS
-endpoints and remove that policy before shipping a production build.
+`--dart-define`s are required for this local-backend flow — without them the
+app falls back to the deployed servers, not the emulator alias, by design
+(see above). The Android debug network policy allows this local HTTP
+traffic; use HTTPS endpoints and remove that policy before shipping a
+production build.
 
 ## 7. Grant permissions on first run
 
@@ -104,7 +128,10 @@ flutter build apk --release \
 The APK lands at `build/app/outputs/flutter-apk/app-release.apk`. The phone
 will need "Install unknown apps" allowed for whichever app you use to open
 it. Note this bakes in the IP addresses at build time — if your computer's
-LAN IP changes later (common with DHCP), you'll need to rebuild.
+LAN IP changes later (common with DHCP), you'll need to rebuild. **Any QR
+code this build's app generates will only work on your own network** — don't
+hand this APK to someone else, or print one of its QR codes, without
+rebuilding without the `--dart-define` flags first.
 
 ## Troubleshooting
 
