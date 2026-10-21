@@ -6,6 +6,7 @@ import '../models/plot_event.dart';
 import '../theme/app_colors.dart';
 import '../widgets/batch_qr_dialog.dart';
 import '../widgets/matched_commitment_card.dart';
+import '../widgets/stage_picker.dart';
 import '../widgets/ui_kit.dart';
 import 'batch_schedule_page.dart';
 
@@ -104,11 +105,19 @@ class _BatchDetailPageState extends State<BatchDetailPage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await recordNextStage(context, batch);
+          if (mounted) _load();
+        },
+        icon: const Icon(Icons.add_task),
+        label: const Text('Record stage'),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 90),
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
