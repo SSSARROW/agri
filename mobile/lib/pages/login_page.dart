@@ -47,13 +47,16 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Agri Field',
-                style: Theme.of(context).textTheme.headlineMedium,
+              Center(
+                child: Image.asset(
+                  'assets/branding/logo_stacked.png',
+                  height: 96,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 16),
               Text(
                 'Sign in to record your farm activity.',
+                textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 32),
