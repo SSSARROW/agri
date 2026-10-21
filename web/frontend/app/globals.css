@@ -125,7 +125,7 @@
   --color-background: var(--color-paper);
   --color-foreground: var(--color-ink-900);
 
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-inter);
   --font-sans: var(--font-inter);
 }
 
@@ -139,7 +139,7 @@ h1,
 h2,
 h3,
 .font-display {
-  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* A quiet focus ring that matches the brand instead of the browser's
