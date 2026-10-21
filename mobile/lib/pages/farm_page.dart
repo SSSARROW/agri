@@ -5,6 +5,7 @@ import '../core/plot_area.dart';
 import '../models/photo_schedule.dart';
 import '../models/plot.dart';
 import '../theme/app_colors.dart';
+import '../widgets/notification_bell_button.dart';
 import '../widgets/ui_kit.dart';
 import 'plot_boundary_walk_page.dart';
 import 'plot_detail_page.dart';
@@ -233,7 +234,18 @@ class _FarmPageState extends State<FarmPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('My Farm', style: Theme.of(context).textTheme.headlineMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'My Farm',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                ),
+                const NotificationBellButton(),
+              ],
+            ),
             const SizedBox(height: 4),
             const Text(
               'Your registered plots.',

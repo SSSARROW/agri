@@ -6,7 +6,7 @@ Draft operations can be saved by unverified exporters; publishing requires a ver
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Path
 from exporter.router import get_current_exporter, require_verified_exporter
-from exporter.standards import service
+from exporter.standards import service, templates
 from exporter.standards.schemas import (
     CreateStandardRequest,
     DraftVersionUpdate,
@@ -47,6 +47,15 @@ async def list_standards(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/templates")
+async def get_templates(
+    crop: Optional[str] = Query(None, description="Optional crop filter: tea or cinnamon"),
+    current_exporter: dict = Depends(get_current_exporter),
+):
+    """Return crop quality-standard templates and grade-spec field definitions."""
+    return templates.get_templates(crop=crop)
 
 
 @router.get("/{id}", response_model=StandardResponse)
