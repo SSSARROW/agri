@@ -123,7 +123,7 @@ if ENABLE_NOTICE_SCHEDULER:
     async def _on_shutdown_scheduler():
         stop_scheduler()
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
     return {"status": "ok"}
 
