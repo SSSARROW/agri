@@ -46,6 +46,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 from admin.exporter_verification import router as admin_exporter_router
+from exporter.farmers.progress import router as exporter_farmers_progress_router
 from exporter.farmers.router import router as exporter_farmers_router
 from farmer.router import router as farmer_exporter_link_router
 from exporter.ads.router import router as exporter_ads_router
@@ -73,6 +74,7 @@ if ENABLE_ADMIN_EXPORTER_VERIFICATION:
 
 ENABLE_EXPORTER_FARMERS = os.getenv("ENABLE_EXPORTER_FARMERS", "true").lower() == "true"
 if ENABLE_EXPORTER_FARMERS:
+    app.include_router(exporter_farmers_progress_router)  # before /{link_id}
     app.include_router(exporter_farmers_router)
     app.include_router(farmer_exporter_link_router)
 
@@ -127,4 +129,4 @@ if ENABLE_NOTICE_SCHEDULER:
 def root():
     return {"status": "ok"}
 
-
+

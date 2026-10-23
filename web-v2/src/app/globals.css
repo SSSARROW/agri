@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  --color-paper: #faf8f3;
+  --color-surface: #ffffff;
+  --color-sunken: #f3f0e8;
+  --color-line: #e6e1d4;
+  --color-line-strong: #cfc9b8;
+
+  --color-ink: #14231c;
+  --color-ink-soft: #46574e;
+  --color-ink-mute: #74827a;
+
+  --color-leaf-50: #eef5f0;
+  --color-leaf-100: #d9eadf;
+  --color-leaf-200: #b5d5c1;
+  --color-leaf-500: #3d8461;
+  --color-leaf-600: #2f6b4f;
+  --color-leaf-700: #25563f;
+  --color-leaf-800: #1b4130;
+  --color-leaf-900: #0f2a21;
+
+  --color-bark-50: #fbf3ea;
+  --color-bark-100: #f5e2cc;
+  --color-bark-500: #c07a35;
+  --color-bark-600: #a1631f;
+  --color-bark-700: #7f4d17;
+
+  --color-danger-50: #fdf0ee;
+  --color-danger-600: #b3382c;
+  --color-danger-700: #8f2a20;
+  --color-warn-50: #fdf6e3;
+  --color-warn-600: #a8780f;
+  --color-info-50: #edf4fa;
+  --color-info-600: #2b5f8a;
+
+  --shadow-card: 0 1px 2px rgb(20 35 28 / 0.04), 0 1px 1px rgb(20 35 28 / 0.03);
+  --shadow-pop: 0 12px 32px -8px rgb(20 35 28 / 0.22);
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--color-paper);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-leaf-500);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-leaf-200);
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-sunken) 25%, #fbf9f3 50%, var(--color-sunken) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}

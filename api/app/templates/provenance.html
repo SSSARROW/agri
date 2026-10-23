@@ -1,112 +1,173 @@
 {% extends "_base.html" %}
-{% block title %}{{ p.batch.code }} — Batch Provenance{% endblock %}
+{% block title %}{{ p.batch.code }}{% endblock %}
+
+{% macro kg(x) -%}{{ ('{:,.1f}'.format(x)).rstrip('0').rstrip('.') }} kg{%- endmacro %}
+{% macro date(d) -%}{{ d.strftime('%-d %b %Y') if d else '—' }}{%- endmacro %}
+
+{% set s = p.summary %}
+{% set labels = {
+  'planted': 'Planted', 'plot_photo': 'Plot registered', 'planting_photo': 'Planting photo', 'progress_photo': 'Progress photo',
+  'batch_photo': 'Batch photo', 'collect': 'Harvested and collected', 'weigh': 'Weighed', 'process': 'Processed', 'grade': 'Graded',
+  'pack': 'Packed', 'collector_attestation': 'Collector’s condition check'
+} %}
+{% set icons = {
+  'planted': '🌱', 'plot_photo': '📍', 'planting_photo': '📷', 'progress_photo': '📷', 'batch_photo': '📷', 'collect': '🧺',
+  'weigh': '⚖️', 'process': '⚙️', 'grade': '🏷️', 'pack': '📦', 'collector_attestation': '✔️'
+} %}
+{% set hidden = ['photo_url', 'caption', 'location_flagged', 'distance_from_plot_m', 'crop', 'confirmed_stages', 'protocol_id', 'protocol_name', 'method'] %}
+
 {% block content %}
-  <h1 class="code">{{ p.batch.code }}</h1>
-  <p class="muted">{{ p.batch.crop }} · registered {{ p.batch.created_at.strftime('%d %b %Y') }}</p>
+  <section class="hero">
+    <p class="eyebrow">{{ p.batch.crop }}{% if s.grade %} · {{ s.grade }}{% endif %}</p>
+    <h1 class="code">{{ p.batch.code }}</h1>
+    <p class="sub">Registered {{ date(p.batch.created_at) }}{% if p.plot and p.plot.district %} · grown in {{ p.plot.district }}{% elif p.lineage %} · combined from {{ p.lineage|length }} batches{% endif %}</p>
+    <div class="figures">
+      {% if s.weight_kg is not none %}
+      <div class="figure"><b>{{ kg(s.weight_kg) }}</b><span>{{ 'Total weight' if s.weight_source == 'sum_of_parents' else 'Batch weight' }}</span></div>
+      {% endif %}
+      {% if s.packages %}<div class="figure"><b>{{ s.packages }}</b><span>Packages</span></div>{% endif %}
+      {% if s.days_to_harvest is not none and p.plot %}<div class="figure"><b>{{ s.days_to_harvest }} days</b><span>Planting to harvest</span></div>{% endif %}
+      {% if s.growers > 1 %}<div class="figure"><b>{{ s.growers }}</b><span>Farms combined</span></div>{% endif %}
+      {% if s.weight_kg is none and not s.packages and not (s.days_to_harvest is not none and p.plot) %}
+      <div class="figure"><b>{{ s.event_count }}</b><span>Recorded events</span></div>
+      {% endif %}
+    </div>
+  </section>
 
   {% if p.scan_warning %}
-    <div class="badge badge-red">
-      ⚠ Unusual scan activity detected
-      <p>{{ p.scan_warning }}</p>
-    </div>
+  <div class="verdict v-red"><div class="ico">!</div><div><h2>Buy with caution</h2><p>{{ p.scan_warning }}</p></div></div>
   {% endif %}
 
   {% if p.protocol %}
     {% if p.protocol.tier_achieved %}
-      <div class="badge badge-green">
-        ✓ Verified — meets {{ p.protocol.protocol_name }}
-        <p>All {{ p.protocol.required_total }} checkable requirements of this standard have a matching recorded event.</p>
-      </div>
+    <div class="verdict v-green"><div class="ico">✓</div><div><h2>Verified · {{ p.protocol.protocol_name }}</h2>
+      <p>Every checkable requirement ({{ p.protocol.required_total }} of {{ p.protocol.required_total }}) has a matching recorded event on this batch.</p></div></div>
     {% elif p.protocol.required_satisfied > 0 %}
-      <div class="badge badge-amber">
-        ⏳ In progress — {{ p.protocol.required_satisfied }}/{{ p.protocol.required_total }} required steps verified so far
-        <p>Claiming {{ p.protocol.protocol_name }}. Not every required step has a matching recorded event yet.</p>
-      </div>
+    <div class="verdict v-amber"><div class="ico">…</div><div><h2>In progress · {{ p.protocol.required_satisfied }} of {{ p.protocol.required_total }} steps verified</h2>
+      <p>This batch claims {{ p.protocol.protocol_name }}. Not every required step has a matching recorded event yet.</p></div></div>
     {% else %}
-      <div class="badge badge-amber">
-        Not yet verified — 0/{{ p.protocol.required_total }} required steps recorded
-        <p>Claiming {{ p.protocol.protocol_name }}, but no checkable step has been recorded yet.</p>
-      </div>
+    <div class="verdict v-amber"><div class="ico">…</div><div><h2>Not yet verified</h2>
+      <p>This batch claims {{ p.protocol.protocol_name }}, but no checkable step has been recorded yet.</p></div></div>
     {% endif %}
+  {% endif %}
+
+  <div class="card">
+    <h2>At a glance</h2>
+    <div class="grid2">
+      <div class="fact"><span>Crop</span><b>{{ p.batch.crop }}</b></div>
+      <div class="fact"><span>Grade</span><b>{{ s.grade or '—' }}</b></div>
+      <div class="fact"><span>{{ 'Total weight' if s.weight_source == 'sum_of_parents' else 'Weight' }}</span><b>{{ kg(s.weight_kg) if s.weight_kg is not none else '—' }}</b></div>
+      <div class="fact"><span>Packages</span><b>{{ s.packages if s.packages else '—' }}</b></div>
+      <div class="fact"><span>Planted</span><b>{{ date(s.planted_at) if p.plot else '—' }}</b></div>
+      <div class="fact"><span>Harvested</span><b>{{ date(s.harvested_at) }}</b></div>
+      <div class="fact"><span>Condition on arrival</span><b>{% if s.condition %}{{ s.condition|capitalize }}{% else %}Not checked{% endif %}</b></div>
+      <div class="fact"><span>Photos on record</span><b>{{ s.photo_count }}</b></div>
+    </div>
+    {% if s.condition_note %}<p class="muted" style="margin:0 0 12px;font-size:13.5px">Collector’s note: {{ s.condition_note }}</p>{% endif %}
+    {% if s.steps_done %}
+    <div class="chips">{% for st in s.steps_done %}<span class="pill good">✓ {{ labels.get(st, st)|replace('Harvested and collected','Collected')|replace('Collector’s condition check','Condition check') }}</span>{% endfor %}</div>
+    {% endif %}
+  </div>
+
+  {% if p.exporters %}
+  <div class="card">
+    <h2>Sourced for</h2>
+    {% for e in p.exporters %}
+    <div class="company">
+      <div class="logo-ph">{% if e.logo_url %}<img src="{{ e.logo_url }}" alt="" loading="lazy">{% else %}{{ e.company_name[:1] }}{% endif %}</div>
+      <div><b>{{ e.company_name }}</b>{% if e.description %}<p>{{ e.description[:190] }}{% if e.description|length > 190 %}…{% endif %}</p>{% endif %}</div>
+    </div>
+    {% if e.certifications %}<div class="chips">{% for c in e.certifications %}<span class="pill info">{{ c }}</span>{% endfor %}</div>{% endif %}
+    {% endfor %}
+    {% for xs in p.exporter_standards %}
+    <div class="row" style="border-top:1px solid var(--line);flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between;gap:12px"><span class="label">Exporter’s own standard</span><span class="val">{{ xs.name }} · v{{ xs.version }}</span></div>
+      <div class="bar"><i style="width: {{ (100 * xs.stages_approved / xs.stages_total) if xs.stages_total else 0 }}%"></i></div>
+      <p class="progress-note" style="margin:0 0 6px">{{ xs.stages_approved }} of {{ xs.stages_total }} stage{{ '' if xs.stages_total == 1 else 's' }} reviewed and approved by {{ xs.exporter }} from {{ 'the grower’s' if xs.growers == 1 else 'the ' ~ xs.growers ~ ' growers’' }} photo proof.</p>
+    </div>
+    {% endfor %}
+  </div>
   {% endif %}
 
   {% if p.plot %}
   <div class="card">
-    <h2>Origin</h2>
-    <div class="row"><span class="label">District</span><span>{{ p.plot.district or "—" }}</span></div>
-    <div class="row"><span class="label">DS Division</span><span>{{ p.plot.dsd or "—" }}</span></div>
-    <div class="row"><span class="label">GN Division</span><span>{{ p.plot.gn_division or "—" }}</span></div>
-    {% if p.plot.area_ha %}
-    <div class="row"><span class="label">Plot size</span><span>{{ "%.2f"|format(p.plot.area_ha) }} ha</span></div>
-    {% endif %}
-    {% if p.planted_at %}
-    <div class="row"><span class="label">Planted</span><span>{{ p.planted_at.strftime('%d %b %Y') }}</span></div>
-    {% endif %}
+    <h2>Where it was grown</h2>
+    <div class="row"><span class="label">District</span><span class="val">{{ p.plot.district or '—' }}</span></div>
+    <div class="row"><span class="label">DS division</span><span class="val">{{ p.plot.dsd or '—' }}</span></div>
+    <div class="row"><span class="label">GN division</span><span class="val">{{ p.plot.gn_division or '—' }}</span></div>
+    {% if p.plot.area_ha %}<div class="row"><span class="label">Plot size</span><span class="val">{{ '%.2f'|format(p.plot.area_ha) }} ha</span></div>{% endif %}
+    {% if p.plot.plot_type %}<div class="row"><span class="label">Growing environment</span><span class="val">{{ p.plot.plot_type|replace('_',' ')|capitalize }}</span></div>{% endif %}
+    {% if p.plot.boundary_source %}<div class="row"><span class="label">Boundary</span><span class="val">{% if p.plot.boundary_source == 'estimated_square' %}<span class="pill warn">Estimated</span>{% else %}<span class="pill good">Measured on foot or on map</span>{% endif %}</span></div>{% endif %}
+    {% if p.plot.crops %}<div class="row"><span class="label">Grown on this plot</span><span class="val">{{ p.plot.crops|join(', ') }}</span></div>{% endif %}
+    {% if p.plot.registered_at %}<div class="row"><span class="label">Plot on record since</span><span class="val">{{ date(p.plot.registered_at) }}</span></div>{% endif %}
+    <p class="muted" style="font-size:12px;margin:6px 0 10px">Exact coordinates are never shared.</p>
   </div>
   {% endif %}
 
   {% if p.protocol %}
   <details class="card">
-    <summary>
-      <span class="summary-title">Quality standard: {{ p.protocol.protocol_name }}</span>
-      <span class="muted summary-sub">{{ p.protocol.required_satisfied }}/{{ p.protocol.required_total }} verified</span>
-    </summary>
-    <div class="details-body">
-      {% for stage in p.protocol.stages %}
-      <div class="stage">
-        <div class="stage-title">{{ stage.title }}
-          <span class="stage-status status-{{ stage.status }}">
-            {%- if stage.status == "done" -%} ✓ Done
-            {%- elif stage.status == "overdue" -%} ⚠ Overdue
-            {%- elif stage.status == "upcoming" -%} Upcoming
-            {%- elif stage.status == "pending" -%} Pending
-            {%- else -%} Standing rule
-            {%- endif -%}
-          </span>
-        </div>
-        <div class="stage-instructions">{{ stage.instructions }}</div>
-      </div>
-      {% endfor %}
-      <p class="source-cite">Source: {{ p.protocol.protocol_source }}</p>
+    <summary>Quality standard · {{ p.protocol.protocol_name }}<span class="pill {{ 'good' if p.protocol.tier_achieved else 'warn' }}" style="margin-left:6px">{{ p.protocol.required_satisfied }}/{{ p.protocol.required_total }}</span></summary>
+    {% for stage in p.protocol.stages %}
+    <div class="stage">
+      <div class="stage-title"><span>{{ stage.title }}</span>
+        <span class="pill {{ 'good' if stage.status == 'done' else ('bad' if stage.status == 'overdue' else ('info' if stage.status == 'upcoming' else '')) }}">
+          {%- if stage.status == 'done' %}✓ Done{% elif stage.status == 'overdue' %}Overdue{% elif stage.status == 'upcoming' %}Upcoming{% elif stage.status == 'pending' %}Pending{% else %}Standing rule{% endif -%}
+        </span></div>
+      <div class="stage-instructions">{{ stage.instructions }}</div>
     </div>
+    {% endfor %}
+    <p class="source-cite">Source: {{ p.protocol.protocol_source }}</p>
   </details>
   {% endif %}
 
   <div class="card">
-    <h2>Timeline</h2>
+    <h2>Journey <span class="tag">{{ s.event_count }} events</span></h2>
     {% if p.timeline %}
-      {% set hidden_keys = ['photo_url', 'caption', 'location_flagged', 'distance_from_plot_m'] %}
+    <ol class="tl">
       {% for e in p.timeline %}
-      <div class="timeline-item">
-        <span class="timeline-type">{{ e.event_type.replace('_', ' ') }}</span>
-        {% if e.batch_code and e.batch_code != p.batch.code %}<span class="muted">(batch {{ e.batch_code }})</span>{% endif %}
-        <div class="timeline-meta">{{ e.occurred_at.strftime('%d %b %Y, %H:%M') }}
-          {%- for k, v in e.payload.items() if k not in hidden_keys %}
-            · {{ k.replace('_', ' ') }}: {{ v }}
-          {%- endfor -%}
+      <li>
+        <span class="dot">{{ icons.get(e.event_type, '•') }}</span>
+        <div class="t">{{ labels.get(e.event_type, e.event_type|replace('_',' ')|capitalize) }}{% if e.batch_code and e.batch_code != p.batch.code %} <span class="muted code" style="font-size:12px">· {{ e.batch_code }}</span>{% endif %}</div>
+        <div class="when">{{ e.occurred_at.strftime('%-d %b %Y, %-I:%M %p') }}</div>
+        {% set pl = e.payload %}
+        <div class="kv">
+          {% if pl.weight_kg is defined %}<span><b>{{ kg(pl.weight_kg) }}</b></span>{% endif %}
+          {% if pl.grade is defined %}<span>Grade <b>{{ pl.grade }}</b></span>{% endif %}
+          {% if pl.packages is defined %}<span><b>{{ pl.packages }}</b> packages</span>{% endif %}
+          {% if pl.condition is defined %}<span>Condition <b>{{ pl.condition|capitalize }}</b></span>{% endif %}
+          {% if pl.crop is defined and e.event_type == 'planted' %}<span><b>{{ pl.crop }}</b></span>{% endif %}
+          {% if pl.area_ha is defined %}<span>Area <b>{{ '%.2f'|format(pl.area_ha) }} ha</b></span>{% endif %}
+          {% if pl.protocol_name is defined and e.event_type == 'planted' %}<span>Committed to <b>{{ pl.protocol_name }}</b></span>{% endif %}
+          {% if pl.method is defined %}<span>{{ pl.method|capitalize }}</span>{% endif %}
+          {% for k, v in pl.items() if k not in hidden and k not in ['weight_kg','grade','packages','condition','area_ha','lat','lon','accuracy_m','note'] %}<span>{{ k|replace('_',' ')|capitalize }}: <b>{{ v }}</b></span>{% endfor %}
         </div>
-        {% if e.payload.caption %}<div class="timeline-caption">{{ e.payload.caption }}</div>{% endif %}
-        {% if e.payload.photo_url %}
-        <a href="{{ e.payload.photo_url }}" target="_blank" rel="noopener">
-          <img class="timeline-photo" src="{{ e.payload.photo_url }}" alt="{{ e.event_type.replace('_', ' ') }} photo" loading="lazy">
-        </a>
-        {% endif %}
-        {% if e.payload.location_flagged %}
-        <div class="timeline-flag">⚠ Taken {{ e.payload.distance_from_plot_m | round | int }}m from the plot</div>
-        {% endif %}
-      </div>
+        {% if pl.note %}<div class="cap">“{{ pl.note }}”</div>{% endif %}
+        {% if pl.caption %}<div class="cap">{{ pl.caption }}</div>{% endif %}
+        {% if pl.photo_url %}<a href="{{ pl.photo_url }}" target="_blank" rel="noopener"><img src="{{ pl.photo_url }}" alt="{{ labels.get(e.event_type, 'Photo') }}" loading="lazy"></a>{% endif %}
+        {% if pl.location_flagged %}<div class="flag">Taken {{ pl.distance_from_plot_m|round|int }} m from the plot</div>{% endif %}
+      </li>
       {% endfor %}
-    {% else %}
-      <p class="muted">No events recorded yet.</p>
-    {% endif %}
+    </ol>
+    {% else %}<p class="muted">No events recorded yet.</p>{% endif %}
   </div>
+
+  {% set photos = p.timeline|selectattr('payload.photo_url')|list %}
+  {% if photos|length > 3 %}
+  <div class="card">
+    <h2>Photos <span class="tag">{{ photos|length }}</span></h2>
+    <div class="gallery">{% for e in photos[-9:] %}<a href="{{ e.payload.photo_url }}" target="_blank" rel="noopener"><img src="{{ e.payload.photo_url }}" alt="{{ labels.get(e.event_type, 'Photo') }}" loading="lazy"></a>{% endfor %}</div>
+  </div>
+  {% endif %}
 
   {% if p.lineage %}
   <div class="card">
-    <h2>Merged from</h2>
+    <h2>Combined from {{ p.lineage|length }} farm batches</h2>
     {% for parent in p.lineage %}
-    <div class="row"><span class="label code">{{ parent.code }}</span><span>{{ parent.crop }} · {{ parent.created_at.strftime('%d %b %Y') }}</span></div>
+    <div class="row"><span class="label code">{{ parent.code }}</span><span class="val">{{ parent.crop }}{% if parent.district %} · {{ parent.district }}{% endif %}{% if parent.weight_kg is not none %} · {{ kg(parent.weight_kg) }}{% endif %}</span></div>
     {% endfor %}
   </div>
   {% endif %}
+
+  <p class="footnote">Scanned {{ s.scan_count }} time{{ '' if s.scan_count == 1 else 's' }}. Scans are counted to spot copied labels; your identity and location are never recorded.<br>
+  Data on this page is recorded in the Origo Field app and cannot be edited after the fact.</p>
 {% endblock %}

@@ -2,7 +2,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
@@ -10,7 +10,15 @@ from app.core.geo import haversine_distance_m
 from app.core.tier_evaluation import evaluate_batch_protocol, get_planted_at
 from app.db.models import Batch, Event, Plot, Protocol, Scan
 from app.db.session import get_db
-from app.schemas.provenance import ProvenanceBatch, ProvenanceEvent, ProvenanceOut, ProvenancePlot
+from app.schemas.provenance import (
+    ProvenanceBatch,
+    ProvenanceEvent,
+    ProvenanceExporter,
+    ProvenanceExporterStandard,
+    ProvenanceOut,
+    ProvenancePlot,
+    ProvenanceSummary,
+)
 
 router = APIRouter(prefix="/provenance", tags=["provenance"])
 
@@ -30,6 +38,122 @@ _PRIVATE_PAYLOAD_KEYS = {"lat", "lon", "accuracy_m"}
 
 def _sanitize_payload(payload: dict) -> dict:
     return {k: v for k, v in payload.items() if k not in _PRIVATE_PAYLOAD_KEYS}
+
+
+_STEP_ORDER = ["collect", "weigh", "process", "grade", "pack", "collector_attestation"]
+
+
+def _latest_value(timeline: list[ProvenanceEvent], batch_code: str, event_type: str, key: str):
+    """Newest non-empty payload[key] of an event type on one batch (timeline is oldest-first)."""
+    for e in reversed(timeline):
+        if e.event_type == event_type and e.batch_code == batch_code and e.payload.get(key) not in (None, ""):
+            return e.payload[key]
+    return None
+
+
+def _as_float(v) -> float | None:
+    try:
+        return float(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+async def _exporter_context(db: AsyncSession, owner_ids: list, crop: str):
+    """The exporter(s) the growers follow, and how far each grower is through that
+    exporter's own standard (stages the exporter has approved proof for).
+
+    Reads the account service's tables, which share this database. Best-effort:
+    a missing table or an unlinked grower just means there is nothing to show."""
+    if not owner_ids:
+        return [], []
+    try:
+        rows = (
+            await db.execute(
+                text(
+                    """
+                    SELECT DISTINCT ep.id, ep.company_name, ep.description, ep.logo_url, ep.certifications, l.farmer_id
+                    FROM farmer_exporter_links l
+                    JOIN exporter_profiles ep ON ep.id = l.exporter_profile_id
+                    WHERE l.status = 'approved' AND l.farmer_id = ANY(CAST(:owners AS uuid[]))
+                    """
+                ),
+                {"owners": [str(o) for o in owner_ids]},
+            )
+        ).all()
+    except Exception:
+        await db.rollback()
+        return [], []
+
+    exporters: dict[str, ProvenanceExporter] = {}
+    standards: list[ProvenanceExporterStandard] = []
+    for r in rows:
+        exporters.setdefault(
+            str(r.id),
+            ProvenanceExporter(
+                company_name=r.company_name,
+                description=r.description,
+                logo_url=r.logo_url,
+                certifications=list(r.certifications or []),
+            ),
+        )
+        try:
+            std = (
+                await db.execute(
+                    text(
+                        """
+                        SELECT qv.id AS version_id, qv.name, qv.version_number,
+                               (SELECT count(*) FROM quality_standard_stages st WHERE st.version_id = qv.id) AS total
+                        FROM quality_standards qs
+                        JOIN LATERAL (
+                            SELECT * FROM quality_standard_versions v
+                            WHERE v.standard_id = qs.id AND v.status = 'published'
+                            ORDER BY v.version_number DESC LIMIT 1
+                        ) qv ON true
+                        WHERE qs.exporter_profile_id = :eid AND lower(qs.crop) = lower(:crop) AND NOT qs.is_archived
+                        LIMIT 1
+                        """
+                    ),
+                    {"eid": str(r.id), "crop": crop},
+                )
+            ).first()
+            if std is None:
+                continue
+            approved = (
+                await db.execute(
+                    text(
+                        """
+                        SELECT count(DISTINCT s.stage_id) FROM stage_proof_submissions s
+                        JOIN quality_standard_stages st ON st.id = s.stage_id
+                        WHERE s.farmer_id = :fid AND s.exporter_profile_id = :eid
+                          AND s.status = 'approved' AND st.version_id = :vid
+                        """
+                    ),
+                    {"fid": str(r.farmer_id), "eid": str(r.id), "vid": str(std.version_id)},
+                )
+            ).scalar_one()
+            standards.append(
+                ProvenanceExporterStandard(
+                    exporter=r.company_name,
+                    name=std.name,
+                    version=std.version_number,
+                    stages_total=int(std.total),
+                    stages_approved=int(approved),
+                )
+            )
+        except Exception:
+            await db.rollback()
+    # One line per exporter standard: a merged batch has several growers on the same standard.
+    merged: dict[tuple, ProvenanceExporterStandard] = {}
+    for st in standards:
+        k = (st.exporter, st.name, st.version)
+        if k in merged:
+            m = merged[k]
+            m.stages_total += st.stages_total
+            m.stages_approved += st.stages_approved
+            m.growers += 1
+        else:
+            merged[k] = st
+    return list(exporters.values()), list(merged.values())
 
 
 async def _load_lineage(db: AsyncSession, root: Batch) -> list[Batch]:
@@ -183,13 +307,83 @@ async def build_provenance(db: AsyncSession, batch: Batch, *, scan_warning: str 
                 db, protocol=protocol, batch_id=batch.id, planted_at=planted_at
             )
 
+    plot_by_id: dict = {}
+    for b in all_batches:
+        if b.plot_id is not None and b.plot_id not in plot_by_id:
+            plot_by_id[b.plot_id] = await db.get(Plot, b.plot_id)
+    owner_ids = sorted({pl.owner_user_id for pl in plot_by_id.values() if pl is not None and pl.owner_user_id is not None}, key=str)
+
+    def own_weight(b: Batch) -> float | None:
+        return _as_float(_latest_value(timeline, b.code, "weigh", "weight_kg"))
+
     def to_provenance_batch(b: Batch) -> ProvenanceBatch:
+        pl = plot_by_id.get(b.plot_id) if b.plot_id else None
         return ProvenanceBatch(
             code=b.code,
             crop=b.crop,
             created_at=b.created_at,
             parent_codes=[code_by_id.get(pid, str(pid)) for pid in (b.parent_batch_ids or [])],
+            weight_kg=own_weight(b),
+            district=pl.district if pl is not None else None,
         )
+
+    # --- the rest of the story: weights, grade, condition, exporter, standard progress ---
+    weight = own_weight(batch)
+    weight_source = "batch" if weight is not None else None
+    if weight is None and batch.parent_batch_ids:
+        parent_weights = [own_weight(a) for a in ancestors if a.id in set(batch.parent_batch_ids)]
+        known = [w for w in parent_weights if w is not None]
+        if known:
+            weight, weight_source = round(sum(known), 2), "sum_of_parents"
+
+    grade = _latest_value(timeline, batch.code, "grade", "grade")
+    if grade is None:
+        grades = {str(_latest_value(timeline, a.code, "grade", "grade")) for a in ancestors} - {"None"}
+        grade = next(iter(grades)) if len(grades) == 1 else None
+    packages = _latest_value(timeline, batch.code, "pack", "packages")
+    attest = next((e for e in reversed(timeline) if e.event_type == "collector_attestation"), None)
+
+    done_types = {e.event_type for e in timeline if e.batch_code is not None}
+    steps_done = [t for t in _STEP_ORDER if t in done_types]
+    harvested_at = batch.created_at
+    scan_count = (await db.execute(select(func.count()).select_from(Scan).where(Scan.batch_id == batch.id))).scalar_one()
+    exporters, exporter_standards = await _exporter_context(db, owner_ids, batch.crop)
+
+    plot_crops: list[str] = []
+    if plot is not None and batch.plot_id is not None:
+        planted_rows = (
+            await db.execute(select(Event.payload).where(Event.plot_id == batch.plot_id, Event.event_type == "planted"))
+        ).scalars().all()
+        plot_crops = sorted({str(p.get("crop")).strip() for p in planted_rows if p.get("crop")})
+        plot_out = ProvenancePlot(
+            district=plot.district,
+            dsd=plot.dsd,
+            gn_division=plot.gn_division,
+            area_ha=float(plot.area_ha) if plot.area_ha is not None else None,
+            plot_type=plot.plot_type,
+            boundary_source=plot.boundary_source,
+            registered_at=plot.created_at,
+            crops=plot_crops,
+        )
+
+    summary = ProvenanceSummary(
+        weight_kg=weight,
+        weight_source=weight_source,
+        grade=str(grade) if grade is not None else None,
+        packages=int(packages) if packages is not None and str(packages).isdigit() else None,
+        condition=attest.payload.get("condition") if attest else None,
+        condition_note=attest.payload.get("note") if attest else None,
+        steps_done=steps_done,
+        planted_at=planted_at,
+        harvested_at=harvested_at,
+        days_to_harvest=(harvested_at - planted_at).days if planted_at is not None else None,
+        first_event_at=timeline[0].occurred_at if timeline else None,
+        last_event_at=timeline[-1].occurred_at if timeline else None,
+        event_count=len(timeline),
+        photo_count=sum(1 for e in timeline if e.payload.get("photo_url")),
+        growers=len(owner_ids),
+        scan_count=int(scan_count),
+    )
 
     return ProvenanceOut(
         batch=to_provenance_batch(batch),
@@ -199,6 +393,9 @@ async def build_provenance(db: AsyncSession, batch: Batch, *, scan_warning: str 
         timeline=timeline,
         lineage=[to_provenance_batch(a) for a in ancestors],
         scan_warning=scan_warning,
+        exporters=exporters,
+        exporter_standards=exporter_standards,
+        summary=summary,
     )
 
 

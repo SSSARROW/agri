@@ -3,108 +3,127 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>{% block title %}Batch Provenance{% endblock %}</title>
+<meta name="theme-color" content="#0f2a21">
+<title>{% block title %}Batch history{% endblock %} · Origo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
 <style>
   :root {
     color-scheme: light;
-    --green: #1B5E20;
-    --green-bg: #E8F5E9;
-    --amber: #7C5C00;
-    --amber-bg: #FFF3CD;
-    --red: #B71C1C;
-    --red-bg: #FDECEA;
-    --ink: #1a1a1a;
-    --muted: #5f6368;
-    --border: #e2e2e2;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    --paper: #faf8f3; --surface: #fff; --sunken: #f3f0e8;
+    --line: #e6e1d4; --line-strong: #cfc9b8;
+    --ink: #14231c; --ink-soft: #46574e; --ink-mute: #74827a;
+    --brand: #1f5e3b; --leaf: #3d8461; --leaf-50: #eef5f0; --leaf-100: #d9eadf; --deep: #0f2a21;
+    --gold: #d9a13b; --bark: #a1631f; --bark-50: #fbf3ea;
+    --amber: #8a6208; --amber-bg: #fdf6e3; --red: #b3382c; --red-bg: #fdf0ee; --blue: #2b5f8a; --blue-bg: #edf4fa;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0;
-    background: #fafaf8;
-    color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.5;
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55; padding-bottom: env(safe-area-inset-bottom, 0);
   }
-  main {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 20px 16px 40px;
-  }
-  h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: 0.02em; }
-  h2 { font-size: 1.05rem; margin: 0 0 10px; }
-  .muted { color: var(--muted); }
-  .card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
-    margin-top: 16px;
-  }
-  details.card { padding: 0; }
-  details.card summary {
-    cursor: pointer;
-    list-style: none;
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
+  a { color: var(--brand); }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .topbar-in { max-width: 720px; margin: 0 auto; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 20px; letter-spacing: .02em; color: var(--brand); text-decoration: none; }
+  .brand svg { width: 28px; height: 28px; }
+  .topbar small { color: var(--ink-mute); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+  main { max-width: 720px; margin: 0 auto; padding: 18px 18px 56px; }
+
+  /* hero */
+  .hero { background: var(--deep); color: #fff; border-radius: 22px; padding: 26px 22px 22px; position: relative; overflow: hidden; }
+  .hero::after { content: ""; position: absolute; right: -60px; bottom: -70px; width: 220px; height: 220px; border-radius: 50%; background: rgba(61,132,97,.28); }
+  .eyebrow { font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; color: #b5d5c1; margin: 0; }
+  .code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; }
+  .hero h1 { margin: 6px 0 2px; font-size: 32px; line-height: 1.1; font-weight: 700; word-break: break-all; }
+  .hero .sub { margin: 0; color: #d9eadf; font-size: 14.5px; }
+  .figures { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 22px; }
+  .figure { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 12px 14px; }
+  .figure b { display: block; font-size: 24px; font-weight: 600; line-height: 1.15; }
+  .figure span { font-size: 12px; color: #b5d5c1; }
+
+  /* verdict */
+  .verdict { display: flex; gap: 14px; align-items: flex-start; border-radius: 18px; padding: 16px 18px; margin-top: 14px; border: 1px solid; }
+  .verdict .ico { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 18px; }
+  .verdict h2 { margin: 0; font-size: 17px; }
+  .verdict p { margin: 2px 0 0; font-size: 14px; color: var(--ink-soft); }
+  .v-green { background: var(--leaf-50); border-color: #b5d5c1; } .v-green .ico { background: var(--brand); }
+  .v-amber { background: var(--amber-bg); border-color: #ecd9a0; } .v-amber .ico { background: #b07d10; }
+  .v-red { background: var(--red-bg); border-color: #f0c2bd; } .v-red .ico { background: var(--red); }
+
+  /* cards */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 18px 8px; margin-top: 14px; }
+  .card h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h2 .tag { margin-left: auto; font-weight: 500; font-size: 12px; color: var(--ink-mute); }
+  .row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
+  .row:first-of-type { border-top: 0; }
+  .row .label { color: var(--ink-mute); flex: none; }
+  .row .val { text-align: right; font-weight: 500; }
+  .muted { color: var(--ink-mute); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 10px; }
+  .fact { background: var(--sunken); border-radius: 12px; padding: 11px 13px; }
+  .fact span { display: block; font-size: 11.5px; color: var(--ink-mute); letter-spacing: .04em; }
+  .fact b { font-size: 16px; font-weight: 600; }
+
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--sunken); color: var(--ink-soft); }
+  .pill.good { background: var(--leaf-100); color: var(--brand); } .pill.warn { background: var(--amber-bg); color: var(--amber); } .pill.bad { background: var(--red-bg); color: var(--red); } .pill.info { background: var(--blue-bg); color: var(--blue); }
+
+  /* exporter */
+  .company { display: flex; gap: 14px; align-items: center; padding-bottom: 12px; }
+  .logo-ph { flex: none; width: 52px; height: 52px; border-radius: 14px; background: var(--leaf-50); color: var(--brand); display: grid; place-items: center; font-weight: 700; font-size: 22px; overflow: hidden; }
+  .logo-ph img { width: 100%; height: 100%; object-fit: cover; }
+  .company b { display: block; font-size: 17px; line-height: 1.2; }
+  .company p { margin: 3px 0 0; font-size: 13.5px; color: var(--ink-soft); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 12px; }
+  .bar { height: 9px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--leaf); border-radius: 99px; }
+  .progress-note { font-size: 13.5px; color: var(--ink-soft); margin: 8px 0 14px; }
+
+  /* standard */
+  details.card summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; padding-bottom: 12px; }
   details.card summary::-webkit-details-marker { display: none; }
-  .summary-title { font-weight: 700; font-size: 1.05rem; }
-  .summary-sub { font-size: 0.82rem; white-space: nowrap; }
-  details.card summary::after {
-    content: '▾';
-    color: var(--muted);
-    flex-shrink: 0;
-    transition: transform 0.15s ease;
-  }
-  details.card[open] summary::after { transform: rotate(180deg); }
-  .details-body { padding: 0 16px 16px; }
-  .badge {
-    display: block;
-    border-radius: 14px;
-    padding: 16px;
-    margin-top: 16px;
-    font-weight: 700;
-    font-size: 1rem;
-  }
-  .badge-green { background: var(--green-bg); color: var(--green); }
-  .badge-amber { background: var(--amber-bg); color: var(--amber); }
-  .badge-red { background: var(--red-bg); color: var(--red); }
-  .badge p { font-weight: 400; font-size: 0.85rem; margin: 6px 0 0; }
-  .row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
-  .row:last-child { border-bottom: none; }
-  .row .label { color: var(--muted); }
-  .stage { padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .stage:last-child { border-bottom: none; }
-  .stage-title { font-weight: 700; font-size: 0.95rem; }
-  .stage-status { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-  .status-done { color: var(--green); }
-  .status-overdue { color: var(--red); }
-  .status-upcoming, .status-pending { color: var(--amber); }
-  .status-standing { color: var(--muted); }
-  .stage-instructions { font-size: 0.88rem; color: #333; margin-top: 4px; }
-  .timeline-item { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  .timeline-item:last-child { border-bottom: none; }
-  .timeline-type { font-weight: 700; text-transform: capitalize; }
-  .timeline-meta { color: var(--muted); font-size: 0.82rem; }
-  .timeline-caption { font-size: 0.88rem; margin-top: 4px; }
-  .timeline-photo { display: block; max-width: 220px; width: 100%; border-radius: 10px; margin-top: 8px; border: 1px solid var(--border); }
-  .timeline-flag { color: var(--amber); font-size: 0.78rem; margin-top: 4px; }
-  .source-cite { font-size: 0.78rem; color: var(--muted); margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px; }
-  .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em; }
-  footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 28px; }
+  details.card summary::after { content: "▾"; margin-left: auto; color: var(--ink-mute); }
+  details[open].card summary::after { content: "▴"; }
+  .stage { border-top: 1px solid var(--line); padding: 11px 0; }
+  .stage-title { display: flex; justify-content: space-between; gap: 10px; font-weight: 500; font-size: 14.5px; }
+  .stage-instructions { color: var(--ink-soft); font-size: 13.5px; margin-top: 3px; }
+  .source-cite { font-size: 12px; color: var(--ink-mute); padding: 8px 0 10px; }
+
+  /* timeline */
+  .tl { list-style: none; margin: 0; padding: 0 0 6px 0; }
+  .tl li { position: relative; padding: 0 0 20px 34px; }
+  .tl li::before { content: ""; position: absolute; left: 11px; top: 26px; bottom: -2px; width: 2px; background: var(--line); }
+  .tl li:last-child::before { display: none; }
+  .tl .dot { position: absolute; left: 0; top: 2px; width: 24px; height: 24px; border-radius: 50%; background: var(--leaf-100); display: grid; place-items: center; font-size: 12px; }
+  .tl .t { font-weight: 600; font-size: 15px; }
+  .tl .when { font-size: 12.5px; color: var(--ink-mute); }
+  .tl .kv { font-size: 14px; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .tl .kv span b { font-weight: 600; }
+  .tl .cap { font-size: 13.5px; font-style: italic; color: var(--ink-soft); margin-top: 3px; }
+  .tl img { display: block; margin-top: 8px; width: 100%; max-width: 360px; border-radius: 12px; border: 1px solid var(--line); }
+  .flag { color: var(--amber); font-size: 12.5px; margin-top: 4px; }
+
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-bottom: 12px; }
+  .gallery a { display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--sunken); }
+  .gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .footnote { margin-top: 22px; font-size: 12px; color: var(--ink-mute); text-align: center; line-height: 1.6; }
+  @media (max-width: 380px) { .hero h1 { font-size: 26px; } .grid2 { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
+<header class="topbar"><div class="topbar-in">
+  <a class="brand" href="/" aria-label="Origo">
+    <svg viewBox="0 0 120 128" aria-hidden="true"><path d="M50.85 103.04 A44 44 0 1 1 69.15 103.04" fill="none" stroke="#1F5E3B" stroke-width="11" stroke-linecap="round"/><path d="M60 112 V66" stroke="#1F5E3B" stroke-width="6" stroke-linecap="round"/><path d="M60 72 C62 52 72 42 88 40 C88 58 77 70 60 72 Z" fill="#4C9A2A"/><path d="M60 82 C58 64 47 54 32 52 C32 69 43 80 60 82 Z" fill="#7BBF3F"/><circle cx="60" cy="118" r="7" fill="#D9A13B"/></svg>
+    origo
+  </a>
+  <small>Batch history</small>
+</div></header>
 <main>
 {% block content %}{% endblock %}
-<footer>
-  Generated from records in the Agri traceability system. This page reflects data entered by farmers, collectors and processors — the platform verifies internal consistency of that data, not the truth of what was physically done.
-</footer>
 </main>
 </body>
 </html>
