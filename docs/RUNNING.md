@@ -129,3 +129,9 @@ appear in the other.
 | Phone can't reach local API | same Wi-Fi, correct LAN IP, firewall allows Python |
 | DB-backed API routes fail locally | start Postgres: `docker compose -f infra/docker-compose.yml up -d` |
 | First deployed request is very slow | Render cold start, wait about 30-50s |
+
+## Quick start (new frontends)
+
+`./run.sh local` (or `run.bat local` on Windows) starts the field API, the account service and the website at
+http://localhost:3000. `./run.sh prod` runs only the website against the deployed Render backends, and
+`./run.sh phone` runs the Android app on a connected emulator/phone against the deployed backends.

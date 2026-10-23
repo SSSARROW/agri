@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Dev-only: the local FastAPI servers use HTTP, including from a real phone
-     over the computer's LAN IP. Remove before shipping a release build. -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="true" />
-</network-security-config>

@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Origo web (v2)
 
-## Getting Started
+A ground-up redesign of the web experience, built **only from `docs/spec/PRODUCT_SPEC_WEB.md`** (and the backend's response schemas). It shares no UI code with `web/frontend`.
 
-First, run the development server:
+Next.js 16 · React 19 · Tailwind 4 · TypeScript · axios.
+
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd web/frontend
+cp .env.example .env.local     # NEXT_PUBLIC_API_URL → web/backend (8001), NEXT_PUBLIC_FIELD_API_URL → api (8000)
+npm install
+npm run dev                    # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## What's here
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Area | Routes |
+|---|---|
+| Public | `/` landing + batch-code lookup · `/batch/[code]` consumer batch history |
+| Auth | `/signin` · `/signup` (exporter / farmer) · Google via `/api/auth/callback/google` |
+| Account | `/account` (farmer / collector / admin overview) |
+| Exporter | `/exporter` overview · `profile` · `standards` (+ version editor) · `ads` (+ applicants, performance) · `farmers` · `planting-notices` (+ responses, reminders) · `stage-proofs` |
+| Admin | `/admin` · `exporters` (verification) · `ads` (moderation, reports) · `users` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Where the design differs from the spec's "current build"
 
-## Learn More
+These come straight from the spec's gap list (§9):
 
-To learn more about Next.js, take a look at the following resources:
+- Field-level validation errors are shown on the field (gap 4).
+- The standard editor authors `dos`/`don'ts` and **required proof** (photo count, descriptions, quick fields) and can **start from a template** (gaps 6, §5.3.5).
+- The company profile edits `crops_bought` and `logo_url` (gap 7).
+- Ad dates are Sri Lanka calendar days; expiry and collection end run to 23:59:59 local (gap 11).
+- Admin report review / dismiss controls exist (gap 14).
+- The farmer-link "Past" view merges declined / removed / cancelled instead of filtering a single page client-side (gap 9).
+- A wrong-role visit is redirected; an expired session returns to sign-in with an explanation.
+- The ad form uses the term fields the backend actually accepts: payment timing, rejection handling, other.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Not covered (no web API surface in the spec)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Buyer commitments and audit tools (gaps 16–17) are backend-only today. Password reset, profile editing and deactivation enforcement need backend work.

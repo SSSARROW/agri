@@ -101,3 +101,5 @@ services:
       # is known, same caveat as above.
       - key: NEXT_PUBLIC_API_URL
         value: https://agri-web-backend.onrender.com
+      - key: NEXT_PUBLIC_FIELD_API_URL
+        value: https://agri-api-6ymr.onrender.com
