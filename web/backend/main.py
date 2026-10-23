@@ -126,6 +126,7 @@ if ENABLE_NOTICE_SCHEDULER:
         stop_scheduler()
 
 @app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/health", methods=["GET", "HEAD"])
 def root():
     return {"status": "ok"}
 
