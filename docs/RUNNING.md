@@ -134,4 +134,4 @@ appear in the other.
 
 `./run.sh local` (or `run.bat local` on Windows) starts the field API, the account service and the website at
 http://localhost:3000. `./run.sh prod` runs only the website against the deployed Render backends, and
-`./run.sh phone` runs the Android app on a connected emulator/phone against the deployed backends.
+`./run.sh phone` runs the Android app against the deployed backends, and `./run.sh emu` runs it on the emulator against local backends.
